@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:portal.diamondgroup.com.tw)",
+      "Bash(dotnet --version)",
+      "Bash(dotnet:*)",
+      "Bash(taskkill //F //IM dotnet.exe)",
+      "Bash(npm run:*)",
+      "Bash(npx tsc:*)",
+      "Bash(echo \"Exit: $?\")",
+      "Bash(netstat -ano)",
+      "Bash(curl:*)",
+      "Bash(python -m json.tool)",
+      "Bash(python -c \"import sys,json;d=json.load\\(sys.stdin\\);[print\\(f''''id={i[id]} acked={i[isAcknowledged]}''''\\) for i in d[''''items'''']]\")",
+      "Bash(kill 1981)",
+      "Bash(wmic process:*)",
+      "Bash(xargs kill:*)"
+    ]
+  }
+}

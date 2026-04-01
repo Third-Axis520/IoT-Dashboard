@@ -1,0 +1,5 @@
+{
+  "name": "IoT Dashboard",
+  "description": "A high-fidelity IIoT process control dashboard featuring industrial dark mode and glassmorphism aesthetics.",
+  "requestFramePermissions": []
+}
