@@ -57,3 +57,39 @@ export interface ProductionLine {
   name: string;
   equipments: Equipment[];
 }
+
+// ── PLC Template Types ────────────────────────────────────────────────────────
+
+export interface PlcZoneDefinition {
+  id: number;
+  zoneIndex: number;
+  zoneName: string;
+  assetCodeRegStart: number;
+  assetCodeRegCount: number;
+}
+
+export interface PlcRegisterDefinition {
+  id: number;
+  registerAddress: number;
+  defaultLabel: string;
+  defaultUnit: string;
+  defaultZoneIndex: number | null;
+}
+
+export interface PlcTemplate {
+  id: number;
+  modelName: string;
+  description: string | null;
+  createdAt: string;
+  zones: PlcZoneDefinition[];
+  registers: PlcRegisterDefinition[];
+}
+
+export interface PlcTemplateSummary {
+  id: number;
+  modelName: string;
+  description: string | null;
+  createdAt: string;
+  zoneCount: number;
+  registerCount: number;
+}

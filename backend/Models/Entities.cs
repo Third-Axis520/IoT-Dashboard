@@ -18,6 +18,9 @@ public class SensorReading
 
     public bool HasError { get; set; }
 
+    /// <summary>記錄當下 40013 鞋子在位狀態；true = 有料，false = 無料（空機）</summary>
+    public bool HasMaterial { get; set; } = true;
+
     public DateTime Timestamp { get; set; }
 }
 
@@ -97,6 +100,92 @@ public class Device
     public DateTime FirstSeen { get; set; }
 
     public DateTime LastSeen { get; set; }
+}
+
+// 暫存器對應基本檔（每條前端產線一份）
+public class RegisterMapProfile
+{
+    [Key]
+    public int Id { get; set; }
+
+    /// <summary>對應前端 ProductionLine.id（字串 key，例: "line_live"）</summary>
+    [Required, MaxLength(100)]
+    public string LineId { get; set; } = "";
+
+    [MaxLength(100)]
+    public string ProfileName { get; set; } = "";
+
+    public DateTime UpdatedAt { get; set; }
+
+    public List<RegisterMapEntry> Entries { get; set; } = [];
+
+    public int? PlcTemplateId { get; set; }
+    public PlcTemplate? PlcTemplate { get; set; }
+}
+
+// PLC 型號範本（全域共用）
+public class PlcTemplate
+{
+    [Key] public int Id { get; set; }
+    [Required, MaxLength(100)] public string ModelName { get; set; } = "";
+    [MaxLength(300)] public string? Description { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public List<PlcZoneDefinition> Zones { get; set; } = [];
+    public List<PlcRegisterDefinition> Registers { get; set; } = [];
+}
+
+// Zone 定義：這款 PLC 的第 N 個 Zone，資產編號藏在哪段暫存器
+public class PlcZoneDefinition
+{
+    [Key] public int Id { get; set; }
+    public int TemplateId { get; set; }
+    public PlcTemplate Template { get; set; } = null!;
+    public int ZoneIndex { get; set; }
+    [MaxLength(50)] public string ZoneName { get; set; } = "";
+    public int AssetCodeRegStart { get; set; }   // 起始地址（十進位）
+    public int AssetCodeRegCount { get; set; }   // 幾個暫存器存資產編號
+}
+
+// 暫存器定義：這款 PLC 的某個暫存器地址，預設是什麼用途
+public class PlcRegisterDefinition
+{
+    [Key] public int Id { get; set; }
+    public int TemplateId { get; set; }
+    public PlcTemplate Template { get; set; } = null!;
+    public int RegisterAddress { get; set; }     // 十進位地址
+    [MaxLength(100)] public string DefaultLabel { get; set; } = "";
+    [MaxLength(10)] public string DefaultUnit { get; set; } = "℃";
+    public int? DefaultZoneIndex { get; set; }
+}
+
+// 暫存器對應明細（一列 = 一個暫存器地址 → 某 Zone 的某 Equipment/Point）
+public class RegisterMapEntry
+{
+    [Key]
+    public int Id { get; set; }
+
+    public int ProfileId { get; set; }
+    public RegisterMapProfile Profile { get; set; } = null!;
+
+    /// <summary>Zone 索引 0~3，對應資產編號暫存器群組</summary>
+    public int ZoneIndex { get; set; }
+
+    /// <summary>溫度暫存器地址，十進位（1~15 對應 0x0001~0x000F）</summary>
+    public int RegisterAddress { get; set; }
+
+    /// <summary>對應前端 Equipment.id</summary>
+    [MaxLength(100)]
+    public string EquipmentId { get; set; } = "";
+
+    /// <summary>對應前端 Point.id</summary>
+    [MaxLength(100)]
+    public string PointId { get; set; } = "";
+
+    [MaxLength(100)]
+    public string Label { get; set; } = "";
+
+    [MaxLength(10)]
+    public string Unit { get; set; } = "℃";
 }
 
 // FAS 資產資訊快取
