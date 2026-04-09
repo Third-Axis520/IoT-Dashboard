@@ -2,6 +2,8 @@ using IoT.CentralApi.Data;
 using IoT.CentralApi.Services;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -30,6 +32,21 @@ builder.Services.AddRateLimiter(options =>
     });
     options.RejectionStatusCode = 429;
 });
+
+// ── OpenTelemetry 監控（開發：Console；生產可換 OTLP exporter）─────────────
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tracing => tracing
+        .AddAspNetCoreInstrumentation(opts =>
+        {
+            opts.RecordException = true;
+            opts.Filter = ctx =>
+                !ctx.Request.Path.StartsWithSegments("/openapi") &&
+                !ctx.Request.Path.StartsWithSegments("/swagger");
+        })
+        .AddConsoleExporter())
+    .WithMetrics(metrics => metrics
+        .AddAspNetCoreInstrumentation()
+        .AddConsoleExporter());
 
 // ── OpenAPI / Swagger ───────────────────────────────────────────────────────
 builder.Services.AddOpenApi();
