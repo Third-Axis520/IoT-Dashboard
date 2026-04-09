@@ -190,6 +190,19 @@ using (var scope = app.Services.CreateScope())
         END
         """);
 
+    // SensorReadings HasMaterial + AssetCode 複合索引（查詢有料歷史用）
+    await ctx.Database.ExecuteSqlRawAsync("""
+        IF NOT EXISTS (
+            SELECT 1 FROM sys.indexes
+            WHERE object_id = OBJECT_ID('dbo.SensorReadings')
+              AND name = 'IX_SensorReadings_AssetCode_HasMaterial_Timestamp'
+        )
+        BEGIN
+            CREATE INDEX [IX_SensorReadings_AssetCode_HasMaterial_Timestamp]
+                ON [dbo].[SensorReadings] ([AssetCode], [HasMaterial], [Timestamp] DESC);
+        END
+        """);
+
     // RegisterMapProfiles 加 PlcTemplateId 欄位（舊 DB 沒有時補上）
     await ctx.Database.ExecuteSqlRawAsync("""
         IF NOT EXISTS (

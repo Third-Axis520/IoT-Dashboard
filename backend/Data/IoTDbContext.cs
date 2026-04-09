@@ -10,6 +10,11 @@ public class IoTDbContext(DbContextOptions<IoTDbContext> options) : DbContext(op
     public DbSet<SensorLimit> SensorLimits => Set<SensorLimit>();
     public DbSet<AssetCache> AssetCaches => Set<AssetCache>();
     public DbSet<Device> Devices => Set<Device>();
+    public DbSet<RegisterMapProfile> RegisterMapProfiles => Set<RegisterMapProfile>();
+    public DbSet<RegisterMapEntry> RegisterMapEntries => Set<RegisterMapEntry>();
+    public DbSet<PlcTemplate> PlcTemplates => Set<PlcTemplate>();
+    public DbSet<PlcZoneDefinition> PlcZoneDefinitions => Set<PlcZoneDefinition>();
+    public DbSet<PlcRegisterDefinition> PlcRegisterDefinitions => Set<PlcRegisterDefinition>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -29,5 +34,32 @@ public class IoTDbContext(DbContextOptions<IoTDbContext> options) : DbContext(op
         modelBuilder.Entity<Device>()
             .HasIndex(d => d.SerialNumber)
             .IsUnique();
+
+        // RegisterMapProfile：LineId 唯一索引
+        modelBuilder.Entity<RegisterMapProfile>()
+            .HasIndex(p => p.LineId)
+            .IsUnique();
+
+        // RegisterMapEntry：一份 Profile 內，同一地址不重複
+        modelBuilder.Entity<RegisterMapEntry>()
+            .HasIndex(e => new { e.ProfileId, e.RegisterAddress })
+            .IsUnique();
+
+        // PlcZoneDefinition：同一 Template 內 ZoneIndex 唯一
+        modelBuilder.Entity<PlcZoneDefinition>()
+            .HasIndex(z => new { z.TemplateId, z.ZoneIndex })
+            .IsUnique();
+
+        // PlcRegisterDefinition：同一 Template 內 RegisterAddress 唯一
+        modelBuilder.Entity<PlcRegisterDefinition>()
+            .HasIndex(r => new { r.TemplateId, r.RegisterAddress })
+            .IsUnique();
+
+        // RegisterMapProfile → PlcTemplate（nullable FK，刪除 Template 時 SetNull）
+        modelBuilder.Entity<RegisterMapProfile>()
+            .HasOne(p => p.PlcTemplate)
+            .WithMany()
+            .HasForeignKey(p => p.PlcTemplateId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }
