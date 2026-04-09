@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { Trash2, Plus, ChevronDown, X, Layers, Database, LayoutDashboard, Activity, Maximize, Minimize, Search, Sun, Moon, Check, Play, Pause, Lock, Unlock, Cpu, SlidersHorizontal, Settings } from 'lucide-react';
+import { Trash2, Plus, ChevronDown, X, Layers, Database, LayoutDashboard, Activity, Maximize, Minimize, Search, Sun, Moon, Check, Play, Pause, Lock, Unlock, Cpu, SlidersHorizontal, Settings, Network, FileCode2 } from 'lucide-react';
 
 import type { Equipment, MachineTemplate, PointStatus, ProductionLine } from './types';
 import { cn } from './utils/cn';
@@ -22,6 +22,8 @@ import { DeviceManagementModal } from './components/modals/DeviceManagementModal
 import { LimitsSettingsModal } from './components/modals/LimitsSettingsModal';
 import { DrillDownModal } from './components/modals/DrillDownModal';
 import { SensorMappingModal } from './components/modals/SensorMappingModal';
+import { RegisterMapModal } from './components/modals/RegisterMapModal';
+import { PlcTemplateModal } from './components/modals/PlcTemplateModal';
 import { TempTrendsView } from './components/panels/TempTrendsView';
 import { useDevices } from './hooks/useDevices';
 
@@ -96,6 +98,8 @@ export default function App() {
   const [showDefCenter, setShowDefCenter] = useState(false);
   const [showDeviceMgmt, setShowDeviceMgmt] = useState(false);
   const [showLimits, setShowLimits] = useState(false);
+  const [showRegisterMap, setShowRegisterMap] = useState(false);
+  const [showPlcTemplates, setShowPlcTemplates] = useState(false);
   const [drillDownEq, setDrillDownEq] = useState<Equipment | null>(null);
   const [sensorMappingEq, setSensorMappingEq] = useState<Equipment | null>(null);
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
@@ -117,11 +121,29 @@ export default function App() {
   }, [alerts]);
 
   // Persist data structure (debounced 2s to avoid flooding on SSE ticks)
+  const bcRef = useRef<BroadcastChannel | null>(null);
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    bcRef.current = new BroadcastChannel('iot-dashboard-sync');
+    bcRef.current.onmessage = (evt) => {
+      if (evt.data?.type === 'DATA_UPDATED') {
+        try {
+          const stored = localStorage.getItem(DATA_STORAGE_KEY);
+          if (stored) setData(migrateStoredData(JSON.parse(stored)));
+        } catch { /* ignore */ }
+      }
+    };
+    return () => bcRef.current?.close();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
     persistTimerRef.current = setTimeout(() => {
-      try { localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify(serializeForStorage(data))); } catch { /* quota */ }
+      try {
+        localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify(serializeForStorage(data)));
+        bcRef.current?.postMessage({ type: 'DATA_UPDATED' });
+      } catch { /* quota */ }
     }, 2000);
     return () => { if (persistTimerRef.current) clearTimeout(persistTimerRef.current); };
   }, [data]);
@@ -338,6 +360,15 @@ export default function App() {
     return { totalPoints: total, alarmCount: alarms };
   }, [activeLine]);
 
+  const { shoePresent, shoeTotal } = useMemo(() => {
+    let present = 0, total = 0;
+    activeLine.equipments.forEach(eq => {
+      const v = latestRawSensors.get(eq.deviceId)?.get(40013);
+      if (v !== undefined) { total++; if (v === 1) present++; }
+    });
+    return { shoePresent: present, shoeTotal: total };
+  }, [activeLine, latestRawSensors]);
+
   // Equipments bound to the current assetCode (for LimitsSettingsModal)
   const boundEquipments = useMemo(() =>
     assetCode ? data.flatMap(l => l.equipments).filter(eq => eq.deviceId === assetCode) : []
@@ -443,6 +474,38 @@ export default function App() {
               <div className={cn("w-1.5 h-1.5 rounded-full", alarmCount > 0 ? "bg-[var(--accent-red)] animate-pulse" : "bg-[var(--accent-green)]")} />
               <span className={cn("font-mono font-bold", alarmCount > 0 ? "text-[var(--accent-red)]" : "text-[var(--accent-green)]")}>{alarmCount}</span>
             </div>
+            {shoeTotal > 0 && (
+              <>
+                <div className="w-px h-3 bg-[var(--border-base)]" />
+                <div
+                  className="flex items-center gap-1.5"
+                  title={`鞋子在位：${shoePresent}/${shoeTotal} 台`}
+                >
+                  <span className="text-[var(--text-muted)] tracking-widest">
+                    {activeLine.equipments.map(eq => {
+                      const v = latestRawSensors.get(eq.deviceId)?.get(40013);
+                      if (v === undefined) return null;
+                      return (
+                        <span
+                          key={eq.id}
+                          className={cn(
+                            "inline-block w-1.5 h-1.5 rounded-full mx-[1px]",
+                            v === 1 ? "bg-[var(--accent-green)]" : "bg-[var(--accent-red)] animate-pulse"
+                          )}
+                        />
+                      );
+                    })}
+                  </span>
+                  <span className={cn(
+                    "font-mono font-bold",
+                    shoePresent < shoeTotal ? "text-[var(--accent-red)]" : "text-[var(--accent-green)]"
+                  )}>
+                    {shoePresent}/{shoeTotal}
+                  </span>
+                  <span className="text-[var(--text-muted)]">在位</span>
+                </div>
+              </>
+            )}
             <div className="w-px h-3 bg-[var(--border-base)]" />
             <ConnectionStatusBadge status={connStatus} error={connError} />
           </div>
@@ -497,6 +560,24 @@ export default function App() {
             aria-label="限值設定"
           >
             <SlidersHorizontal className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={() => setShowRegisterMap(true)}
+            className="flex items-center justify-center w-8 h-8 text-[var(--text-muted)] hover:text-[var(--accent-blue)] hover:bg-[var(--accent-blue)]/10 rounded-md transition-colors"
+            title="暫存器對應設定"
+            aria-label="暫存器對應設定"
+          >
+            <Network className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={() => setShowPlcTemplates(true)}
+            className="flex items-center justify-center w-8 h-8 text-[var(--text-muted)] hover:text-[var(--accent-blue)] hover:bg-[var(--accent-blue)]/10 rounded-md transition-colors"
+            title="PLC 型號管理"
+            aria-label="PLC 型號管理"
+          >
+            <FileCode2 className="w-4 h-4" />
           </button>
 
           <div className="w-px h-4 bg-[var(--border-base)]" />
@@ -641,6 +722,9 @@ export default function App() {
               const hasWarning = eq.points.some(p => p.status === 'warning');
               const eqStatus = hasDanger ? 'danger' : hasWarning ? 'warning' : 'normal';
 
+              const shoeRaw = latestRawSensors.get(eq.deviceId)?.get(40013);
+              const shoeStatus = shoeRaw === 1 ? 'present' : shoeRaw === 0 ? 'absent' : null;
+
               return (
                 <div
                   key={eq.id}
@@ -652,7 +736,8 @@ export default function App() {
                   className={cn(
                     "flex flex-col glass-card rounded-xl overflow-hidden transition-all duration-300 group cursor-pointer h-full w-full relative",
                     eqStatus === 'danger' ? "danger-gradient-border" : "border-[var(--border-base)] hover:border-[var(--accent-green)]/50",
-                    draggedEqIndex === index ? "opacity-50 scale-95" : ""
+                    draggedEqIndex === index ? "opacity-50 scale-95" : "",
+                    shoeStatus === 'absent' ? "opacity-60 grayscale-[30%]" : ""
                   )}
                   onClick={() => setDrillDownEq(eq)}
                 >
@@ -698,6 +783,23 @@ export default function App() {
                         </>
                       )}
                     </div>
+                    {shoeStatus !== null && (
+                      <span
+                        className={cn(
+                          "flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded border",
+                          shoeStatus === 'present'
+                            ? "border-[#00FF66]/30 bg-[#00FF66]/10 text-[#00FF66]"
+                            : "border-[var(--accent-red)]/40 bg-[var(--accent-red)]/10 text-[var(--accent-red)]"
+                        )}
+                        title={shoeStatus === 'present' ? '鞋子在位 (40013=1)' : '鞋子缺位 (40013=0)'}
+                      >
+                        <span className={cn(
+                          "w-1.5 h-1.5 rounded-full",
+                          shoeStatus === 'present' ? "bg-[#00FF66]" : "bg-[var(--accent-red)] animate-pulse"
+                        )} />
+                        {shoeStatus === 'present' ? '有鞋' : '無鞋'}
+                      </span>
+                    )}
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       {/* Sensor mapping button — always available on hover */}
                       <button
@@ -783,6 +885,15 @@ export default function App() {
           latestRawSensors={latestRawSensors}
           onClose={() => setSensorMappingEq(null)}
           onSave={handleSaveSensorMapping}
+        />
+      )}
+      {showPlcTemplates && (
+        <PlcTemplateModal onClose={() => setShowPlcTemplates(false)} />
+      )}
+      {showRegisterMap && (
+        <RegisterMapModal
+          line={activeLine}
+          onClose={() => setShowRegisterMap(false)}
         />
       )}
     </div>

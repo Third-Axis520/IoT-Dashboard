@@ -34,23 +34,13 @@ public class SseHub
         var json = JsonSerializer.Serialize(payload, _jsonOptions);
         var message = $"event: data-update\ndata: {json}\n\n";
 
-        var deadConnections = new List<string>();
+        var tasks = _connections.Select(kv =>
+            WriteToConnectionAsync(kv.Key, kv.Value, message, ct));
 
-        foreach (var (id, response) in _connections)
-        {
-            try
-            {
-                await response.WriteAsync(message, ct);
-                await response.Body.FlushAsync(ct);
-            }
-            catch
-            {
-                deadConnections.Add(id);
-            }
-        }
+        var results = await Task.WhenAll(tasks);
 
-        foreach (var id in deadConnections)
-            _connections.TryRemove(id, out _);
+        foreach (var deadId in results.Where(id => id != null))
+            _connections.TryRemove(deadId!, out _);
     }
 
     /// <summary>傳送 heartbeat 給所有已連線的 Dashboard。</summary>
@@ -59,22 +49,32 @@ public class SseHub
         if (_connections.IsEmpty) return;
 
         const string message = "event: heartbeat\ndata: {}\n\n";
-        var deadConnections = new List<string>();
 
-        foreach (var (id, response) in _connections)
+        var tasks = _connections.Select(kv =>
+            WriteToConnectionAsync(kv.Key, kv.Value, message, ct));
+
+        var results = await Task.WhenAll(tasks);
+
+        foreach (var deadId in results.Where(id => id != null))
+            _connections.TryRemove(deadId!, out _);
+    }
+
+    /// <summary>向單一連線寫入訊息，5 秒 timeout，失敗時回傳 connectionId 供移除。</summary>
+    private static async Task<string?> WriteToConnectionAsync(
+        string id, HttpResponse response, string message, CancellationToken ct)
+    {
+        try
         {
-            try
-            {
-                await response.WriteAsync(message, ct);
-                await response.Body.FlushAsync(ct);
-            }
-            catch
-            {
-                deadConnections.Add(id);
-            }
-        }
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(TimeSpan.FromSeconds(5));
 
-        foreach (var id in deadConnections)
-            _connections.TryRemove(id, out _);
+            await response.WriteAsync(message, cts.Token);
+            await response.Body.FlushAsync(cts.Token);
+            return null;
+        }
+        catch
+        {
+            return id;
+        }
     }
 }

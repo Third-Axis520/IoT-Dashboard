@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using IoT.CentralApi.Data;
 using IoT.CentralApi.Models;
 using Microsoft.EntityFrameworkCore;
@@ -21,7 +22,7 @@ public class DataIngestionService(
     ILogger<DataIngestionService> logger)
 {
     // 記錄每個 (AssetCode, SensorId) 的上一次 status，避免重複產生告警
-    private readonly Dictionary<(string, int), string> _lastStatus = [];
+    private readonly ConcurrentDictionary<(string, int), string> _lastStatus = new();
     private readonly SemaphoreSlim _lock = new(1, 1);
 
     public async Task ProcessAsync(IngestPayload payload)
@@ -68,22 +69,32 @@ public class DataIngestionService(
                 .Where(l => l.AssetCode == assetCode)
                 .ToDictionaryAsync(l => l.SensorId);
 
-            // 4. 寫入時序讀值
-            var readings = payload.Sensors.Select(s => new SensorReading
-            {
-                AssetCode = assetCode,
-                SensorId = s.Id,
-                Value = s.Value,
-                HasError = s.Error != null,
-                Timestamp = now
-            }).ToList();
+            // 3b. 判斷鞋子在位（40013）；無此感測器時預設有料
+            var shoeSensor = payload.Sensors.FirstOrDefault(s => s.Id == 40013);
+            bool? hasMaterialNullable = shoeSensor != null ? shoeSensor.Value == 1 : null;
+            bool hasMaterial = hasMaterialNullable ?? true;
+
+            // 4. 寫入時序讀值（40013 為狀態位元，不寫入溫度表）
+            var readings = payload.Sensors
+                .Where(s => s.Id != 40013)
+                .Select(s => new SensorReading
+                {
+                    AssetCode = assetCode,
+                    SensorId = s.Id,
+                    Value = s.Value,
+                    HasError = s.Error != null,
+                    HasMaterial = hasMaterial,
+                    Timestamp = now
+                }).ToList();
 
             db.SensorReadings.AddRange(readings);
 
-            // 5. 告警判斷
+            // 5. 告警判斷（無料時跳過，避免空機假警報）
             var newAlerts = new List<SensorAlert>();
             foreach (var sensor in payload.Sensors)
             {
+                if (sensor.Id == 40013) continue;          // 狀態位元，不判限值
+                if (!hasMaterial) continue;                 // 無料：跳過所有告警
                 if (!limits.TryGetValue(sensor.Id, out var limit)) continue;
                 if (sensor.Error != null) continue;
 
@@ -161,6 +172,7 @@ public class DataIngestionService(
                     AssetName = assetInfo?.AssetName ?? assetInfo?.NickName,
                     Timestamp = payload.Timestamp,
                     IsConnected = payload.IsConnected,
+                    HasMaterial = hasMaterialNullable,
                     Sensors = payload.Sensors.Select(s =>
                     {
                         limits.TryGetValue(s.Id, out var lim);
