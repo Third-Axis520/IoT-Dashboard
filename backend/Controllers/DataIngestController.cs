@@ -1,6 +1,7 @@
 using IoT.CentralApi.Models;
 using IoT.CentralApi.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace IoT.CentralApi.Controllers;
 
@@ -11,6 +12,7 @@ public class DataIngestController(DataIngestionService ingestionService) : Contr
     /// <summary>
     /// 接收 OvenDataReceive 推送的感測器資料。
     /// </summary>
+    [EnableRateLimiting("ingest")]
     [HttpPost("ingest")]
     public async Task<IActionResult> Ingest([FromBody] IngestPayload payload)
     {
