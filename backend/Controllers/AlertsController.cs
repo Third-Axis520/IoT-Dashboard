@@ -18,7 +18,8 @@ public class AlertsController(IDbContextFactory<IoTDbContext> dbFactory) : Contr
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50)
     {
-        var utcFrom = from?.ToUniversalTime() ?? DateTime.UtcNow.AddHours(-24);
+        pageSize = Math.Clamp(pageSize, 1, 200);
+        var utcFrom = from?.ToUniversalTime() ?? DateTime.UtcNow.AddHours(-1);
         var utcTo = to?.ToUniversalTime() ?? DateTime.UtcNow;
 
         await using var db = await dbFactory.CreateDbContextAsync();

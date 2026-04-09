@@ -1,5 +1,6 @@
 using IoT.CentralApi.Data;
 using IoT.CentralApi.Models;
+using IoT.CentralApi.Utilities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,6 +22,7 @@ public class HistoryController(IDbContextFactory<IoTDbContext> dbFactory) : Cont
         [FromQuery] DateTime? to,
         [FromQuery] int maxPoints = 300)
     {
+        maxPoints = Math.Clamp(maxPoints, 10, 1000);
         var utcFrom = from?.ToUniversalTime() ?? DateTime.UtcNow.AddHours(-1);
         var utcTo = to?.ToUniversalTime() ?? DateTime.UtcNow;
 
@@ -37,30 +39,26 @@ public class HistoryController(IDbContextFactory<IoTDbContext> dbFactory) : Cont
             .Select(r => new { r.SensorId, r.Value, r.Timestamp })
             .ToListAsync();
 
-        // 依 SensorId 分組，各自降採樣
+        // 依 SensorId 分組，各自用 LTTB 降採樣（保留波峰/波谷）
         var result = rawData
             .GroupBy(r => r.SensorId)
             .ToDictionary(
                 g => g.Key,
                 g =>
                 {
-                    var items = g.ToList();
-                    if (items.Count <= maxPoints)
-                        return items.Select(r => new HistoryPoint
-                        {
-                            Time = new DateTimeOffset(r.Timestamp, TimeSpan.Zero).ToUnixTimeMilliseconds(),
-                            Value = r.Value
-                        }).ToList();
+                    var items = g
+                        .Select(r => (
+                            Time: new DateTimeOffset(r.Timestamp, TimeSpan.Zero).ToUnixTimeMilliseconds(),
+                            r.Value))
+                        .ToList();
 
-                    // 等間距降採樣
-                    var step = items.Count / maxPoints;
-                    return items
-                        .Where((_, i) => i % step == 0)
-                        .Select(r => new HistoryPoint
-                        {
-                            Time = new DateTimeOffset(r.Timestamp, TimeSpan.Zero).ToUnixTimeMilliseconds(),
-                            Value = r.Value
-                        }).ToList();
+                    var sampled = LttbSampler.Sample(items, maxPoints);
+
+                    return sampled.Select(p => new HistoryPoint
+                    {
+                        Time  = p.Time,
+                        Value = p.Value
+                    }).ToList();
                 });
 
         return Ok(result);
