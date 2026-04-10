@@ -24,6 +24,8 @@ public class DataIngestionService(
     // 記錄每個 (AssetCode, SensorId) 的上一次 status，避免重複產生告警
     private readonly ConcurrentDictionary<(string, int), string> _lastStatus = new();
     private readonly SemaphoreSlim _lock = new(1, 1);
+    // Cache: assetCode → material-detect SensorId（null = 無此感測器）
+    private readonly ConcurrentDictionary<string, int?> _materialDetectCache = new();
 
     public async Task ProcessAsync(IngestPayload payload)
     {
@@ -69,14 +71,17 @@ public class DataIngestionService(
                 .Where(l => l.AssetCode == assetCode)
                 .ToDictionaryAsync(l => l.SensorId);
 
-            // 3b. 判斷鞋子在位（40013）；無此感測器時預設有料
-            var shoeSensor = payload.Sensors.FirstOrDefault(s => s.Id == 40013);
+            // 3b. 動態找 material_detect 感測器；無時預設有料
+            var matSensorId = await GetMaterialDetectSensorIdAsync(assetCode, db);
+            var shoeSensor = matSensorId.HasValue
+                ? payload.Sensors.FirstOrDefault(s => s.Id == matSensorId.Value)
+                : null;
             bool? hasMaterialNullable = shoeSensor != null ? shoeSensor.Value == 1 : null;
             bool hasMaterial = hasMaterialNullable ?? true;
 
-            // 4. 寫入時序讀值（40013 為狀態位元，不寫入溫度表）
+            // 4. 寫入時序讀值（material_detect 感測器為狀態位元，不寫入溫度表）
             var readings = payload.Sensors
-                .Where(s => s.Id != 40013)
+                .Where(s => !matSensorId.HasValue || s.Id != matSensorId.Value)
                 .Select(s => new SensorReading
                 {
                     AssetCode = assetCode,
@@ -93,7 +98,7 @@ public class DataIngestionService(
             var newAlerts = new List<SensorAlert>();
             foreach (var sensor in payload.Sensors)
             {
-                if (sensor.Id == 40013) continue;          // 狀態位元，不判限值
+                if (matSensorId.HasValue && sensor.Id == matSensorId.Value) continue; // 狀態位元，不判限值
                 if (!hasMaterial) continue;                 // 無料：跳過所有告警
                 if (!limits.TryGetValue(sensor.Id, out var limit)) continue;
                 if (sensor.Error != null) continue;
@@ -197,5 +202,21 @@ public class DataIngestionService(
         {
             _lock.Release();
         }
+    }
+
+    private async Task<int?> GetMaterialDetectSensorIdAsync(string assetCode, IoT.CentralApi.Data.IoTDbContext db)
+    {
+        if (_materialDetectCache.TryGetValue(assetCode, out var cached))
+            return cached;
+
+        var sensorId = await db.LineEquipments
+            .Where(le => le.AssetCode == assetCode)
+            .SelectMany(le => le.EquipmentType.Sensors)
+            .Where(s => s.Role == "material_detect")
+            .Select(s => (int?)s.SensorId)
+            .FirstOrDefaultAsync();
+
+        _materialDetectCache[assetCode] = sensorId;
+        return sensorId;
     }
 }

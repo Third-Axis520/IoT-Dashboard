@@ -15,6 +15,10 @@ public class IoTDbContext(DbContextOptions<IoTDbContext> options) : DbContext(op
     public DbSet<PlcTemplate> PlcTemplates => Set<PlcTemplate>();
     public DbSet<PlcZoneDefinition> PlcZoneDefinitions => Set<PlcZoneDefinition>();
     public DbSet<PlcRegisterDefinition> PlcRegisterDefinitions => Set<PlcRegisterDefinition>();
+    public DbSet<EquipmentType>       EquipmentTypes       => Set<EquipmentType>();
+    public DbSet<EquipmentTypeSensor> EquipmentTypeSensors => Set<EquipmentTypeSensor>();
+    public DbSet<LineConfig>          LineConfigs          => Set<LineConfig>();
+    public DbSet<LineEquipment>       LineEquipments       => Set<LineEquipment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -61,5 +65,33 @@ public class IoTDbContext(DbContextOptions<IoTDbContext> options) : DbContext(op
             .WithMany()
             .HasForeignKey(p => p.PlcTemplateId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        // ── EquipmentType ─────────────────────────────────────────────────────
+        modelBuilder.Entity<EquipmentTypeSensor>()
+            .HasIndex(s => new { s.EquipmentTypeId, s.SensorId })
+            .IsUnique();
+
+        modelBuilder.Entity<EquipmentTypeSensor>()
+            .HasOne(s => s.EquipmentType)
+            .WithMany(et => et.Sensors)
+            .HasForeignKey(s => s.EquipmentTypeId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // ── LineConfig ────────────────────────────────────────────────────────
+        modelBuilder.Entity<LineConfig>()
+            .HasIndex(lc => lc.LineId)
+            .IsUnique();
+
+        modelBuilder.Entity<LineEquipment>()
+            .HasOne(le => le.LineConfig)
+            .WithMany(lc => lc.Equipments)
+            .HasForeignKey(le => le.LineConfigId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<LineEquipment>()
+            .HasOne(le => le.EquipmentType)
+            .WithMany(et => et.LineEquipments)
+            .HasForeignKey(le => le.EquipmentTypeId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

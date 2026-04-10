@@ -5,8 +5,14 @@ import type { Equipment, MachineTemplate, PointStatus, ProductionLine } from './
 import { cn } from './utils/cn';
 import { createEquipmentFromTemplate } from './utils/simulation';
 import { getGridStyle } from './utils/grid';
-import { INITIAL_TEMPLATES, INITIAL_LINES } from './constants/templates';
-import { POINT_TO_SENSOR } from './constants/sensorConfig';
+import {
+  fetchEquipmentTypes,
+  fetchLineConfigs,
+  apiTypeToTemplate,
+  apiLineConfigToProductionLine,
+  saveLineConfig,
+} from './lib/apiLineConfig';
+import type { ApiLineConfig } from './types';
 import { useLiveData } from './hooks/useLiveData';
 import { ConnectionStatusBadge } from './components/ui/ConnectionStatusBadge';
 
@@ -28,67 +34,18 @@ import { TempTrendsView } from './components/panels/TempTrendsView';
 import { useDevices } from './hooks/useDevices';
 
 const ALERTS_STORAGE_KEY = 'iot-dashboard-alerts';
-const DATA_STORAGE_KEY = 'iot-dashboard-data-v2';
-
-/** 載入時：補齊 sensorId（舊資料 migration），live point 重置為 offline */
-function migrateStoredData(lines: ProductionLine[]): ProductionLine[] {
-  return lines.map(line => ({
-    ...line,
-    equipments: line.equipments.map(eq => ({
-      ...eq,
-      points: eq.points.map(p => {
-        const sensorId = p.sensorId ?? POINT_TO_SENSOR[p.id];
-        if (sensorId !== undefined) {
-          return { ...p, sensorId, value: 0, status: 'offline' as PointStatus, history: [] };
-        }
-        return { ...p, sensorId: undefined };
-      }),
-    })),
-  }));
-}
-
-/** 儲存前：剝除 live point 的即時資料，只保留結構與設定 */
-function serializeForStorage(lines: ProductionLine[]): ProductionLine[] {
-  return lines.map(line => ({
-    ...line,
-    equipments: line.equipments.map(eq => ({
-      ...eq,
-      points: eq.points.map(p =>
-        p.sensorId !== undefined
-          ? { ...p, value: 0, status: 'offline' as PointStatus, history: [] }
-          : { ...p, history: [] }
-      ),
-    })),
-  }));
-}
 
 export default function App() {
-  const [templates, setTemplates] = useState<MachineTemplate[]>(INITIAL_TEMPLATES);
-  const [data, setData] = useState<ProductionLine[]>(() => {
-    try {
-      const stored = localStorage.getItem(DATA_STORAGE_KEY);
-      if (stored) return migrateStoredData(JSON.parse(stored));
-    } catch { /* corrupt data */ }
-    // 全新安裝：一條空產線，等用戶自行設定
-    return [{ id: 'line_default', name: '我的產線', equipments: [] }];
-  });
+  const [templates, setTemplates] = useState<MachineTemplate[]>([]);
+  const [data, setData] = useState<ProductionLine[]>([]);
+  const [apiLineConfigs, setApiLineConfigs] = useState<ApiLineConfig[]>([]);
   const [alerts, setAlerts] = useState(() => {
     try {
       const stored = localStorage.getItem(ALERTS_STORAGE_KEY);
       return stored ? JSON.parse(stored) : [];
     } catch { return []; }
   });
-  const [activeLineId, setActiveLineId] = useState<string>(() => {
-    // 若 localStorage 有資料，從第一條線的 id 開始；否則用預設空產線
-    try {
-      const stored = localStorage.getItem(DATA_STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return parsed[0]?.id ?? 'line_default';
-      }
-    } catch { /* ignore */ }
-    return 'line_default';
-  });
+  const [activeLineId, setActiveLineId] = useState<string>('');
   const [isAddingLine, setIsAddingLine] = useState(false);
   const [newLineName, setNewLineName] = useState('');
   const [viewMode, setViewMode] = useState<'dashboard' | 'temp_trends'>('dashboard');
@@ -120,33 +77,27 @@ export default function App() {
     try { localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(alerts.slice(-200))); } catch { /* quota exceeded */ }
   }, [alerts]);
 
-  // Persist data structure (debounced 2s to avoid flooding on SSE ticks)
-  const bcRef = useRef<BroadcastChannel | null>(null);
-  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
+  // Load production line structure from API on mount
   useEffect(() => {
-    bcRef.current = new BroadcastChannel('iot-dashboard-sync');
-    bcRef.current.onmessage = (evt) => {
-      if (evt.data?.type === 'DATA_UPDATED') {
-        try {
-          const stored = localStorage.getItem(DATA_STORAGE_KEY);
-          if (stored) setData(migrateStoredData(JSON.parse(stored)));
-        } catch { /* ignore */ }
-      }
-    };
-    return () => bcRef.current?.close();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
-    persistTimerRef.current = setTimeout(() => {
+    async function loadConfig() {
       try {
-        localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify(serializeForStorage(data)));
-        bcRef.current?.postMessage({ type: 'DATA_UPDATED' });
-      } catch { /* quota */ }
-    }, 2000);
-    return () => { if (persistTimerRef.current) clearTimeout(persistTimerRef.current); };
-  }, [data]);
+        const [types, lines] = await Promise.all([
+          fetchEquipmentTypes(),
+          fetchLineConfigs(),
+        ]);
+        setTemplates(types.map(apiTypeToTemplate));
+        setApiLineConfigs(lines);
+        const productionLines = lines.map(apiLineConfigToProductionLine);
+        setData(productionLines);
+        if (productionLines.length > 0) {
+          setActiveLineId(prev => prev || productionLines[0].id);
+        }
+      } catch (err) {
+        console.error('Failed to load config from API:', err);
+      }
+    }
+    loadConfig();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const liveDrillDownEq = useMemo(() => {
     if (!drillDownEq) return null;
@@ -326,7 +277,7 @@ export default function App() {
     });
   }, [data.length, activeLineId]);
 
-  const handleAddDevice = useCallback((
+  const handleAddDevice = useCallback(async (
     tpl: MachineTemplate,
     name: string,
     deviceId: string,
@@ -334,22 +285,53 @@ export default function App() {
     pointNames: string[]
   ) => {
     const newEq = createEquipmentFromTemplate(tpl, name, deviceId, sensorMapping, pointNames);
+    // Optimistic UI update
     setData(prev => prev.map(line => line.id === activeLineId ? { ...line, equipments: [...line.equipments, newEq] } : line));
     setShowAddDevice(false);
-  }, [activeLineId]);
+    // Persist to API
+    const lineConfig = apiLineConfigs.find(lc => lc.lineId === activeLineId);
+    if (lineConfig && tpl.id) {
+      try {
+        const updated = await saveLineConfig(
+          activeLineId,
+          lineConfig.name,
+          [
+            ...lineConfig.equipments.map((le, i) => ({
+              equipmentTypeId: le.equipmentTypeId,
+              assetCode: le.assetCode,
+              displayName: le.displayName,
+              sortOrder: i,
+            })),
+            {
+              equipmentTypeId: Number(tpl.id),
+              assetCode: deviceId || null,
+              displayName: name !== tpl.name ? name : null,
+              sortOrder: lineConfig.equipments.length,
+            },
+          ]
+        );
+        setApiLineConfigs(prev => prev.map(lc => lc.lineId === activeLineId ? updated : lc));
+      } catch (err) {
+        console.error('Failed to persist equipment to API:', err);
+      }
+    }
+  }, [activeLineId, apiLineConfigs]);
 
   const handleAddTemplate = useCallback((tpl: MachineTemplate) => {
     setTemplates(prev => [...prev, tpl]);
     setShowDefCenter(false);
   }, []);
 
-  const handleLoadDemo = useCallback(() => {
-    setData(prev => prev.map(line =>
-      line.id === activeLineId
-        ? { ...line, equipments: INITIAL_LINES[0].equipments }
-        : line
-    ));
-  }, [activeLineId]);
+  const handleLoadDemo = useCallback(async () => {
+    // Reload from API to get fresh data
+    try {
+      const lines = await fetchLineConfigs();
+      setApiLineConfigs(lines);
+      setData(lines.map(apiLineConfigToProductionLine));
+    } catch (err) {
+      console.error('Failed to reload from API:', err);
+    }
+  }, []);
 
   const { totalPoints, alarmCount } = useMemo(() => {
     let total = 0, alarms = 0;
@@ -363,7 +345,9 @@ export default function App() {
   const { shoePresent, shoeTotal } = useMemo(() => {
     let present = 0, total = 0;
     activeLine.equipments.forEach(eq => {
-      const v = latestRawSensors.get(eq.deviceId)?.get(40013);
+      const matId = eq.materialDetectSensorId;
+      if (matId === undefined) return;
+      const v = latestRawSensors.get(eq.deviceId)?.get(matId);
       if (v !== undefined) { total++; if (v === 1) present++; }
     });
     return { shoePresent: present, shoeTotal: total };
@@ -483,7 +467,9 @@ export default function App() {
                 >
                   <span className="text-[var(--text-muted)] tracking-widest">
                     {activeLine.equipments.map(eq => {
-                      const v = latestRawSensors.get(eq.deviceId)?.get(40013);
+                      const v = eq.materialDetectSensorId !== undefined
+                        ? latestRawSensors.get(eq.deviceId)?.get(eq.materialDetectSensorId)
+                        : undefined;
                       if (v === undefined) return null;
                       return (
                         <span
@@ -722,7 +708,9 @@ export default function App() {
               const hasWarning = eq.points.some(p => p.status === 'warning');
               const eqStatus = hasDanger ? 'danger' : hasWarning ? 'warning' : 'normal';
 
-              const shoeRaw = latestRawSensors.get(eq.deviceId)?.get(40013);
+              const shoeRaw = eq.materialDetectSensorId !== undefined
+                ? latestRawSensors.get(eq.deviceId)?.get(eq.materialDetectSensorId)
+                : undefined;
               const shoeStatus = shoeRaw === 1 ? 'present' : shoeRaw === 0 ? 'absent' : null;
 
               return (

@@ -50,12 +50,52 @@ export interface Equipment {
   name: string;
   visType: VisType;
   points: Point[];
+  /** SensorId for "material present" detection; undefined = always treat as has-material */
+  materialDetectSensorId?: number;
 }
 
 export interface ProductionLine {
   id: string;
   name: string;
   equipments: Equipment[];
+}
+
+// ── Direction-C: API response types ──────────────────────────────────────────
+
+export interface ApiEquipmentTypeSensor {
+  id: number;
+  sensorId: number;
+  pointId: string;
+  label: string;
+  unit: string;
+  role: 'normal' | 'material_detect';
+  sortOrder: number;
+}
+
+export interface ApiEquipmentType {
+  id: number;
+  name: string;
+  visType: string;
+  description: string | null;
+  createdAt: string;
+  sensors: ApiEquipmentTypeSensor[];
+}
+
+export interface ApiLineEquipment {
+  id: number;
+  equipmentTypeId: number;
+  equipmentType: ApiEquipmentType;
+  assetCode: string | null;
+  displayName: string | null;
+  sortOrder: number;
+}
+
+export interface ApiLineConfig {
+  id: number;
+  lineId: string;
+  name: string;
+  updatedAt: string;
+  equipments: ApiLineEquipment[];
 }
 
 // ── PLC Template Types ────────────────────────────────────────────────────────

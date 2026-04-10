@@ -211,3 +211,58 @@ public class AssetCache
 
     public DateTime LastUpdated { get; set; }
 }
+
+// ── Direction-C: Dynamic Equipment System ─────────────────────────────────────
+
+/// <summary>設備類型定義（取代前端 MachineTemplate）</summary>
+public class EquipmentType
+{
+    public int Id { get; set; }
+    [Required, MaxLength(100)] public string Name { get; set; } = "";
+    /// <summary>前端 visType：single_kpi | dual_side_spark | four_rings | molding_matrix | custom_grid</summary>
+    [Required, MaxLength(50)] public string VisType { get; set; } = "single_kpi";
+    [MaxLength(300)] public string? Description { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public List<EquipmentTypeSensor> Sensors { get; set; } = [];
+    public List<LineEquipment> LineEquipments { get; set; } = [];
+}
+
+/// <summary>屬於某設備類型的感測器定義</summary>
+public class EquipmentTypeSensor
+{
+    public int Id { get; set; }
+    public int EquipmentTypeId { get; set; }
+    /// <summary>PLC 傳入的 SensorId（同 SensorReading.SensorId）</summary>
+    public int SensorId { get; set; }
+    /// <summary>前端 Point.id，如 "pt_mh_right"</summary>
+    [Required, MaxLength(100)] public string PointId { get; set; } = "";
+    [Required, MaxLength(100)] public string Label { get; set; } = "";
+    [MaxLength(10)] public string Unit { get; set; } = "℃";
+    /// <summary>"normal" 或 "material_detect"（取代硬編碼 40013）</summary>
+    [MaxLength(20)] public string Role { get; set; } = "normal";
+    public int SortOrder { get; set; }
+    public EquipmentType EquipmentType { get; set; } = null!;
+}
+
+/// <summary>產線設定（取代前端 liveLineConfig.ts）</summary>
+public class LineConfig
+{
+    public int Id { get; set; }
+    [Required, MaxLength(100)] public string LineId { get; set; } = "";
+    [Required, MaxLength(200)] public string Name { get; set; } = "";
+    public DateTime UpdatedAt { get; set; }
+    public List<LineEquipment> Equipments { get; set; } = [];
+}
+
+/// <summary>產線中的設備實例（一個 EquipmentType 綁定一個 AssetCode）</summary>
+public class LineEquipment
+{
+    public int Id { get; set; }
+    public int LineConfigId { get; set; }
+    public int EquipmentTypeId { get; set; }
+    [MaxLength(50)] public string? AssetCode { get; set; }
+    [MaxLength(200)] public string? DisplayName { get; set; }
+    public int SortOrder { get; set; }
+    public LineConfig LineConfig { get; set; } = null!;
+    public EquipmentType EquipmentType { get; set; } = null!;
+}

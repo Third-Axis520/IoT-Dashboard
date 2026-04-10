@@ -158,3 +158,14 @@ C:\Users\Keith.Lee\Diamond Groups\AI\IoT-Dashboard\backend\obj\Debug\net9.0\refi
 C:\Users\Keith.Lee\Diamond Groups\AI\IoT-Dashboard\backend\obj\Debug\net9.0\IoT.CentralApi.pdb
 C:\Users\Keith.Lee\Diamond Groups\AI\IoT-Dashboard\backend\obj\Debug\net9.0\IoT.CentralApi.genruntimeconfig.cache
 C:\Users\Keith.Lee\Diamond Groups\AI\IoT-Dashboard\backend\obj\Debug\net9.0\ref\IoT.CentralApi.dll
+C:\Users\Keith.Lee\Diamond Groups\AI\IoT-Dashboard\backend\bin\Debug\net9.0\Microsoft.OpenApi.dll
+C:\Users\Keith.Lee\Diamond Groups\AI\IoT-Dashboard\backend\bin\Debug\net9.0\Swashbuckle.AspNetCore.Swagger.dll
+C:\Users\Keith.Lee\Diamond Groups\AI\IoT-Dashboard\backend\bin\Debug\net9.0\Swashbuckle.AspNetCore.SwaggerGen.dll
+C:\Users\Keith.Lee\Diamond Groups\AI\IoT-Dashboard\backend\bin\Debug\net9.0\Swashbuckle.AspNetCore.SwaggerUI.dll
+C:\Users\Keith.Lee\Diamond Groups\AI\IoT-Dashboard\backend\obj\Debug\net9.0\IoT.CentralApi.MvcApplicationPartsAssemblyInfo.cs
+C:\Users\Keith.Lee\Diamond Groups\AI\IoT-Dashboard\backend\bin\Debug\net9.0\OpenTelemetry.dll
+C:\Users\Keith.Lee\Diamond Groups\AI\IoT-Dashboard\backend\bin\Debug\net9.0\OpenTelemetry.Api.dll
+C:\Users\Keith.Lee\Diamond Groups\AI\IoT-Dashboard\backend\bin\Debug\net9.0\OpenTelemetry.Api.ProviderBuilderExtensions.dll
+C:\Users\Keith.Lee\Diamond Groups\AI\IoT-Dashboard\backend\bin\Debug\net9.0\OpenTelemetry.Exporter.Console.dll
+C:\Users\Keith.Lee\Diamond Groups\AI\IoT-Dashboard\backend\bin\Debug\net9.0\OpenTelemetry.Extensions.Hosting.dll
+C:\Users\Keith.Lee\Diamond Groups\AI\IoT-Dashboard\backend\bin\Debug\net9.0\OpenTelemetry.Instrumentation.AspNetCore.dll

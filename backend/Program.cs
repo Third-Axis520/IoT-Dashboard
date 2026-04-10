@@ -49,7 +49,7 @@ builder.Services.AddOpenTelemetry()
         .AddConsoleExporter());
 
 // ── OpenAPI / Swagger ───────────────────────────────────────────────────────
-builder.Services.AddOpenApi();
+builder.Services.AddSwaggerGen();
 
 // ── Entity Framework Core + SQL Server ────────────────────────────────────
 var connStr = builder.Configuration.GetConnectionString("DefaultConnection")
@@ -237,14 +237,84 @@ using (var scope = app.Services.CreateScope())
                 ON [dbo].[RegisterMapProfiles] ([PlcTemplateId]);
         END
         """);
+
+    // ── EquipmentTypes（Direction-C 動態設備系統）────────────────────────────
+    await ctx.Database.ExecuteSqlRawAsync("""
+        IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'EquipmentTypes' AND schema_id = SCHEMA_ID('dbo'))
+        BEGIN
+            CREATE TABLE [dbo].[EquipmentTypes] (
+                [Id]          INT            IDENTITY(1,1) NOT NULL,
+                [Name]        NVARCHAR(100)  NOT NULL,
+                [VisType]     NVARCHAR(50)   NOT NULL,
+                [Description] NVARCHAR(300)  NULL,
+                [CreatedAt]   DATETIME2      NOT NULL,
+                CONSTRAINT [PK_EquipmentTypes] PRIMARY KEY ([Id])
+            );
+        END
+        """);
+
+    await ctx.Database.ExecuteSqlRawAsync("""
+        IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'EquipmentTypeSensors' AND schema_id = SCHEMA_ID('dbo'))
+        BEGIN
+            CREATE TABLE [dbo].[EquipmentTypeSensors] (
+                [Id]              INT           IDENTITY(1,1) NOT NULL,
+                [EquipmentTypeId] INT           NOT NULL,
+                [SensorId]        INT           NOT NULL,
+                [PointId]         NVARCHAR(100) NOT NULL,
+                [Label]           NVARCHAR(100) NOT NULL,
+                [Unit]            NVARCHAR(10)  NOT NULL DEFAULT N'℃',
+                [Role]            NVARCHAR(20)  NOT NULL DEFAULT N'normal',
+                [SortOrder]       INT           NOT NULL DEFAULT 0,
+                CONSTRAINT [PK_EquipmentTypeSensors] PRIMARY KEY ([Id]),
+                CONSTRAINT [FK_EquipmentTypeSensors_EquipmentTypes]
+                    FOREIGN KEY ([EquipmentTypeId]) REFERENCES [dbo].[EquipmentTypes]([Id]) ON DELETE CASCADE
+            );
+            CREATE UNIQUE INDEX [IX_EquipmentTypeSensors_TypeId_SensorId]
+                ON [dbo].[EquipmentTypeSensors] ([EquipmentTypeId], [SensorId]);
+        END
+        """);
+
+    await ctx.Database.ExecuteSqlRawAsync("""
+        IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'LineConfigs' AND schema_id = SCHEMA_ID('dbo'))
+        BEGIN
+            CREATE TABLE [dbo].[LineConfigs] (
+                [Id]        INT           IDENTITY(1,1) NOT NULL,
+                [LineId]    NVARCHAR(100) NOT NULL,
+                [Name]      NVARCHAR(200) NOT NULL,
+                [UpdatedAt] DATETIME2     NOT NULL,
+                CONSTRAINT [PK_LineConfigs] PRIMARY KEY ([Id])
+            );
+            CREATE UNIQUE INDEX [IX_LineConfigs_LineId] ON [dbo].[LineConfigs] ([LineId]);
+        END
+        """);
+
+    await ctx.Database.ExecuteSqlRawAsync("""
+        IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'LineEquipments' AND schema_id = SCHEMA_ID('dbo'))
+        BEGIN
+            CREATE TABLE [dbo].[LineEquipments] (
+                [Id]              INT           IDENTITY(1,1) NOT NULL,
+                [LineConfigId]    INT           NOT NULL,
+                [EquipmentTypeId] INT           NOT NULL,
+                [AssetCode]       NVARCHAR(50)  NULL,
+                [DisplayName]     NVARCHAR(200) NULL,
+                [SortOrder]       INT           NOT NULL DEFAULT 0,
+                CONSTRAINT [PK_LineEquipments] PRIMARY KEY ([Id]),
+                CONSTRAINT [FK_LineEquipments_LineConfigs]
+                    FOREIGN KEY ([LineConfigId]) REFERENCES [dbo].[LineConfigs]([Id]) ON DELETE CASCADE,
+                CONSTRAINT [FK_LineEquipments_EquipmentTypes]
+                    FOREIGN KEY ([EquipmentTypeId]) REFERENCES [dbo].[EquipmentTypes]([Id])
+            );
+            CREATE INDEX [IX_LineEquipments_LineConfigId]
+                ON [dbo].[LineEquipments] ([LineConfigId]);
+        END
+        """);
 }
 
 // ── Swagger UI（開發環境）────────────────────────────────────────────────────
-app.MapOpenApi();
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwaggerUI(options =>
-        options.SwaggerEndpoint("/openapi/v1.json", "IoT Central API v1"));
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
 app.UseCors("IoTDashboard");

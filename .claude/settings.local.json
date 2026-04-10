@@ -14,7 +14,24 @@
       "Bash(python -c \"import sys,json;d=json.load\\(sys.stdin\\);[print\\(f''''id={i[id]} acked={i[isAcknowledged]}''''\\) for i in d[''''items'''']]\")",
       "Bash(kill 1981)",
       "Bash(wmic process:*)",
-      "Bash(xargs kill:*)"
+      "Bash(xargs kill:*)",
+      "Bash(grep -E \"Controller\\\\.cs$\")",
+      "Bash(npx skills:*)",
+      "Read(//c/Users/Keith.Lee/.claude/skills/**)",
+      "Bash(git -C \"C:\\\\Users\\\\Keith.Lee\\\\Diamond Groups\\\\AI\\\\IoT-Dashboard\" add backend/Data/IoTDbContext.cs backend/Program.cs)",
+      "Bash(git -C 'C:\\\\Users\\\\Keith.Lee\\\\Diamond Groups\\\\AI\\\\IoT-Dashboard' commit -m ':*)",
+      "Bash(git -C \"C:\\\\Users\\\\Keith.Lee\\\\Diamond Groups\\\\AI\\\\IoT-Dashboard\" add backend/Controllers/MaintenanceController.cs)",
+      "Bash(git -C \"C:\\\\Users\\\\Keith.Lee\\\\Diamond Groups\\\\AI\\\\IoT-Dashboard\" add backend/IoT.CentralApi.csproj backend/Program.cs)",
+      "Bash(ls *.md)",
+      "Bash(ls README* CHANGELOG*)",
+      "Bash(wc -l \"C:\\\\Users\\\\Keith.Lee\\\\Diamond Groups\\\\AI\\\\IoT-Dashboard\\\\backend\\\\Controllers\"/*.cs)",
+      "Bash(taskkill /F /IM \"IoT.CentralApi.exe\")",
+      "Bash(powershell:*)",
+      "Bash(Start-Process dotnet:*)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(f'  [{e[\\\\\"sortOrder\\\\\"]}] {e[\\\\\"equipmentType\\\\\"][\\\\\"name\\\\\"]} \\({e[\\\\\"equipmentType\\\\\"][\\\\\"visType\\\\\"]}\\)'\\) for e in d['equipments']]\")",
+      "Bash(python -c ':*)",
+      "Bash(git -C \"C:\\\\Users\\\\Keith.Lee\\\\Diamond Groups\\\\AI\\\\IoT-Dashboard\" add -A)",
+      "Bash(git -C \"C:\\\\Users\\\\Keith.Lee\\\\Diamond Groups\\\\AI\\\\IoT-Dashboard\" status --short)"
     ]
   }
 }
