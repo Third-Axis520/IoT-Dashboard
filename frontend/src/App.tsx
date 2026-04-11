@@ -181,7 +181,10 @@ export default function App() {
     }
   }, []);
 
-  const activeLine = useMemo(() => data.find(l => l.id === activeLineId) || data[0], [data, activeLineId]);
+  const activeLine = useMemo(
+    () => data.find(l => l.id === activeLineId) || data[0] || { id: '', name: '', equipments: [] },
+    [data, activeLineId]
+  );
 
   const displayedEquipments = useMemo(() => {
     if (searchQuery) {
