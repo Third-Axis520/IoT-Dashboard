@@ -43,15 +43,8 @@ public abstract class IntegrationTestBase : IAsyncLifetime
             {
                 builder.ConfigureServices(services =>
                 {
-                    // 取代生產 DbContext 為 SQLite
-                    var descriptor = services.FirstOrDefault(d =>
-                        d.ServiceType == typeof(DbContextOptions<IoTDbContext>));
-                    if (descriptor != null) services.Remove(descriptor);
-
-                    var factoryDescriptor = services.FirstOrDefault(d =>
-                        d.ServiceType == typeof(IDbContextFactory<IoTDbContext>));
-                    if (factoryDescriptor != null) services.Remove(factoryDescriptor);
-
+                    // Program.cs skips AddDbContextFactory in Test environment,
+                    // so we register it fresh here with SQLite.
                     services.AddDbContextFactory<IoTDbContext>(opts =>
                         opts.UseSqlite($"Data Source={DbPath}"));
                 });
@@ -81,8 +74,8 @@ public abstract class IntegrationTestBase : IAsyncLifetime
 
     public virtual async Task DisposeAsync()
     {
-        Client.Dispose();
-        await Factory.DisposeAsync();
+        Client?.Dispose();
+        if (Factory != null) await Factory.DisposeAsync();
         if (File.Exists(DbPath))
         {
             try { File.Delete(DbPath); } catch { /* file lock OK */ }
@@ -100,14 +93,16 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     protected static async Task WaitForConditionAsync(
         Func<Task<bool>> predicate,
         TimeSpan timeout,
-        TimeSpan? pollInterval = null)
+        TimeSpan? pollInterval = null,
+        CancellationToken ct = default)
     {
         var interval = pollInterval ?? TimeSpan.FromMilliseconds(100);
         var deadline = DateTime.UtcNow + timeout;
         while (DateTime.UtcNow < deadline)
         {
+            ct.ThrowIfCancellationRequested();
             if (await predicate()) return;
-            await Task.Delay(interval);
+            await Task.Delay(interval, ct);
         }
         throw new TimeoutException($"Condition not met within {timeout.TotalSeconds:F1}s");
     }

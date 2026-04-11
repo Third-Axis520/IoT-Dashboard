@@ -52,11 +52,16 @@ builder.Services.AddOpenTelemetry()
 builder.Services.AddSwaggerGen();
 
 // ── Entity Framework Core + SQL Server ────────────────────────────────────
-var connStr = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+// In Test environment, IntegrationTestBase replaces this with SQLite via ConfigureServices.
+// We skip the SqlServer registration here to avoid EF Core's "multiple providers" error.
+if (!builder.Environment.IsEnvironment("Test"))
+{
+    var connStr = builder.Configuration.GetConnectionString("DefaultConnection")
+        ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
-builder.Services.AddDbContextFactory<IoTDbContext>(options =>
-    options.UseSqlServer(connStr));
+    builder.Services.AddDbContextFactory<IoTDbContext>(options =>
+        options.UseSqlServer(connStr));
+}
 
 // ── FAS API HttpClient ──────────────────────────────────────────────────────
 builder.Services.AddHttpClient("FasApi", client =>
@@ -80,6 +85,10 @@ builder.WebHost.UseUrls("http://0.0.0.0:5200");
 var app = builder.Build();
 
 // ── 自動建立 DB（開發模式用，Production 應改為 Migration）──────────────────
+// Skip in Test environment: IntegrationTestBase handles EnsureCreatedAsync itself,
+// and the mixed SQL Server + SQLite service providers would cause EF Core to throw.
+if (!app.Environment.IsEnvironment("Test"))
+{
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<IDbContextFactory<IoTDbContext>>();
@@ -88,6 +97,7 @@ using (var scope = app.Services.CreateScope())
     // 建立整個 DB（若不存在）
     await ctx.Database.EnsureCreatedAsync();
 
+    // SQL Server-specific DDL migrations (all use T-SQL syntax)
     // EnsureCreatedAsync 只建不存在的 DB，不 migrate 現有 DB。
     // 手動補建新增的 Devices 表（防止舊 DB 沒有此表）。
     await ctx.Database.ExecuteSqlRawAsync("""
@@ -308,7 +318,8 @@ using (var scope = app.Services.CreateScope())
                 ON [dbo].[LineEquipments] ([LineConfigId]);
         END
         """);
-}
+} // end using scope
+} // end if (!IsEnvironment("Test"))
 
 // ── Swagger UI（開發環境）────────────────────────────────────────────────────
 if (app.Environment.IsDevelopment())
