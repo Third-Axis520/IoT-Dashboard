@@ -325,3 +325,6 @@ app.MapControllers();
 app.Logger.LogInformation("IoT Central API started on http://0.0.0.0:5200");
 
 app.Run();
+
+// Expose Program to WebApplicationFactory in tests
+public partial class Program { }
