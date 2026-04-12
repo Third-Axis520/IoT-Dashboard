@@ -138,4 +138,32 @@ public class PropertyTypeControllerTests : IntegrationTestBase
         var response = await Client.DeleteAsync("/api/property-types/99999");
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
+
+    [Fact]
+    public async Task Delete_Returns409_WhenPropertyTypeIsInUseByASensor()
+    {
+        // Arrange — create a custom property, then create an EquipmentType with a sensor referencing it
+        var ptReq = new SavePropertyTypeRequest("vibration", "振動", "activity", "mm/s", null, null, "normal", 0);
+        var ptResp = await Client.PostAsJsonAsync("/api/property-types", ptReq);
+        var pt = await ptResp.Content.ReadFromJsonAsync<PropertyTypeDto>();
+
+        var etReq = new
+        {
+            name = "Test Equipment",
+            visType = "single_kpi",
+            description = (string?)null,
+            sensors = new[]
+            {
+                new { sensorId = 8001, pointId = "pt_vib", label = "振動", unit = "mm/s", propertyTypeId = pt!.Id, rawAddress = (string?)null, sortOrder = 0 }
+            }
+        };
+        var etResp = await Client.PostAsJsonAsync("/api/equipment-types", etReq);
+        etResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // Act — try to delete the property type that's now in use
+        var deleteResp = await Client.DeleteAsync($"/api/property-types/{pt.Id}");
+
+        // Assert
+        deleteResp.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
 }

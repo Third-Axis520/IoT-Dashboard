@@ -84,6 +84,10 @@ public class PropertyTypeController(IDbContextFactory<IoTDbContext> dbFactory) :
         if (entity.IsBuiltIn)
             return Conflict(new { error = "內建屬性不可刪除" });
 
+        var inUseCount = await db.EquipmentTypeSensors.CountAsync(s => s.PropertyTypeId == id);
+        if (inUseCount > 0)
+            return Conflict(new { error = $"此屬性被 {inUseCount} 個感測器使用，無法刪除" });
+
         db.PropertyTypes.Remove(entity);
         await db.SaveChangesAsync();
         return NoContent();
