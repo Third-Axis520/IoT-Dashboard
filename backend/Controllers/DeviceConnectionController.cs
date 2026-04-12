@@ -2,6 +2,7 @@ using IoT.CentralApi.Adapters.Contracts;
 using IoT.CentralApi.Data;
 using IoT.CentralApi.Dtos;
 using IoT.CentralApi.Models;
+using IoT.CentralApi.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,7 +12,8 @@ namespace IoT.CentralApi.Controllers;
 [Route("api/device-connections")]
 public class DeviceConnectionController(
     IDbContextFactory<IoTDbContext> dbFactory,
-    IEnumerable<IProtocolAdapter> adapters) : ControllerBase
+    IEnumerable<IProtocolAdapter> adapters,
+    SseHub sseHub) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetAll()
@@ -96,6 +98,7 @@ public class DeviceConnectionController(
                     .ThenInclude(s => s.PropertyType)
             .FirstAsync(x => x.Id == dc.Id);
 
+        _ = sseHub.BroadcastConfigAsync("device_connection", created.Id, "created");
         return Ok(MapToDetailDto(created));
     }
 
@@ -120,6 +123,7 @@ public class DeviceConnectionController(
         dc.IsEnabled = req.IsEnabled;
         await db.SaveChangesAsync();
 
+        _ = sseHub.BroadcastConfigAsync("device_connection", dc.Id, "updated");
         return Ok(MapToDto(dc));
     }
 
@@ -139,6 +143,7 @@ public class DeviceConnectionController(
 
         db.DeviceConnections.Remove(dc);
         await db.SaveChangesAsync();
+        _ = sseHub.BroadcastConfigAsync("device_connection", id, "deleted");
         return NoContent();
     }
 

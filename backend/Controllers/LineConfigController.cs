@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using IoT.CentralApi.Data;
 using IoT.CentralApi.Models;
+using IoT.CentralApi.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -31,7 +32,8 @@ public record SaveLineConfigRequest(
 [ApiController]
 [Route("api/line-configs")]
 public class LineConfigController(
-    IDbContextFactory<IoTDbContext> dbFactory) : ControllerBase
+    IDbContextFactory<IoTDbContext> dbFactory,
+    SseHub sseHub) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetAll()
@@ -88,6 +90,7 @@ public class LineConfigController(
         };
         db.LineConfigs.Add(lc);
         await db.SaveChangesAsync();
+        _ = sseHub.BroadcastConfigAsync("line_config", lc.Id, "created");
         return Ok(await LoadFullAsync(db, lc.Id));
     }
 
@@ -120,6 +123,7 @@ public class LineConfigController(
         }).ToList();
 
         await db.SaveChangesAsync();
+        _ = sseHub.BroadcastConfigAsync("line_config", lc.Id, "updated");
         return Ok(await LoadFullAsync(db, lc.Id));
     }
 
@@ -131,6 +135,7 @@ public class LineConfigController(
         if (lc == null) return NotFound();
         db.LineConfigs.Remove(lc);
         await db.SaveChangesAsync();
+        _ = sseHub.BroadcastConfigAsync("line_config", lc.Id, "deleted");
         return NoContent();
     }
 

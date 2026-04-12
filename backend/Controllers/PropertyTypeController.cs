@@ -1,6 +1,7 @@
 using IoT.CentralApi.Data;
 using IoT.CentralApi.Dtos;
 using IoT.CentralApi.Models;
+using IoT.CentralApi.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,7 +9,9 @@ namespace IoT.CentralApi.Controllers;
 
 [ApiController]
 [Route("api/property-types")]
-public class PropertyTypeController(IDbContextFactory<IoTDbContext> dbFactory) : ControllerBase
+public class PropertyTypeController(
+    IDbContextFactory<IoTDbContext> dbFactory,
+    SseHub sseHub) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetAll()
@@ -53,6 +56,7 @@ public class PropertyTypeController(IDbContextFactory<IoTDbContext> dbFactory) :
 
         db.PropertyTypes.Add(entity);
         await db.SaveChangesAsync();
+        _ = sseHub.BroadcastConfigAsync("property_type", entity.Id, "created");
         return Ok(MapToDto(entity));
     }
 
@@ -71,6 +75,7 @@ public class PropertyTypeController(IDbContextFactory<IoTDbContext> dbFactory) :
         entity.SortOrder = req.SortOrder;
 
         await db.SaveChangesAsync();
+        _ = sseHub.BroadcastConfigAsync("property_type", entity.Id, "updated");
         return Ok(MapToDto(entity));
     }
 
@@ -90,6 +95,7 @@ public class PropertyTypeController(IDbContextFactory<IoTDbContext> dbFactory) :
 
         db.PropertyTypes.Remove(entity);
         await db.SaveChangesAsync();
+        _ = sseHub.BroadcastConfigAsync("property_type", id, "deleted");
         return NoContent();
     }
 

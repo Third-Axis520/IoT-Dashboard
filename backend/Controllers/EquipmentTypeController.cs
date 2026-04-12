@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using IoT.CentralApi.Data;
 using IoT.CentralApi.Models;
+using IoT.CentralApi.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -37,7 +38,8 @@ public record SaveEquipmentTypeRequest(
 [ApiController]
 [Route("api/equipment-types")]
 public class EquipmentTypeController(
-    IDbContextFactory<IoTDbContext> dbFactory) : ControllerBase
+    IDbContextFactory<IoTDbContext> dbFactory,
+    SseHub sseHub) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetAll()
@@ -91,6 +93,7 @@ public class EquipmentTypeController(
             .Include(x => x.Sensors.OrderBy(s => s.SortOrder))
                 .ThenInclude(s => s.PropertyType)
             .FirstAsync(x => x.Id == et.Id);
+        _ = sseHub.BroadcastConfigAsync("equipment_type", created.Id, "created");
         return Ok(MapToDtoPublic(created));
     }
 
@@ -126,6 +129,7 @@ public class EquipmentTypeController(
             .Include(x => x.Sensors.OrderBy(s => s.SortOrder))
                 .ThenInclude(s => s.PropertyType)
             .FirstAsync(x => x.Id == id);
+        _ = sseHub.BroadcastConfigAsync("equipment_type", updated.Id, "updated");
         return Ok(MapToDtoPublic(updated));
     }
 
@@ -147,6 +151,7 @@ public class EquipmentTypeController(
 
         db.EquipmentTypes.Remove(et);
         await db.SaveChangesAsync();
+        _ = sseHub.BroadcastConfigAsync("equipment_type", id, "deleted");
         return NoContent();
     }
 
