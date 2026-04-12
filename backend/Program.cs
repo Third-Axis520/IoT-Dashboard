@@ -426,6 +426,30 @@ using (var scope = app.Services.CreateScope())
         END
         """);
 
+    // ── DeviceConnection (設備連線設定) ──────────────────��───────────────────
+    await ctx.Database.ExecuteSqlRawAsync("""
+        IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'DeviceConnections' AND schema_id = SCHEMA_ID('dbo'))
+        BEGIN
+            CREATE TABLE [dbo].[DeviceConnections] (
+                [Id]               INT            IDENTITY(1,1) NOT NULL,
+                [Name]             NVARCHAR(200)  NOT NULL,
+                [Protocol]         NVARCHAR(50)   NOT NULL,
+                [ConfigJson]       NVARCHAR(MAX)  NOT NULL DEFAULT '{}',
+                [PollIntervalMs]   INT            NULL,
+                [IsEnabled]        BIT            NOT NULL DEFAULT 1,
+                [LastPollAt]       DATETIME2      NULL,
+                [LastPollError]    NVARCHAR(500)  NULL,
+                [ConsecutiveErrors] INT           NOT NULL DEFAULT 0,
+                [EquipmentTypeId]  INT            NULL,
+                [CreatedAt]        DATETIME2      NOT NULL DEFAULT GETUTCDATE(),
+                CONSTRAINT [PK_DeviceConnections] PRIMARY KEY ([Id]),
+                CONSTRAINT [FK_DeviceConnections_EquipmentTypes]
+                    FOREIGN KEY ([EquipmentTypeId]) REFERENCES [dbo].[EquipmentTypes]([Id])
+                    ON DELETE SET NULL
+            );
+        END
+        """);
+
     } // end if (!IsEnvironment("Test"))
 
     // Seed 8 內建屬性 (runs in both prod and test, db-agnostic)

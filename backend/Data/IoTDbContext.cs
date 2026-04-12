@@ -20,6 +20,7 @@ public class IoTDbContext(DbContextOptions<IoTDbContext> options) : DbContext(op
     public DbSet<LineConfig>          LineConfigs          => Set<LineConfig>();
     public DbSet<LineEquipment>       LineEquipments       => Set<LineEquipment>();
     public DbSet<PropertyType>        PropertyTypes        => Set<PropertyType>();
+    public DbSet<DeviceConnection>    DeviceConnections    => Set<DeviceConnection>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -99,6 +100,13 @@ public class IoTDbContext(DbContextOptions<IoTDbContext> options) : DbContext(op
         modelBuilder.Entity<PropertyType>()
             .HasIndex(pt => pt.Key)
             .IsUnique();
+
+        // ── DeviceConnection ──────────────────────────────────────────────────
+        modelBuilder.Entity<DeviceConnection>()
+            .HasOne(dc => dc.EquipmentType)
+            .WithMany()
+            .HasForeignKey(dc => dc.EquipmentTypeId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         // EquipmentTypeSensor → PropertyType FK
         modelBuilder.Entity<EquipmentTypeSensor>()
