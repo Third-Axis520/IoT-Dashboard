@@ -109,7 +109,8 @@ public class PollingBackgroundService(
             var payload = ConvertToPayload(dc, result.Value!, sensors);
             if (payload != null)
             {
-                var ingestionService = scopeFactory.CreateScope().ServiceProvider
+                using var ingestionScope = scopeFactory.CreateScope();
+                var ingestionService = ingestionScope.ServiceProvider
                     .GetRequiredService<DataIngestionService>();
                 await ingestionService.ProcessAsync(payload);
             }

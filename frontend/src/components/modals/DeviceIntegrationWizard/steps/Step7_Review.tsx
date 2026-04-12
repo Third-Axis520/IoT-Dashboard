@@ -20,10 +20,12 @@ export default function Step7Review({ onClose, onSuccess }: Step7ReviewProps) {
     dispatch({ type: 'SET_ERROR', error: null });
 
     try {
+      // Generate a random 7-digit base to avoid SensorId collisions across wizard runs
+      const sensorIdBase = Math.floor(Math.random() * 8_900_000) + 1_000_000;
       const sensors = selectedPoints.map(({ pt, i }, idx) => {
         const label = state.labels.get(i);
         return {
-          sensorId: 10000 + idx, // auto-generate SensorId
+          sensorId: sensorIdBase + idx,
           pointId: `pt_${pt.rawAddress}`,
           label: label?.name || pt.suggestedLabel || `Sensor ${pt.rawAddress}`,
           unit: label?.unit || '',
