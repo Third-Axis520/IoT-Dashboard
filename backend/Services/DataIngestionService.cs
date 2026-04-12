@@ -212,7 +212,7 @@ public class DataIngestionService(
         var sensorId = await db.LineEquipments
             .Where(le => le.AssetCode == assetCode)
             .SelectMany(le => le.EquipmentType.Sensors)
-            .Where(s => s.Role == "material_detect")
+            .Where(s => s.PropertyType.Behavior == "material_detect")
             .Select(s => (int?)s.SensorId)
             .FirstOrDefaultAsync();
 

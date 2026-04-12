@@ -68,7 +68,9 @@ export interface ApiEquipmentTypeSensor {
   pointId: string;
   label: string;
   unit: string;
-  role: 'normal' | 'material_detect';
+  propertyTypeId: number;
+  propertyTypeBehavior: string;
+  rawAddress: string | null;
   sortOrder: number;
 }
 

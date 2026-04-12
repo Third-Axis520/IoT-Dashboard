@@ -41,6 +41,7 @@ public class LineConfigController(
             .Include(lc => lc.Equipments.OrderBy(le => le.SortOrder))
                 .ThenInclude(le => le.EquipmentType)
                     .ThenInclude(et => et.Sensors.OrderBy(s => s.SortOrder))
+                        .ThenInclude(s => s.PropertyType)
             .OrderBy(lc => lc.Id)
             .ToListAsync();
         return Ok(lines.Select(MapToDto));
@@ -54,6 +55,7 @@ public class LineConfigController(
             .Include(lc => lc.Equipments.OrderBy(le => le.SortOrder))
                 .ThenInclude(le => le.EquipmentType)
                     .ThenInclude(et => et.Sensors.OrderBy(s => s.SortOrder))
+                        .ThenInclude(s => s.PropertyType)
             .FirstOrDefaultAsync(lc => lc.LineId == lineId);
         if (lc == null) return NotFound();
         return Ok(MapToDto(lc));
@@ -138,6 +140,7 @@ public class LineConfigController(
             .Include(x => x.Equipments.OrderBy(le => le.SortOrder))
                 .ThenInclude(le => le.EquipmentType)
                     .ThenInclude(et => et.Sensors.OrderBy(s => s.SortOrder))
+                        .ThenInclude(s => s.PropertyType)
             .FirstAsync(x => x.Id == id);
         return MapToDto(lc);
     }

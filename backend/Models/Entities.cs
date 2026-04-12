@@ -238,8 +238,9 @@ public class EquipmentTypeSensor
     [Required, MaxLength(100)] public string PointId { get; set; } = "";
     [Required, MaxLength(100)] public string Label { get; set; } = "";
     [MaxLength(10)] public string Unit { get; set; } = "℃";
-    /// <summary>"normal" 或 "material_detect"（取代硬編碼 40013）</summary>
-    [MaxLength(20)] public string Role { get; set; } = "normal";
+    public int PropertyTypeId { get; set; }
+    public PropertyType PropertyType { get; set; } = null!;
+    [MaxLength(100)] public string? RawAddress { get; set; }
     public int SortOrder { get; set; }
     public EquipmentType EquipmentType { get; set; } = null!;
 }

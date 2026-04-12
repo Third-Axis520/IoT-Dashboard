@@ -15,7 +15,7 @@ export function apiTypeToTemplate(et: ApiEquipmentType): MachineTemplate {
     name: et.name,
     visType: et.visType as VisType,
     points: et.sensors
-      .filter(s => s.role !== 'material_detect')
+      .filter(s => s.propertyTypeBehavior !== 'material_detect')
       .sort((a, b) => a.sortOrder - b.sortOrder)
       .map(s => ({
         name: s.label,
@@ -31,10 +31,10 @@ function apiLineEquipmentToEquipment(
   le: ApiLineConfig['equipments'][number]
 ): Equipment {
   const normalSensors = le.equipmentType.sensors
-    .filter(s => s.role !== 'material_detect')
+    .filter(s => s.propertyTypeBehavior !== 'material_detect')
     .sort((a, b) => a.sortOrder - b.sortOrder);
 
-  const matDetect = le.equipmentType.sensors.find(s => s.role === 'material_detect');
+  const matDetect = le.equipmentType.sensors.find(s => s.propertyTypeBehavior === 'material_detect');
 
   const points: Point[] = normalSensors.map(s => ({
     id: s.pointId,

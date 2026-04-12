@@ -10,7 +10,8 @@ namespace IoT.CentralApi.Controllers;
 
 public record EquipmentTypeSensorDto(
     int Id, int SensorId, string PointId,
-    string Label, string Unit, string Role, int SortOrder);
+    string Label, string Unit, int PropertyTypeId,
+    string PropertyTypeBehavior, string? RawAddress, int SortOrder);
 
 public record EquipmentTypeDto(
     int Id, string Name, string VisType, string? Description,
@@ -20,8 +21,9 @@ public record SaveSensorRequest(
     [Range(1, int.MaxValue)] int SensorId,
     [Required, MaxLength(100)] string PointId,
     [Required, MaxLength(100)] string Label,
-    [MaxLength(10)] string Unit = "℃",
-    [MaxLength(20)] string Role = "normal",
+    string Unit,
+    int PropertyTypeId,
+    string? RawAddress = null,
     int SortOrder = 0);
 
 public record SaveEquipmentTypeRequest(
@@ -43,6 +45,7 @@ public class EquipmentTypeController(
         await using var db = await dbFactory.CreateDbContextAsync();
         var types = await db.EquipmentTypes
             .Include(et => et.Sensors.OrderBy(s => s.SortOrder))
+                .ThenInclude(s => s.PropertyType)
             .OrderBy(et => et.CreatedAt)
             .ToListAsync();
         return Ok(types.Select(MapToDtoPublic));
@@ -54,6 +57,7 @@ public class EquipmentTypeController(
         await using var db = await dbFactory.CreateDbContextAsync();
         var et = await db.EquipmentTypes
             .Include(et => et.Sensors.OrderBy(s => s.SortOrder))
+                .ThenInclude(s => s.PropertyType)
             .FirstOrDefaultAsync(et => et.Id == id);
         if (et == null) return NotFound();
         return Ok(MapToDtoPublic(et));
@@ -75,7 +79,8 @@ public class EquipmentTypeController(
                 PointId = s.PointId,
                 Label = s.Label,
                 Unit = s.Unit,
-                Role = s.Role,
+                PropertyTypeId = s.PropertyTypeId,
+                RawAddress = s.RawAddress,
                 SortOrder = s.SortOrder == 0 ? i : s.SortOrder,
             }).ToList(),
         };
@@ -84,6 +89,7 @@ public class EquipmentTypeController(
 
         var created = await db.EquipmentTypes
             .Include(x => x.Sensors.OrderBy(s => s.SortOrder))
+                .ThenInclude(s => s.PropertyType)
             .FirstAsync(x => x.Id == et.Id);
         return Ok(MapToDtoPublic(created));
     }
@@ -109,7 +115,8 @@ public class EquipmentTypeController(
             PointId = s.PointId,
             Label = s.Label,
             Unit = s.Unit,
-            Role = s.Role,
+            PropertyTypeId = s.PropertyTypeId,
+            RawAddress = s.RawAddress,
             SortOrder = s.SortOrder == 0 ? i : s.SortOrder,
         }).ToList();
 
@@ -117,6 +124,7 @@ public class EquipmentTypeController(
 
         var updated = await db.EquipmentTypes
             .Include(x => x.Sensors.OrderBy(s => s.SortOrder))
+                .ThenInclude(s => s.PropertyType)
             .FirstAsync(x => x.Id == id);
         return Ok(MapToDtoPublic(updated));
     }
@@ -145,6 +153,7 @@ public class EquipmentTypeController(
     internal static EquipmentTypeDto MapToDtoPublic(EquipmentType et) => new(
         et.Id, et.Name, et.VisType, et.Description, et.CreatedAt,
         et.Sensors.Select(s => new EquipmentTypeSensorDto(
-            s.Id, s.SensorId, s.PointId, s.Label, s.Unit, s.Role, s.SortOrder
+            s.Id, s.SensorId, s.PointId, s.Label, s.Unit,
+            s.PropertyTypeId, s.PropertyType.Behavior, s.RawAddress, s.SortOrder
         )).ToList());
 }

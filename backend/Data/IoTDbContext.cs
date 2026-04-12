@@ -99,5 +99,12 @@ public class IoTDbContext(DbContextOptions<IoTDbContext> options) : DbContext(op
         modelBuilder.Entity<PropertyType>()
             .HasIndex(pt => pt.Key)
             .IsUnique();
+
+        // EquipmentTypeSensor → PropertyType FK
+        modelBuilder.Entity<EquipmentTypeSensor>()
+            .HasOne(s => s.PropertyType)
+            .WithMany()
+            .HasForeignKey(s => s.PropertyTypeId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

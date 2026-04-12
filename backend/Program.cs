@@ -338,6 +338,81 @@ using (var scope = app.Services.CreateScope())
             CREATE UNIQUE INDEX [IX_PropertyTypes_Key] ON [dbo].[PropertyTypes] ([Key]);
         END
         """);
+    // Migration: EquipmentTypeSensors.Role → PropertyTypeId + RawAddress
+    await ctx.Database.ExecuteSqlRawAsync("""
+        IF NOT EXISTS (
+            SELECT 1 FROM sys.columns
+            WHERE object_id = OBJECT_ID('dbo.EquipmentTypeSensors') AND name = 'PropertyTypeId'
+        )
+        BEGIN
+            ALTER TABLE [dbo].[EquipmentTypeSensors] ADD [PropertyTypeId] INT NULL;
+            ALTER TABLE [dbo].[EquipmentTypeSensors] ADD [RawAddress] NVARCHAR(100) NULL;
+        END
+        """);
+
+    // Backfill existing sensors: material_detect → PropertyType key='material_detect', normal → 'temperature'
+    await ctx.Database.ExecuteSqlRawAsync("""
+        IF EXISTS (
+            SELECT 1 FROM sys.columns
+            WHERE object_id = OBJECT_ID('dbo.EquipmentTypeSensors') AND name = 'Role'
+        )
+        BEGIN
+            UPDATE ets
+            SET ets.PropertyTypeId = pt.Id
+            FROM [dbo].[EquipmentTypeSensors] ets
+            INNER JOIN [dbo].[PropertyTypes] pt ON pt.[Key] = 'material_detect'
+            WHERE ets.Role = 'material_detect' AND ets.PropertyTypeId IS NULL;
+
+            UPDATE ets
+            SET ets.PropertyTypeId = pt.Id
+            FROM [dbo].[EquipmentTypeSensors] ets
+            INNER JOIN [dbo].[PropertyTypes] pt ON pt.[Key] = 'temperature'
+            WHERE ets.Role = 'normal' AND ets.PropertyTypeId IS NULL;
+        END
+        """);
+
+    // Catch-all: any remaining NULL → temperature
+    await ctx.Database.ExecuteSqlRawAsync("""
+        IF EXISTS (
+            SELECT 1 FROM [dbo].[EquipmentTypeSensors] WHERE PropertyTypeId IS NULL
+        )
+        BEGIN
+            UPDATE [dbo].[EquipmentTypeSensors]
+            SET PropertyTypeId = (SELECT Id FROM [dbo].[PropertyTypes] WHERE [Key] = 'temperature')
+            WHERE PropertyTypeId IS NULL;
+        END
+        """);
+
+    // Add FK constraint + NOT NULL + index; drop old Role column
+    await ctx.Database.ExecuteSqlRawAsync("""
+        IF EXISTS (
+            SELECT 1 FROM sys.columns
+            WHERE object_id = OBJECT_ID('dbo.EquipmentTypeSensors') AND name = 'PropertyTypeId'
+        )
+        AND NOT EXISTS (
+            SELECT 1 FROM sys.foreign_keys
+            WHERE name = 'FK_EquipmentTypeSensors_PropertyTypes'
+        )
+        BEGIN
+            ALTER TABLE [dbo].[EquipmentTypeSensors] ALTER COLUMN [PropertyTypeId] INT NOT NULL;
+            ALTER TABLE [dbo].[EquipmentTypeSensors]
+                ADD CONSTRAINT FK_EquipmentTypeSensors_PropertyTypes
+                FOREIGN KEY (PropertyTypeId) REFERENCES [dbo].[PropertyTypes](Id);
+            CREATE INDEX IX_EquipmentTypeSensors_PropertyTypeId
+                ON [dbo].[EquipmentTypeSensors] (PropertyTypeId);
+        END
+        """);
+
+    await ctx.Database.ExecuteSqlRawAsync("""
+        IF EXISTS (
+            SELECT 1 FROM sys.columns
+            WHERE object_id = OBJECT_ID('dbo.EquipmentTypeSensors') AND name = 'Role'
+        )
+        BEGIN
+            ALTER TABLE [dbo].[EquipmentTypeSensors] DROP COLUMN Role;
+        END
+        """);
+
     } // end if (!IsEnvironment("Test"))
 
     // Seed 8 內建屬性 (runs in both prod and test, db-agnostic)
