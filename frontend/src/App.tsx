@@ -30,6 +30,11 @@ import { DrillDownModal } from './components/modals/DrillDownModal';
 import { SensorMappingModal } from './components/modals/SensorMappingModal';
 import { RegisterMapModal } from './components/modals/RegisterMapModal';
 import { PlcTemplateModal } from './components/modals/PlcTemplateModal';
+import { PropertyTypesModal } from './components/modals/PropertyTypesModal';
+import DeviceIntegrationWizard from './components/modals/DeviceIntegrationWizard';
+import DeviceConnectionsModal from './components/modals/DeviceConnectionsModal';
+import ToastContainer from './components/ui/Toast';
+import { useToast } from './hooks/useToast';
 import { TempTrendsView } from './components/panels/TempTrendsView';
 import { useDevices } from './hooks/useDevices';
 
@@ -57,6 +62,10 @@ export default function App() {
   const [showLimits, setShowLimits] = useState(false);
   const [showRegisterMap, setShowRegisterMap] = useState(false);
   const [showPlcTemplates, setShowPlcTemplates] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
+  const [showPropertyTypes, setShowPropertyTypes] = useState(false);
+  const [showConnections, setShowConnections] = useState(false);
+  const { toasts, addToast, removeToast } = useToast();
   const [drillDownEq, setDrillDownEq] = useState<Equipment | null>(null);
   const [sensorMappingEq, setSensorMappingEq] = useState<Equipment | null>(null);
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
@@ -571,12 +580,41 @@ export default function App() {
 
           <div className="w-px h-4 bg-[var(--border-base)]" />
 
-          {/* Primary CTA */}
+          {/* Primary CTA: Add Device Dropdown */}
+          <div className="relative group">
+            <button
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[var(--accent-green)]/10 text-[var(--accent-green)] border border-[var(--accent-green)]/30 hover:bg-[var(--accent-green)]/20 rounded-md transition-colors font-semibold"
+            >
+              <Plus className="w-3.5 h-3.5" /> 新增設備 <ChevronDown className="w-3 h-3" />
+            </button>
+            <div className="absolute right-0 top-full mt-1 bg-[var(--bg-panel)] border border-[var(--border-base)] rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 min-w-[180px]">
+              <button
+                onClick={() => setShowWizard(true)}
+                className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--bg-card)] rounded-t-lg"
+              >
+                整合新設備
+              </button>
+              <button
+                onClick={() => setShowAddDevice(true)}
+                className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--bg-card)] rounded-b-lg"
+              >
+                加入既有類型
+              </button>
+            </div>
+          </div>
+
+          {/* Management buttons */}
           <button
-            onClick={() => setShowAddDevice(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[var(--accent-green)]/10 text-[var(--accent-green)] border border-[var(--accent-green)]/30 hover:bg-[var(--accent-green)]/20 rounded-md transition-colors font-semibold"
+            onClick={() => setShowPropertyTypes(true)}
+            className="px-2 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-base)] rounded-md transition-colors"
           >
-            <Plus className="w-3.5 h-3.5" /> 新增設備
+            屬性管理
+          </button>
+          <button
+            onClick={() => setShowConnections(true)}
+            className="px-2 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-base)] rounded-md transition-colors"
+          >
+            連線管理
           </button>
 
           <div className="w-px h-4 bg-[var(--border-base)]" />
@@ -887,6 +925,27 @@ export default function App() {
           onClose={() => setShowRegisterMap(false)}
         />
       )}
+      {showWizard && (
+        <DeviceIntegrationWizard
+          onClose={() => setShowWizard(false)}
+          onSuccess={() => {
+            addToast('success', '設備整合成功！新連線已建立。');
+            // Reload configs
+            Promise.all([fetchEquipmentTypes(), fetchLineConfigs()]).then(([types, lines]) => {
+              setTemplates(types.map(apiTypeToTemplate));
+              setApiLineConfigs(lines);
+              setData(lines.map(apiLineConfigToProductionLine));
+            });
+          }}
+        />
+      )}
+      {showPropertyTypes && (
+        <PropertyTypesModal onClose={() => setShowPropertyTypes(false)} />
+      )}
+      {showConnections && (
+        <DeviceConnectionsModal onClose={() => setShowConnections(false)} />
+      )}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 }
