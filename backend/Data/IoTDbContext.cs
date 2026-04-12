@@ -19,6 +19,7 @@ public class IoTDbContext(DbContextOptions<IoTDbContext> options) : DbContext(op
     public DbSet<EquipmentTypeSensor> EquipmentTypeSensors => Set<EquipmentTypeSensor>();
     public DbSet<LineConfig>          LineConfigs          => Set<LineConfig>();
     public DbSet<LineEquipment>       LineEquipments       => Set<LineEquipment>();
+    public DbSet<PropertyType>        PropertyTypes        => Set<PropertyType>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -93,5 +94,10 @@ public class IoTDbContext(DbContextOptions<IoTDbContext> options) : DbContext(op
             .WithMany(et => et.LineEquipments)
             .HasForeignKey(le => le.EquipmentTypeId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // PropertyType: Key 全域唯一
+        modelBuilder.Entity<PropertyType>()
+            .HasIndex(pt => pt.Key)
+            .IsUnique();
     }
 }

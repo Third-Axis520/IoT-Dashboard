@@ -1,4 +1,5 @@
 using IoT.CentralApi.Data;
+using IoT.CentralApi.Models;
 using IoT.CentralApi.Services;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -84,21 +85,18 @@ builder.WebHost.UseUrls("http://0.0.0.0:5200");
 
 var app = builder.Build();
 
-// ── 自動建立 DB（開發模式用，Production 應改為 Migration）──────────────────
-// Skip in Test environment: IntegrationTestBase handles EnsureCreatedAsync itself,
-// and the mixed SQL Server + SQLite service providers would cause EF Core to throw.
-if (!app.Environment.IsEnvironment("Test"))
-{
+// ── 自動建立 DB / Seed (works in both prod and test) ────────────────────────
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<IDbContextFactory<IoTDbContext>>();
     await using var ctx = await db.CreateDbContextAsync();
 
-    // 建立整個 DB（若不存在）
+    // EnsureCreatedAsync works on SQLite (test) AND SQL Server (production)
     await ctx.Database.EnsureCreatedAsync();
 
-    // SQL Server-specific DDL migrations (all use T-SQL syntax)
-    // EnsureCreatedAsync 只建不存在的 DB，不 migrate 現有 DB。
+    // SQL Server-specific T-SQL DDL migrations (production only)
+    if (!app.Environment.IsEnvironment("Test"))
+    {
     // 手動補建新增的 Devices 表（防止舊 DB 沒有此表）。
     await ctx.Database.ExecuteSqlRawAsync("""
         IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Devices' AND schema_id = SCHEMA_ID('dbo'))
@@ -318,8 +316,47 @@ using (var scope = app.Services.CreateScope())
                 ON [dbo].[LineEquipments] ([LineConfigId]);
         END
         """);
+
+    // ── PropertyTypes (Device Integration Wizard 用) ─────────────────────────
+    await ctx.Database.ExecuteSqlRawAsync("""
+        IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'PropertyTypes' AND schema_id = SCHEMA_ID('dbo'))
+        BEGIN
+            CREATE TABLE [dbo].[PropertyTypes] (
+                [Id]          INT            IDENTITY(1,1) NOT NULL,
+                [Key]         NVARCHAR(50)   NOT NULL,
+                [Name]        NVARCHAR(100)  NOT NULL,
+                [Icon]        NVARCHAR(50)   NOT NULL,
+                [DefaultUnit] NVARCHAR(20)   NOT NULL DEFAULT N'',
+                [DefaultUcl]  FLOAT          NULL,
+                [DefaultLcl]  FLOAT          NULL,
+                [Behavior]    NVARCHAR(20)   NOT NULL DEFAULT N'normal',
+                [IsBuiltIn]   BIT            NOT NULL DEFAULT 0,
+                [SortOrder]   INT            NOT NULL DEFAULT 0,
+                [CreatedAt]   DATETIME2      NOT NULL,
+                CONSTRAINT [PK_PropertyTypes] PRIMARY KEY ([Id])
+            );
+            CREATE UNIQUE INDEX [IX_PropertyTypes_Key] ON [dbo].[PropertyTypes] ([Key]);
+        END
+        """);
+    } // end if (!IsEnvironment("Test"))
+
+    // Seed 8 內建屬性 (runs in both prod and test, db-agnostic)
+    if (!await ctx.PropertyTypes.AnyAsync())
+    {
+        var now = DateTime.UtcNow;
+        ctx.PropertyTypes.AddRange(
+            new PropertyType { Key = "temperature",     Name = "溫度",     Icon = "thermometer",  DefaultUnit = "℃",    Behavior = "normal",          IsBuiltIn = true, SortOrder = 1, CreatedAt = now },
+            new PropertyType { Key = "pressure",        Name = "壓力",     Icon = "gauge",        DefaultUnit = "kPa",  Behavior = "normal",          IsBuiltIn = true, SortOrder = 2, CreatedAt = now },
+            new PropertyType { Key = "humidity",        Name = "濕度",     Icon = "droplets",     DefaultUnit = "%",    Behavior = "normal",          IsBuiltIn = true, SortOrder = 3, CreatedAt = now },
+            new PropertyType { Key = "flow",            Name = "流量",     Icon = "waves",        DefaultUnit = "L/min",Behavior = "normal",          IsBuiltIn = true, SortOrder = 4, CreatedAt = now },
+            new PropertyType { Key = "counter",         Name = "計數器",   Icon = "hash",         DefaultUnit = "count",Behavior = "counter",         IsBuiltIn = true, SortOrder = 5, CreatedAt = now },
+            new PropertyType { Key = "state",           Name = "狀態",     Icon = "activity",     DefaultUnit = "",     Behavior = "state",           IsBuiltIn = true, SortOrder = 6, CreatedAt = now },
+            new PropertyType { Key = "asset_code",      Name = "資產編號", Icon = "tag",          DefaultUnit = "",     Behavior = "asset_code",      IsBuiltIn = true, SortOrder = 7, CreatedAt = now },
+            new PropertyType { Key = "material_detect", Name = "在位",     Icon = "check-circle", DefaultUnit = "",     Behavior = "material_detect", IsBuiltIn = true, SortOrder = 8, CreatedAt = now }
+        );
+        await ctx.SaveChangesAsync();
+    }
 } // end using scope
-} // end if (!IsEnvironment("Test"))
 
 // ── Swagger UI（開發環境）────────────────────────────────────────────────────
 if (app.Environment.IsDevelopment())
