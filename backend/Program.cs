@@ -96,6 +96,7 @@ builder.Services.AddSingleton<IProtocolAdapter, WebApiAdapter>();
 // ── Polling Infrastructure ───────────────────────────────────────────────
 builder.Services.AddSingleton<ConnectionStateRegistry>();
 builder.Services.AddHostedService<PollingBackgroundService>();
+builder.Services.AddScoped<ImpactAnalyzer>();
 
 // ── Port ─────────────────────────────────────────────────────────────────
 builder.WebHost.UseUrls("http://0.0.0.0:5200");
