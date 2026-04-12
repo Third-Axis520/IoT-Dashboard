@@ -93,6 +93,10 @@ builder.Services.AddSingleton<IProtocolAdapter, PushIngestAdapter>();
 builder.Services.AddSingleton<IProtocolAdapter, ModbusTcpAdapter>();
 builder.Services.AddSingleton<IProtocolAdapter, WebApiAdapter>();
 
+// ── Polling Infrastructure ───────────────────────────────────────────────
+builder.Services.AddSingleton<ConnectionStateRegistry>();
+builder.Services.AddHostedService<PollingBackgroundService>();
+
 // ── Port ─────────────────────────────────────────────────────────────────
 builder.WebHost.UseUrls("http://0.0.0.0:5200");
 
