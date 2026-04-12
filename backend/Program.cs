@@ -84,6 +84,7 @@ builder.Services.AddSingleton<DataIngestionService>();
 
 // ── Protocol Adapters ─────────────────────────────────────────────────────
 builder.Services.AddSingleton<IProtocolAdapter, PushIngestAdapter>();
+builder.Services.AddSingleton<IProtocolAdapter, ModbusTcpAdapter>();
 
 // ── Port ─────────────────────────────────────────────────────────────────
 builder.WebHost.UseUrls("http://0.0.0.0:5200");
