@@ -1,3 +1,5 @@
+using IoT.CentralApi.Adapters;
+using IoT.CentralApi.Adapters.Contracts;
 using IoT.CentralApi.Data;
 using IoT.CentralApi.Models;
 using IoT.CentralApi.Services;
@@ -79,6 +81,9 @@ builder.Services.AddSingleton<SseHub>();
 builder.Services.AddSingleton<FasApiService>();
 builder.Services.AddSingleton<WeChatService>();
 builder.Services.AddSingleton<DataIngestionService>();
+
+// ── Protocol Adapters ─────────────────────────────────────────────────────
+builder.Services.AddSingleton<IProtocolAdapter, PushIngestAdapter>();
 
 // ── Port ─────────────────────────────────────────────────────────────────
 builder.WebHost.UseUrls("http://0.0.0.0:5200");
