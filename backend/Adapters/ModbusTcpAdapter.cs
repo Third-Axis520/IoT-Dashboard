@@ -216,8 +216,11 @@ public class ModbusTcpAdapter : IProtocolAdapter
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                // FluentModbus wraps network errors in AggregateException, generic Exception,
-                // or InvalidOperationException. Detect transient vs bug by message content.
+                // FluentModbus wraps exceptions in AggregateException — check if OCE is hiding inside
+                if (ex is AggregateException agg && agg.Flatten().InnerExceptions.Any(e => e is OperationCanceledException))
+                    throw;
+
+                // Detect transient vs bug by message content.
                 var isTransient = IsTransientException(ex);
                 return Result<Dictionary<string, double>>.Fail(
                     isTransient ? ErrorKind.Transient : ErrorKind.Bug,

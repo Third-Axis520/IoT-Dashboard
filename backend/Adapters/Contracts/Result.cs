@@ -14,7 +14,7 @@ public record Result<T>
     public static Result<T> Ok(T value) => new()
     {
         IsSuccess = true,
-        Value = value,
+        Value = value ?? throw new ArgumentNullException(nameof(value)),
         ErrorKind = ErrorKind.None
     };
 

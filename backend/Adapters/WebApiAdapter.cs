@@ -51,6 +51,13 @@ public class WebApiAdapter : IProtocolAdapter
                 DefaultValue: "$",
                 Placeholder: "$.data.sensors"),
             new ConfigField(
+                Name: "headers",
+                Type: "string",
+                Label: "自訂 HTTP Headers (JSON)",
+                Required: false,
+                DefaultValue: "{}",
+                Placeholder: "{\"Authorization\": \"Bearer xxx\"}"),
+            new ConfigField(
                 Name: "keyField",
                 Type: "string",
                 Label: "鍵名欄位（陣列模式）",

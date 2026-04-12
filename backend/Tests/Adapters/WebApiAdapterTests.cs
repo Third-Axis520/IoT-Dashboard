@@ -51,10 +51,11 @@ public class WebApiAdapterTests : IAsyncDisposable
 
         names.Should().Contain("url");
         names.Should().Contain("method");
+        names.Should().Contain("headers");
         names.Should().Contain("jsonPathRoot");
         names.Should().Contain("keyField");
         names.Should().Contain("valueField");
-        schema.Fields.Should().HaveCount(5);
+        schema.Fields.Should().HaveCount(6);
     }
 
     // ── ValidateConfig ─────────────────────────────────────────────────────────
