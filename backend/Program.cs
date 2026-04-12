@@ -82,9 +82,16 @@ builder.Services.AddSingleton<FasApiService>();
 builder.Services.AddSingleton<WeChatService>();
 builder.Services.AddSingleton<DataIngestionService>();
 
+// ── HttpClient for WebApiAdapter ───────────────────────────────────────────
+builder.Services.AddHttpClient("WebApiAdapter", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+
 // ── Protocol Adapters ─────────────────────────────────────────────────────
 builder.Services.AddSingleton<IProtocolAdapter, PushIngestAdapter>();
 builder.Services.AddSingleton<IProtocolAdapter, ModbusTcpAdapter>();
+builder.Services.AddSingleton<IProtocolAdapter, WebApiAdapter>();
 
 // ── Port ─────────────────────────────────────────────────────────────────
 builder.WebHost.UseUrls("http://0.0.0.0:5200");
