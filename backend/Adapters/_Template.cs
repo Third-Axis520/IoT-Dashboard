@@ -10,17 +10,46 @@
 //        builder.Services.AddSingleton<IProtocolAdapter, YourProtocolAdapter>();
 //   6. Write tests in backend/Tests/Adapters/YourProtocolAdapterTests.cs
 //
-// DO NOT modify the IProtocolAdapter interface. If you need new methods,
-// discuss with the team first — changes affect ALL adapters.
-//
-// This file will be re-enabled in Task 9 once IProtocolAdapter contracts exist.
+// DO NOT modify the IProtocolAdapter interface without updating ALL adapters.
 // ─────────────────────────────────────────────────────────────────────────────
+
+using IoT.CentralApi.Adapters.Contracts;
 
 namespace IoT.CentralApi.Adapters;
 
-// Placeholder until Task 9 creates IProtocolAdapter and supporting types.
-// See backend/Adapters/README.md for the contract this template implements.
-internal static class _TemplatePlaceholder
+[Obsolete("Template only — copy this file to create a new adapter")]
+public class TemplateAdapter : IProtocolAdapter
 {
-    // Will be replaced with TemplateAdapter class implementing IProtocolAdapter in Task 9.
+    public string ProtocolId => "template";
+    public string DisplayName => "Template Protocol";
+    public bool SupportsDiscovery => true;
+    public bool SupportsLivePolling => true;
+
+    public ConfigSchema GetConfigSchema() => new()
+    {
+        Fields =
+        {
+            new ConfigField("host", "string", "主機位址",
+                Required: true, Placeholder: "192.168.1.1"),
+            new ConfigField("port", "number", "Port",
+                Required: true, DefaultValue: "8080"),
+        }
+    };
+
+    public ValidationResult ValidateConfig(string configJson)
+    {
+        return ValidationResult.Invalid("Template adapter not implemented");
+    }
+
+    public Task<Result<DiscoveryResult>> DiscoverAsync(string configJson, CancellationToken ct)
+    {
+        return Task.FromResult(Result<DiscoveryResult>.Fail(
+            ErrorKind.UnknownProtocol, "Template adapter not implemented"));
+    }
+
+    public Task<Result<PollResult>> PollAsync(string configJson, CancellationToken ct)
+    {
+        return Task.FromResult(Result<PollResult>.Fail(
+            ErrorKind.UnknownProtocol, "Template adapter not implemented"));
+    }
 }
