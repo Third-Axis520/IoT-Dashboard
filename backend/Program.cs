@@ -1,6 +1,7 @@
 using IoT.CentralApi.Adapters;
 using IoT.CentralApi.Adapters.Contracts;
 using IoT.CentralApi.Data;
+using IoT.CentralApi.Dtos;
 using IoT.CentralApi.Models;
 using IoT.CentralApi.Services;
 using Microsoft.AspNetCore.RateLimiting;
@@ -480,6 +481,18 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+}
+
+// ── Global error handler（非開發環境攔截未處理例外）────────────────────────────
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler(err => err.Run(async context =>
+    {
+        context.Response.StatusCode = 500;
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsJsonAsync(
+            new ErrorResponse("internal_error", "An unexpected error occurred."));
+    }));
 }
 
 app.UseCors("IoTDashboard");

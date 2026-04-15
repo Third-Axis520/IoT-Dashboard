@@ -52,4 +52,10 @@ public class DiagnosticsController(
                 LastTickAt: pollingService?.LastTickAt),
             Connections: connectionDtos));
     }
+
+    [HttpGet("throw-test")]
+    public IActionResult ThrowTest()
+    {
+        throw new InvalidOperationException("Deliberate test explosion");
+    }
 }
