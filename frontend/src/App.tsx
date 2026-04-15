@@ -80,7 +80,9 @@ export default function App() {
   const [confirmDialog, setConfirmDialog] = useState<{
     title: string; message: string; confirmText: string; variant: 'danger' | 'default'; onConfirm: () => void;
   } | null>(null);
-  const lastAlertIdRef = useRef<string>('');
+  const lastAlertIdRef = useRef<string>(
+    (() => { try { const s = localStorage.getItem(ALERTS_STORAGE_KEY); const a = s ? JSON.parse(s) : []; return a.length ? a[a.length - 1].id : ''; } catch { return ''; } })()
+  );
 
   const reloadConfig = useCallback(async () => {
     try {
@@ -402,7 +404,6 @@ export default function App() {
       }
     }
   }, [activeLineId, apiLineConfigs]);
-
 
   const handleLoadDemo = useCallback(async () => {
     // Reload from API to get fresh data

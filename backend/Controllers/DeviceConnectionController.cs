@@ -136,6 +136,7 @@ public class DeviceConnectionController(
             .FirstOrDefaultAsync(x => x.Id == id);
         if (dc == null) return NotFound();
 
+        // All removals are committed in a single SaveChangesAsync transaction
         if (cascade && dc.EquipmentType != null)
         {
             // Remove LineEquipment rows that reference this EquipmentType first (FK Restrict)

@@ -129,9 +129,11 @@ export function useLiveData(
       // heartbeat: keep-alive，不處理
       es.addEventListener('heartbeat', () => {});
 
-      // config-updated: 後端 config 變更，通知 App reload
+      // config-updated: 後端 config 變更，通知 App reload（debounce 防批次操作高頻觸發）
+      let configDebounce: ReturnType<typeof setTimeout> | null = null;
       es.addEventListener('config-updated', () => {
-        onConfigChangedRef.current?.();
+        if (configDebounce) clearTimeout(configDebounce);
+        configDebounce = setTimeout(() => onConfigChangedRef.current?.(), 500);
       });
 
       es.onerror = () => {
