@@ -2,7 +2,7 @@ import type { Equipment, MachineTemplate, PointStatus } from '../types';
 
 export const generateId = () => Math.random().toString(36).substr(2, 9);
 
-export const generateHistory = (base: number, variance: number, length = 60) => {
+const generateHistory = (base: number, variance: number, length = 60) => {
   return Array.from({ length }, (_, i) => ({
     time: Date.now() - (length - i) * 60000,
     value: Number((base + (Math.random() * variance * 2 - variance)).toFixed(1))
