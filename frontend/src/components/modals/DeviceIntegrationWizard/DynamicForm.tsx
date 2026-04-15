@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { ConfigFieldItem } from '../../../lib/apiProtocols';
 
 interface DynamicFormProps {
@@ -6,15 +7,43 @@ interface DynamicFormProps {
   onChange: (field: string, value: string) => void;
 }
 
+function HelpTooltip({ text }: { text: string }) {
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <span className="relative inline-flex items-center ml-1">
+      <button
+        type="button"
+        onMouseEnter={() => setVisible(true)}
+        onMouseLeave={() => setVisible(false)}
+        onFocus={() => setVisible(true)}
+        onBlur={() => setVisible(false)}
+        className="w-4 h-4 rounded-full bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200 text-[10px] font-bold leading-none flex items-center justify-center hover:bg-blue-400 dark:hover:bg-blue-500 hover:text-white transition-colors"
+        aria-label="說明"
+      >
+        i
+      </button>
+      {visible && (
+        <div className="absolute left-6 top-1/2 -translate-y-1/2 z-50 w-72 p-3 rounded-lg shadow-xl bg-gray-900 dark:bg-gray-800 border border-gray-700 text-xs text-gray-100 leading-relaxed whitespace-pre-line pointer-events-none">
+          {text}
+          {/* Arrow */}
+          <span className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-gray-900 dark:border-r-gray-800" />
+        </div>
+      )}
+    </span>
+  );
+}
+
 export default function DynamicForm({ schema, values, onChange }: DynamicFormProps) {
   return (
     <div className="space-y-4">
       {schema.map((field) => (
         <div key={field.name}>
           {field.type !== 'boolean' && (
-            <label className="block text-sm font-medium mb-1">
+            <label className="flex items-center text-sm font-medium mb-1">
               {field.label}
               {field.required && <span className="text-red-500 ml-0.5">*</span>}
+              {field.helpText && <HelpTooltip text={field.helpText} />}
             </label>
           )}
           {field.type === 'enum' && field.options ? (
@@ -36,6 +65,7 @@ export default function DynamicForm({ schema, values, onChange }: DynamicFormPro
                 className="rounded"
               />
               <span className="font-medium">{field.label}</span>
+              {field.helpText && <HelpTooltip text={field.helpText} />}
             </label>
           ) : (
             <input

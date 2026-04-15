@@ -70,13 +70,15 @@ public class ModbusTcpAdapter : IProtocolAdapter
                 Label: "資料型別",
                 Required: false,
                 DefaultValue: "uint16",
-                Options: ValidDataTypes),
+                Options: ValidDataTypes,
+                HelpText: "每個暫存器的數值解讀方式。\n• uint16：無符號 16-bit（0 ~ 65535）\n• int16：有符號 16-bit（-32768 ~ 32767），溫度類 PLC 常用\n• uint32 / int32：需佔用 2 個連續暫存器\n• float32：IEEE 754 浮點數，需佔用 2 個暫存器\n\n範例：溫度感測器原始值 481 → int16 解讀為 481"),
             new ConfigField(
                 Name: "byteSwap",
                 Type: "boolean",
                 Label: "Byte Swap（高低位元組交換）",
                 Required: false,
-                DefaultValue: "false"),
+                DefaultValue: "false",
+                HelpText: "部分 PLC 傳送資料時，同一個 16-bit 暫存器的高位元組與低位元組順序與標準相反，需要交換才能得到正確數值。\n\n範例：PLC 傳來 0xE101（十進位 -7935）\n→ 開啟 Byte Swap 後交換 → 0x01E1（十進位 481）\n→ 再乘以縮放係數 0.1 → 48.1 °C"),
             new ConfigField(
                 Name: "scale",
                 Type: "number",
@@ -84,7 +86,8 @@ public class ModbusTcpAdapter : IProtocolAdapter
                 Required: false,
                 DefaultValue: "1",
                 Min: -1000000,
-                Max: 1000000)
+                Max: 1000000,
+                HelpText: "讀到的原始整數值乘以此係數後才是實際工程單位數值。PLC 通常以整數傳輸以節省頻寬，再由應用端換算。\n\n範例：\n• 原始值 481 × 0.1 = 48.1 °C\n• 原始值 1013 × 0.1 = 101.3 kPa\n• 不需縮放時填 1（預設）")
         }
     };
 

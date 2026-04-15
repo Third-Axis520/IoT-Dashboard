@@ -10,6 +10,7 @@ export interface ConfigFieldItem {
   options: string[] | null;
   min: number | null;
   max: number | null;
+  helpText: string | null;
 }
 
 export interface ProtocolItem {

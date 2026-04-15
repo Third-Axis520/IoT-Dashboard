@@ -12,4 +12,5 @@ public record ConfigField(
     string? Placeholder = null,
     string[]? Options = null,
     double? Min = null,
-    double? Max = null);
+    double? Max = null,
+    string? HelpText = null);
