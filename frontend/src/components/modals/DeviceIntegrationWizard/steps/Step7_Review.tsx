@@ -104,6 +104,12 @@ export default function Step7Review({ onClose, onSuccess }: Step7ReviewProps) {
         </div>
       </div>
 
+      {state.error && (
+        <div className="mt-4 px-4 py-2 rounded-lg bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm">
+          {state.error}
+        </div>
+      )}
+
       <div className="flex justify-between mt-6">
         <button
           onClick={() => dispatch({ type: 'PREV_STEP' })}

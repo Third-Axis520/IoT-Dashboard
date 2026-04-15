@@ -110,12 +110,12 @@ public class DeviceConnectionController(
         if (dc == null) return NotFound();
 
         var adapter = adapters.FirstOrDefault(a => a.ProtocolId == dc.Protocol);
-        if (adapter != null)
-        {
-            var validation = adapter.ValidateConfig(req.Config);
-            if (!validation.IsValid)
-                return BadRequest(new ErrorResponse("invalid_config", validation.Error!));
-        }
+        if (adapter == null)
+            return NotFound(new ErrorResponse("unknown_protocol", $"No adapter for protocol '{dc.Protocol}'"));
+
+        var validation = adapter.ValidateConfig(req.Config);
+        if (!validation.IsValid)
+            return BadRequest(new ErrorResponse("invalid_config", validation.Error!));
 
         dc.Name = req.Name;
         dc.ConfigJson = req.Config;
