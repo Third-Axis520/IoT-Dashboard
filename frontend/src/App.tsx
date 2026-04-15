@@ -11,6 +11,7 @@ import {
   apiTypeToTemplate,
   apiLineConfigToProductionLine,
   saveLineConfig,
+  deleteLineConfig,
 } from './lib/apiLineConfig';
 import type { ApiLineConfig } from './types';
 import { useLiveData } from './hooks/useLiveData';
@@ -270,24 +271,50 @@ export default function App() {
     setData(prev => prev.map(line => line.id === lineId ? { ...line, equipments: line.equipments.filter(e => e.id !== eqId) } : line));
   }, []);
 
-  const handleAddLine = useCallback(() => {
+  const handleAddLine = useCallback(async () => {
     if (!newLineName.trim()) return;
+    const name = newLineName.trim();
     const newLineId = `line-${Date.now()}`;
-    setData(prev => [...prev, { id: newLineId, name: newLineName.trim(), equipments: [] }]);
+    // Optimistic UI
+    setData(prev => [...prev, { id: newLineId, name, equipments: [] }]);
     setActiveLineId(newLineId);
     setNewLineName('');
     setIsAddingLine(false);
-  }, [newLineName]);
+    // Persist to backend
+    try {
+      const saved = await saveLineConfig(newLineId, name, []);
+      setApiLineConfigs(prev => [...prev, saved]);
+    } catch (err) {
+      // Revert on failure
+      setData(prev => prev.filter(l => l.id !== newLineId));
+      addToast('error', `新增產線失敗：${err instanceof Error ? err.message : '未知錯誤'}`);
+    }
+  }, [newLineName, addToast]);
 
-  const handleDeleteLine = useCallback((e: React.MouseEvent, lineId: string) => {
+  const handleDeleteLine = useCallback(async (e: React.MouseEvent, lineId: string) => {
     e.stopPropagation();
     if (data.length <= 1) return;
+    // Optimistic UI
+    const snapshot = data;
     setData(prev => {
       const newLines = prev.filter(l => l.id !== lineId);
       if (activeLineId === lineId) setActiveLineId(newLines[0].id);
       return newLines;
     });
-  }, [data.length, activeLineId]);
+    setApiLineConfigs(prev => prev.filter(lc => lc.lineId !== lineId));
+    // Persist to backend
+    try {
+      await deleteLineConfig(lineId);
+    } catch (err) {
+      // Revert on failure
+      setData(snapshot);
+      setApiLineConfigs(prev => {
+        const lc = apiLineConfigs.find(l => l.lineId === lineId);
+        return lc && !prev.find(l => l.lineId === lineId) ? [...prev, lc] : prev;
+      });
+      addToast('error', `刪除產線失敗：${err instanceof Error ? err.message : '未知錯誤'}`);
+    }
+  }, [data, activeLineId, apiLineConfigs, addToast]);
 
   const handleAddDevice = useCallback(async (
     tpl: MachineTemplate,

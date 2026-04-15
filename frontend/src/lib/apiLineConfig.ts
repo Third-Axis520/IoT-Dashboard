@@ -103,3 +103,8 @@ export async function saveLineConfig(
   if (!res.ok) throw new Error(`PUT /api/line-configs/${lineId} → ${res.status}`);
   return res.json();
 }
+
+export async function deleteLineConfig(lineId: string): Promise<void> {
+  const res = await fetch(`/api/line-configs/${lineId}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`DELETE /api/line-configs/${lineId} → ${res.status}`);
+}
