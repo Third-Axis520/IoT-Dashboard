@@ -13,7 +13,13 @@ export default function Step3Discovery() {
     setLoading(true);
     setScanError(null);
     try {
-      const configJson = JSON.stringify(state.config);
+      const coercedConfig = Object.fromEntries(
+        Object.entries(state.config).map(([k, v]) => {
+          const n = Number(v);
+          return [k, v !== '' && !isNaN(n) ? n : v];
+        })
+      );
+      const configJson = JSON.stringify(coercedConfig);
       const result = await scanDiscovery(state.protocol!, configJson);
       if (result.success && result.points) {
         dispatch({ type: 'SET_DISCOVERY_RESULT', points: result.points });

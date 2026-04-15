@@ -35,10 +35,19 @@ export default function Step7Review({ onClose, onSuccess }: Step7ReviewProps) {
         };
       });
 
+      // Coerce numeric string values to numbers so the backend can deserialize
+      // typed config classes (e.g. ModbusTcpConfig.Port expects int, not string)
+      const coercedConfig = Object.fromEntries(
+        Object.entries(state.config).map(([k, v]) => {
+          const n = Number(v);
+          return [k, v !== '' && !isNaN(n) ? n : v];
+        })
+      );
+
       const req: SaveDeviceConnectionRequest = {
         name: state.connectionName,
         protocol: state.protocol!,
-        config: JSON.stringify(state.config),
+        config: JSON.stringify(coercedConfig),
         pollIntervalMs: state.protocol === 'push_ingest' ? null : 5000,
         isEnabled: true,
         equipmentType: {
