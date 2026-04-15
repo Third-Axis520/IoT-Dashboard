@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { Trash2, Plus, ChevronDown, X, Layers, Database, LayoutDashboard, Activity, Maximize, Minimize, Search, Sun, Moon, Check, Play, Pause, Lock, Unlock, Cpu, SlidersHorizontal, Settings, Network, FileCode2 } from 'lucide-react';
+import { Trash2, Plus, ChevronDown, X, Layers, LayoutDashboard, Activity, Maximize, Minimize, Search, Sun, Moon, Check, Play, Pause, Lock, Unlock, Cpu, SlidersHorizontal, Settings, Network, FileCode2 } from 'lucide-react';
 
 import type { Equipment, MachineTemplate, PointStatus, ProductionLine } from './types';
 import { cn } from './utils/cn';
@@ -24,7 +24,6 @@ import { SingleKpi } from './components/visualizations/SingleKpi';
 import { CustomGrid } from './components/visualizations/CustomGrid';
 import { UnifiedSparkline } from './components/visualizations/UnifiedSparkline';
 import { AddDeviceModal } from './components/modals/AddDeviceModal';
-import { DeviceDefCenterModal } from './components/modals/DeviceDefCenterModal';
 import { DeviceManagementModal } from './components/modals/DeviceManagementModal';
 import { LimitsSettingsModal } from './components/modals/LimitsSettingsModal';
 import { DrillDownModal } from './components/modals/DrillDownModal';
@@ -59,7 +58,6 @@ export default function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddDevice, setShowAddDevice] = useState(false);
-  const [showDefCenter, setShowDefCenter] = useState(false);
   const [showDeviceMgmt, setShowDeviceMgmt] = useState(false);
   const [showLimits, setShowLimits] = useState(false);
   const [showRegisterMap, setShowRegisterMap] = useState(false);
@@ -405,10 +403,6 @@ export default function App() {
     }
   }, [activeLineId, apiLineConfigs]);
 
-  const handleAddTemplate = useCallback((tpl: MachineTemplate) => {
-    setTemplates(prev => [...prev, tpl]);
-    setShowDefCenter(false);
-  }, []);
 
   const handleLoadDemo = useCallback(async () => {
     // Reload from API to get fresh data
@@ -603,15 +597,6 @@ export default function App() {
           <div className="w-px h-4 bg-[var(--border-base)]" />
 
           {/* Icon-only secondary actions */}
-          <button
-            onClick={() => setShowDefCenter(true)}
-            className="flex items-center justify-center w-8 h-8 text-[var(--text-muted)] hover:text-[var(--accent-blue)] hover:bg-[var(--accent-blue)]/10 rounded-md transition-colors"
-            title="设备定义中心"
-            aria-label="设备定义中心"
-          >
-            <Database className="w-4 h-4" />
-          </button>
-
           <button
             onClick={() => setShowDeviceMgmt(true)}
             className="relative flex items-center justify-center w-8 h-8 text-[var(--text-muted)] hover:text-[var(--accent-blue)] hover:bg-[var(--accent-blue)]/10 rounded-md transition-colors"
@@ -962,7 +947,6 @@ export default function App() {
           onAdd={handleAddDevice}
         />
       )}
-      {showDefCenter && <DeviceDefCenterModal onClose={() => setShowDefCenter(false)} onSave={handleAddTemplate} />}
       {showDeviceMgmt && (
         <DeviceManagementModal
           onClose={() => setShowDeviceMgmt(false)}
