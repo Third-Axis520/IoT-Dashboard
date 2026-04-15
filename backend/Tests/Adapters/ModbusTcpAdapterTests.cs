@@ -289,6 +289,31 @@ public class ModbusTcpAdapterTests
     }
 
     [Fact]
+    public async Task Discover_WithScale_NoFloatingPointNoise()
+    {
+        // 793 × 0.1 in IEEE 754 = 79.30000000000001 without rounding
+        await using var fixture = await ModbusTestServerFixture.StartAsync();
+
+        fixture.SetRegister(0, 793);
+
+        var json = JsonSerializer.Serialize(new
+        {
+            host = "127.0.0.1",
+            port = fixture.Port,
+            unitId = 0,
+            startAddress = 0,
+            count = 1,
+            dataType = "uint16",
+            scale = 0.1
+        });
+
+        var result = await _sut.DiscoverAsync(json, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Points[0].CurrentValue.Should().Be(79.3); // exact, no trailing noise
+    }
+
+    [Fact]
     public async Task Discover_ReturnsTransientError_WhenIpMalformed()
     {
         // IPAddress.Parse("not.an.ip") throws FormatException which our adapter

@@ -213,7 +213,7 @@ public class ModbusTcpAdapter : IProtocolAdapter
                         _ => throw new FormatException($"Unknown dataType: {dataType}")
                     };
 
-                    values[rawAddress] = value * config.Scale;
+                    values[rawAddress] = Math.Round(value * config.Scale, ScaleDecimals(config.Scale));
                 }
 
                 return Result<Dictionary<string, double>>.Ok(values);
@@ -294,6 +294,16 @@ public class ModbusTcpAdapter : IProtocolAdapter
     {
         var u = (ushort)raw;
         return (ushort)((u << 8) | (u >> 8));
+    }
+
+    /// <summary>
+    /// 根據縮放係數推算應保留的小數位數，消除 IEEE 754 浮點殘差。
+    /// scale=0.1 → 1位, scale=0.01 → 2位, scale=1 → 0位
+    /// </summary>
+    private static int ScaleDecimals(double scale)
+    {
+        if (scale == 0 || scale >= 1) return 0;
+        return Math.Max(0, (int)Math.Ceiling(-Math.Log10(Math.Abs(scale))));
     }
 
     // ── Config parsing helper ──────────────────────────────────────────────────
