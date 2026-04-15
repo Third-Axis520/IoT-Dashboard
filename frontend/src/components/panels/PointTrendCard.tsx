@@ -170,7 +170,7 @@ export const PointTrendCard = React.memo(function PointTrendCard({
       </div>
 
       <div className={cn("flex-1 min-h-0 relative z-0", compact ? "mt-0" : "mt-2")}>
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
           {renderChart()}
         </ResponsiveContainer>
       </div>

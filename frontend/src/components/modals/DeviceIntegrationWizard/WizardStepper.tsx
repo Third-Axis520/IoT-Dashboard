@@ -14,7 +14,7 @@ interface WizardStepperProps {
 
 export default function WizardStepper({ currentStep }: WizardStepperProps) {
   return (
-    <div className="flex items-center gap-1 px-6 py-3 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
+    <div className="flex items-center gap-1 px-6 py-3 border-b border-[var(--border-base)] overflow-x-auto">
       {STEP_LABELS.map((label, i) => {
         const stepNum = i + 1;
         const isDone = stepNum < currentStep;
@@ -23,23 +23,23 @@ export default function WizardStepper({ currentStep }: WizardStepperProps) {
         return (
           <div key={stepNum} className="flex items-center gap-1 shrink-0">
             {i > 0 && (
-              <div className={`w-6 h-px ${isDone ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'}`} />
+              <div className={`w-6 h-px ${isDone ? 'bg-[var(--accent-green)]' : 'bg-[var(--border-base)]'}`} />
             )}
             <div
               className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs whitespace-nowrap ${
                 isActive
-                  ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-semibold'
+                  ? 'bg-[var(--accent-green)]/15 text-[var(--accent-green)] font-semibold'
                   : isDone
-                    ? 'text-blue-500'
-                    : 'text-gray-400 dark:text-gray-500'
+                    ? 'text-[var(--accent-green)]'
+                    : 'text-[var(--text-muted)]'
               }`}
             >
               <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
                 isDone
-                  ? 'bg-blue-500 text-white'
+                  ? 'bg-[var(--accent-green)] text-[var(--bg-panel)]'
                   : isActive
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400'
+                    ? 'bg-[var(--accent-green)] text-[var(--bg-panel)]'
+                    : 'bg-[var(--border-base)] text-[var(--text-muted)]'
               }`}>
                 {isDone ? '✓' : stepNum}
               </span>

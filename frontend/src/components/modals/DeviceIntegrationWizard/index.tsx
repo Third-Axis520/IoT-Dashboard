@@ -30,14 +30,14 @@ function WizardContent({ onClose, onSuccess }: DeviceIntegrationWizardProps) {
   })();
 
   return (
-    <div className="fixed inset-0 z-[9997] flex items-center justify-center bg-black/50">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col mx-4">
+    <div className="fixed inset-0 z-[9997] flex items-center justify-center bg-[var(--bg-root)]/80 backdrop-blur-sm">
+      <div className="bg-[var(--bg-card)] border border-[var(--border-base)] rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col mx-4">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-semibold">設備整合精靈</h2>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-base)]">
+          <h2 className="text-lg font-semibold text-[var(--text-main)]">設備整合精靈</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xl leading-none"
+            className="text-[var(--text-muted)] hover:text-[var(--text-main)] text-xl leading-none transition-colors"
           >
             ×
           </button>
@@ -48,7 +48,7 @@ function WizardContent({ onClose, onSuccess }: DeviceIntegrationWizardProps) {
 
         {/* Error banner */}
         {state.error && (
-          <div className="mx-6 mt-4 px-4 py-2 rounded-lg bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm">
+          <div className="mx-6 mt-4 px-4 py-2 rounded-lg bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-sm">
             {state.error}
           </div>
         )}

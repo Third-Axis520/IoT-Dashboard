@@ -27,25 +27,30 @@ export default function Step2Config() {
     }
   }, [protocol, dispatch, state.config]);
 
+  const canProceed = state.connectionName.trim().length > 0;
+
   return (
     <div className="p-6">
-      <h3 className="text-base font-medium mb-1">連線設定</h3>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+      <h3 className="text-base font-medium text-[var(--text-main)] mb-1">連線設定</h3>
+      <p className="text-sm text-[var(--text-muted)] mb-6">
         輸入 {protocol?.displayName ?? state.protocol} 的連線參數
       </p>
 
       {/* Connection name */}
       <div className="mb-5">
-        <label className="block text-sm font-medium mb-1">
-          連線名稱 <span className="text-red-500">*</span>
+        <label className="block text-sm font-medium text-[var(--text-main)] mb-1">
+          連線名稱 <span className="text-[var(--accent-red)]">*</span>
         </label>
         <input
           type="text"
           value={state.connectionName}
           onChange={(e) => dispatch({ type: 'SET_CONNECTION_NAME', name: e.target.value })}
           placeholder="例如：A棟 Modbus 主機"
-          className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm"
+          className="w-full px-3 py-2 rounded-lg border border-[var(--border-input)] bg-[var(--bg-panel)] text-[var(--text-main)] text-sm outline-none focus:border-[var(--accent-green)]"
         />
+        {!canProceed && state.connectionName !== undefined && (
+          <p className="text-xs text-[var(--accent-yellow)] mt-1">請輸入連線名稱以繼續</p>
+        )}
       </div>
 
       {/* Protocol-specific config */}
@@ -60,13 +65,14 @@ export default function Step2Config() {
       <div className="flex justify-between mt-6">
         <button
           onClick={() => dispatch({ type: 'PREV_STEP' })}
-          className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+          className="px-4 py-2 rounded-lg border border-[var(--border-base)] text-sm text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--border-base)] transition-colors"
         >
           上一步
         </button>
         <button
           onClick={() => dispatch({ type: 'NEXT_STEP' })}
-          className="px-5 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
+          disabled={!canProceed}
+          className="px-5 py-2 rounded-lg bg-[var(--accent-green)] text-[var(--bg-panel)] text-sm font-medium disabled:opacity-40 hover:bg-[var(--accent-green-hover)] transition-colors"
         >
           下一步
         </button>

@@ -39,7 +39,7 @@ export const AlertPanel = React.memo(function AlertPanel({ alerts, height, onTog
         <div className="w-px h-6 bg-[var(--border-base)] mx-4 shrink-0" />
         <div className="flex-1 overflow-hidden relative h-full flex items-center">
           {recentAlerts.length > 0 ? (
-            <div className="flex gap-8 animate-marquee whitespace-nowrap items-center">
+            <div className="flex gap-8 animate-marquee group-hover:[animation-play-state:paused] whitespace-nowrap items-center">
               {recentAlerts.map((a, i) => (
                 <div key={`${a.id}-${i}`} className="flex items-center gap-2">
                   <span className="text-xs text-[var(--text-muted)] font-mono">{new Date(a.time).toLocaleTimeString()}</span>

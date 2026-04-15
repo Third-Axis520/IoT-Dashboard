@@ -11,7 +11,7 @@ interface UnifiedSparklineProps {
 export const UnifiedSparkline = React.memo(function UnifiedSparkline({ points, visType }: UnifiedSparklineProps) {
   return (
     <div className="h-10 shrink-0 w-full bg-[var(--bg-panel)] border-t border-[var(--border-base)] relative overflow-hidden">
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
         <LineChart margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
           <YAxis domain={['dataMin - 1', 'dataMax + 1']} hide />
           {points.map((p, i) => (

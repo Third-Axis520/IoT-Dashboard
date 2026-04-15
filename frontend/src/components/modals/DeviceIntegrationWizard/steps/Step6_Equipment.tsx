@@ -19,15 +19,15 @@ export default function Step6Equipment() {
 
   return (
     <div className="p-6">
-      <h3 className="text-base font-medium mb-1">設備資訊</h3>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+      <h3 className="text-base font-medium text-[var(--text-main)] mb-1">設備資訊</h3>
+      <p className="text-sm text-[var(--text-muted)] mb-6">
         設定設備類型名稱與顯示方式
       </p>
 
       <div className="space-y-5">
         <div>
-          <label className="block text-sm font-medium mb-1">
-            設備類型名稱 <span className="text-red-500">*</span>
+          <label className="block text-sm font-medium text-[var(--text-main)] mb-1">
+            設備類型名稱 <span className="text-[var(--accent-red)]">*</span>
           </label>
           <input
             type="text"
@@ -39,12 +39,12 @@ export default function Step6Equipment() {
               description: state.description,
             })}
             placeholder="例如：A棟溫控器"
-            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm"
+            className="w-full px-3 py-2 rounded-lg border border-[var(--border-input)] bg-[var(--bg-panel)] text-[var(--text-main)] text-sm outline-none focus:border-[var(--accent-green)]"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">說明 (選填)</label>
+          <label className="block text-sm font-medium text-[var(--text-main)] mb-1">說明 (選填)</label>
           <input
             type="text"
             value={state.description}
@@ -55,12 +55,12 @@ export default function Step6Equipment() {
               description: e.target.value,
             })}
             placeholder="設備說明..."
-            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm"
+            className="w-full px-3 py-2 rounded-lg border border-[var(--border-input)] bg-[var(--bg-panel)] text-[var(--text-main)] text-sm outline-none focus:border-[var(--accent-green)]"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-2">顯示方式</label>
+          <label className="block text-sm font-medium text-[var(--text-main)] mb-2">顯示方式</label>
           <div className="grid grid-cols-2 gap-3">
             {VIS_TYPES.map((vt) => (
               <button
@@ -71,19 +71,19 @@ export default function Step6Equipment() {
                   visType: vt.value,
                   description: state.description,
                 })}
-                className={`p-3 rounded-xl border-2 text-left ${
+                className={`p-3 rounded-xl border-2 text-left transition-all ${
                   state.visType === vt.value
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                    : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                    ? 'border-[var(--accent-green)] bg-[var(--accent-green)]/10'
+                    : 'border-[var(--border-base)] hover:border-[var(--accent-green)]/50'
                 }`}
               >
-                <div className="font-semibold text-sm">
+                <div className="font-semibold text-sm text-[var(--text-main)]">
                   {vt.label}
                   {vt.value === recommended && (
-                    <span className="ml-2 text-xs text-blue-500 font-normal">推薦</span>
+                    <span className="ml-2 text-xs text-[var(--accent-green)] font-normal">推薦</span>
                   )}
                 </div>
-                <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{vt.desc}</div>
+                <div className="text-xs text-[var(--text-muted)] mt-0.5">{vt.desc}</div>
               </button>
             ))}
           </div>
@@ -93,14 +93,14 @@ export default function Step6Equipment() {
       <div className="flex justify-between mt-6">
         <button
           onClick={() => dispatch({ type: 'PREV_STEP' })}
-          className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+          className="px-4 py-2 rounded-lg border border-[var(--border-base)] text-sm text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--border-base)] transition-colors"
         >
           上一步
         </button>
         <button
           onClick={() => dispatch({ type: 'NEXT_STEP' })}
           disabled={!state.equipmentName.trim()}
-          className="px-5 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium disabled:opacity-40 hover:bg-blue-700"
+          className="px-5 py-2 rounded-lg bg-[var(--accent-green)] text-[var(--bg-panel)] text-sm font-medium disabled:opacity-40 hover:bg-[var(--accent-green-hover)] transition-colors"
         >
           下一步
         </button>

@@ -15,7 +15,7 @@ export const SingleKpi = React.memo(function SingleKpi({ points }: SingleKpiProp
   return (
     <div className="relative flex flex-col items-center justify-center h-full w-full overflow-hidden rounded-lg">
       <div className="absolute inset-0 opacity-20 pointer-events-none">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
           <AreaChart data={point.history}>
             <defs>
               <linearGradient id={`grad-single-${point.id}`} x1="0" y1="0" x2="0" y2="1">

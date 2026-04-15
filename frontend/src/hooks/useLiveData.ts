@@ -29,7 +29,8 @@ const RECONNECT_DELAYS = [5000, 10000, 30000];
 export function useLiveData(
   data: ProductionLine[],
   setData: React.Dispatch<React.SetStateAction<ProductionLine[]>>,
-  setAlerts: React.Dispatch<React.SetStateAction<AlertRecord[]>>
+  setAlerts: React.Dispatch<React.SetStateAction<AlertRecord[]>>,
+  onConfigChanged?: () => void
 ): {
   status: ConnectionStatus;
   error: string | null;
@@ -43,6 +44,9 @@ export function useLiveData(
 
   const dataRef = useRef(data);
   dataRef.current = data;
+
+  const onConfigChangedRef = useRef(onConfigChanged);
+  onConfigChangedRef.current = onConfigChanged;
 
   const esRef = useRef<EventSource | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -124,6 +128,11 @@ export function useLiveData(
 
       // heartbeat: keep-alive，不處理
       es.addEventListener('heartbeat', () => {});
+
+      // config-updated: 後端 config 變更，通知 App reload
+      es.addEventListener('config-updated', () => {
+        onConfigChangedRef.current?.();
+      });
 
       es.onerror = () => {
         setStatus('error');

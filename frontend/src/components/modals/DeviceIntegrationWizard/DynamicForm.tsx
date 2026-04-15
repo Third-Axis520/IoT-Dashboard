@@ -18,16 +18,15 @@ function HelpTooltip({ text }: { text: string }) {
         onMouseLeave={() => setVisible(false)}
         onFocus={() => setVisible(true)}
         onBlur={() => setVisible(false)}
-        className="w-4 h-4 rounded-full bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200 text-[10px] font-bold leading-none flex items-center justify-center hover:bg-blue-400 dark:hover:bg-blue-500 hover:text-white transition-colors"
+        className="w-4 h-4 rounded-full bg-[var(--border-base)] text-[var(--text-muted)] text-[10px] font-bold leading-none flex items-center justify-center hover:bg-[var(--accent-blue)] hover:text-white transition-colors"
         aria-label="說明"
       >
         i
       </button>
       {visible && (
-        <div className="absolute left-6 top-1/2 -translate-y-1/2 z-50 w-72 p-3 rounded-lg shadow-xl bg-gray-900 dark:bg-gray-800 border border-gray-700 text-xs text-gray-100 leading-relaxed whitespace-pre-line pointer-events-none">
+        <div className="absolute left-6 top-1/2 -translate-y-1/2 z-50 w-72 p-3 rounded-lg shadow-xl bg-[var(--bg-root)] border border-[var(--border-base)] text-xs text-[var(--text-main)] leading-relaxed whitespace-pre-line pointer-events-none">
           {text}
-          {/* Arrow */}
-          <span className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-gray-900 dark:border-r-gray-800" />
+          <span className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-[var(--bg-root)]" />
         </div>
       )}
     </span>
@@ -40,9 +39,9 @@ export default function DynamicForm({ schema, values, onChange }: DynamicFormPro
       {schema.map((field) => (
         <div key={field.name}>
           {field.type !== 'boolean' && (
-            <label className="flex items-center text-sm font-medium mb-1">
+            <label className="flex items-center text-sm font-medium text-[var(--text-main)] mb-1">
               {field.label}
-              {field.required && <span className="text-red-500 ml-0.5">*</span>}
+              {field.required && <span className="text-[var(--accent-red)] ml-0.5">*</span>}
               {field.helpText && <HelpTooltip text={field.helpText} />}
             </label>
           )}
@@ -50,14 +49,14 @@ export default function DynamicForm({ schema, values, onChange }: DynamicFormPro
             <select
               value={values[field.name] ?? field.defaultValue ?? ''}
               onChange={(e) => onChange(field.name, e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm"
+              className="w-full px-3 py-2 rounded-lg border border-[var(--border-input)] bg-[var(--bg-panel)] text-[var(--text-main)] text-sm outline-none focus:border-[var(--accent-green)]"
             >
               {field.options.map((opt) => (
                 <option key={opt} value={opt}>{opt}</option>
               ))}
             </select>
           ) : field.type === 'boolean' ? (
-            <label className="flex items-center gap-2 text-sm">
+            <label className="flex items-center gap-2 text-sm text-[var(--text-main)]">
               <input
                 type="checkbox"
                 checked={(values[field.name] ?? field.defaultValue) === 'true'}
@@ -75,7 +74,7 @@ export default function DynamicForm({ schema, values, onChange }: DynamicFormPro
               min={field.min ?? undefined}
               max={field.max ?? undefined}
               onChange={(e) => onChange(field.name, e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm"
+              className="w-full px-3 py-2 rounded-lg border border-[var(--border-input)] bg-[var(--bg-panel)] text-[var(--text-main)] text-sm outline-none focus:border-[var(--accent-green)]"
             />
           )}
         </div>

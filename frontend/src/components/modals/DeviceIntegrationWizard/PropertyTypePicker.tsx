@@ -30,7 +30,7 @@ export default function PropertyTypePicker({ value, onChange }: PropertyTypePick
         const item = types.find((t) => t.id === id);
         if (item) onChange(id, item);
       }}
-      className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm"
+      className="w-full px-3 py-2 rounded-lg border border-[var(--border-input)] bg-[var(--bg-panel)] text-[var(--text-main)] text-sm outline-none focus:border-[var(--accent-green)]"
     >
       <option value="">選擇屬性類型</option>
       {types.map((t) => (

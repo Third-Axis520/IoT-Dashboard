@@ -35,6 +35,7 @@ import { PropertyTypesModal } from './components/modals/PropertyTypesModal';
 import DeviceIntegrationWizard from './components/modals/DeviceIntegrationWizard';
 import DeviceConnectionsModal from './components/modals/DeviceConnectionsModal';
 import ToastContainer from './components/ui/Toast';
+import ConfirmModal from './components/ui/ConfirmModal';
 import { useToast } from './hooks/useToast';
 import { TempTrendsView } from './components/panels/TempTrendsView';
 import { useDevices } from './hooks/useDevices';
@@ -78,14 +79,40 @@ export default function App() {
   const [editEqName, setEditEqName] = useState("");
   const [editEqDeviceId, setEditEqDeviceId] = useState("");
   const [isEditMode, setIsEditMode] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title: string; message: string; confirmText: string; variant: 'danger' | 'default'; onConfirm: () => void;
+  } | null>(null);
+  const lastAlertIdRef = useRef<string>('');
 
-  const { status: connStatus, error: connError, assetCode, latestRawSensors } = useLiveData(data, setData, setAlerts);
+  const reloadConfig = useCallback(async () => {
+    try {
+      const [types, lines] = await Promise.all([fetchEquipmentTypes(), fetchLineConfigs()]);
+      setTemplates(types.map(apiTypeToTemplate));
+      setApiLineConfigs(lines);
+      setData(lines.map(apiLineConfigToProductionLine));
+    } catch (err) {
+      console.error('Config reload failed:', err);
+    }
+  }, []);
+
+  const { status: connStatus, error: connError, assetCode, latestRawSensors } = useLiveData(data, setData, setAlerts, reloadConfig);
   const { devices, bindDevice, unbindDevice, validateAsset, registerDevice, unboundCount } = useDevices();
 
   // Persist alerts
   useEffect(() => {
     try { localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(alerts.slice(-200))); } catch { /* quota exceeded */ }
   }, [alerts]);
+
+  // Toast notification for new danger alerts
+  useEffect(() => {
+    if (alerts.length === 0) return;
+    const latest = alerts[alerts.length - 1];
+    if (latest.id === lastAlertIdRef.current) return;
+    lastAlertIdRef.current = latest.id;
+    if (latest.status === 'danger') {
+      addToast('error', `${latest.eqName} — ${latest.pointName} ${latest.type} 超限：${latest.value.toFixed(1)}`);
+    }
+  }, [alerts, addToast]);
 
   // Load production line structure from API on mount
   useEffect(() => {
@@ -104,6 +131,7 @@ export default function App() {
         }
       } catch (err) {
         console.error('Failed to load config from API:', err);
+        addToast('error', '載入產線設定失敗，請確認後端服務是否正常運行');
       }
     }
     loadConfig();
@@ -267,9 +295,19 @@ export default function App() {
     setDrillDownEq(displayedEquipments[nextIndex].eq);
   }, [isAutoPlaying, autoPlayEqIndex, displayedEquipments]);
 
-  const handleDeleteEquipment = useCallback((lineId: string, eqId: string) => {
+  const executeDeleteEquipment = useCallback((lineId: string, eqId: string) => {
     setData(prev => prev.map(line => line.id === lineId ? { ...line, equipments: line.equipments.filter(e => e.id !== eqId) } : line));
   }, []);
+
+  const handleDeleteEquipment = useCallback((lineId: string, eqId: string, eqName: string) => {
+    setConfirmDialog({
+      title: '刪除設備',
+      message: `確定要從產線移除「${eqName}」嗎？`,
+      confirmText: '刪除',
+      variant: 'danger',
+      onConfirm: () => { setConfirmDialog(null); executeDeleteEquipment(lineId, eqId); },
+    });
+  }, [executeDeleteEquipment]);
 
   const handleAddLine = useCallback(async () => {
     if (!newLineName.trim()) return;
@@ -291,10 +329,8 @@ export default function App() {
     }
   }, [newLineName, addToast]);
 
-  const handleDeleteLine = useCallback(async (e: React.MouseEvent, lineId: string) => {
-    e.stopPropagation();
+  const executeDeleteLine = useCallback(async (lineId: string) => {
     if (data.length <= 1) return;
-    // Optimistic UI
     const snapshot = data;
     setData(prev => {
       const newLines = prev.filter(l => l.id !== lineId);
@@ -315,6 +351,19 @@ export default function App() {
       addToast('error', `刪除產線失敗：${err instanceof Error ? err.message : '未知錯誤'}`);
     }
   }, [data, activeLineId, apiLineConfigs, addToast]);
+
+  const handleDeleteLine = useCallback((e: React.MouseEvent, lineId: string) => {
+    e.stopPropagation();
+    if (data.length <= 1) return;
+    const lineName = data.find(l => l.id === lineId)?.name ?? '此產線';
+    setConfirmDialog({
+      title: '刪除產線',
+      message: `確定要刪除「${lineName}」嗎？\n該產線上的所有設備卡片也會一併移除。`,
+      confirmText: '刪除',
+      variant: 'danger',
+      onConfirm: () => { setConfirmDialog(null); executeDeleteLine(lineId); },
+    });
+  }, [data, executeDeleteLine]);
 
   const handleAddDevice = useCallback(async (
     tpl: MachineTemplate,
@@ -634,18 +683,21 @@ export default function App() {
             >
               <Plus className="w-3.5 h-3.5" /> 新增設備 <ChevronDown className="w-3 h-3" />
             </button>
-            <div className="absolute right-0 top-full mt-1 bg-[var(--bg-panel)] border border-[var(--border-base)] rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 min-w-[180px]">
+            <div className="absolute right-0 top-full mt-1 bg-[var(--bg-panel)] border border-[var(--border-base)] rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 min-w-[240px]">
               <button
                 onClick={() => setShowWizard(true)}
-                className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--bg-card)] rounded-t-lg"
+                className="w-full text-left px-3 py-2.5 hover:bg-[var(--bg-card)] rounded-t-lg"
               >
-                整合新設備
+                <div className="text-xs font-medium text-[var(--text-main)]">整合新設備</div>
+                <div className="text-[10px] text-[var(--text-muted)] mt-0.5">從零開始：選協議、掃描、建立類型（7 步）</div>
               </button>
+              <div className="h-px bg-[var(--border-base)] mx-2" />
               <button
                 onClick={() => setShowAddDevice(true)}
-                className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--bg-card)] rounded-b-lg"
+                className="w-full text-left px-3 py-2.5 hover:bg-[var(--bg-card)] rounded-b-lg"
               >
-                加入既有類型
+                <div className="text-xs font-medium text-[var(--text-main)]">使用已有模板</div>
+                <div className="text-[10px] text-[var(--text-muted)] mt-0.5">從已建立的設備類型新增卡片（3 步）</div>
               </button>
             </div>
           </div>
@@ -875,7 +927,7 @@ export default function App() {
                       {isEditMode && (
                         <button
                           className="p-1.5 text-[var(--text-muted)] hover:text-[var(--accent-red)] hover:bg-[var(--accent-red)]/10 rounded"
-                          onClick={(e) => { e.stopPropagation(); handleDeleteEquipment(lineId, eq.id); }}
+                          onClick={(e) => { e.stopPropagation(); handleDeleteEquipment(lineId, eq.id, eq.name); }}
                           aria-label="Delete equipment"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -963,12 +1015,7 @@ export default function App() {
           onClose={() => setShowWizard(false)}
           onSuccess={() => {
             addToast('success', '設備整合成功！新連線已建立。');
-            // Reload configs
-            Promise.all([fetchEquipmentTypes(), fetchLineConfigs()]).then(([types, lines]) => {
-              setTemplates(types.map(apiTypeToTemplate));
-              setApiLineConfigs(lines);
-              setData(lines.map(apiLineConfigToProductionLine));
-            });
+            reloadConfig();
           }}
         />
       )}
@@ -977,6 +1024,16 @@ export default function App() {
       )}
       {showConnections && (
         <DeviceConnectionsModal onClose={() => setShowConnections(false)} />
+      )}
+      {confirmDialog && (
+        <ConfirmModal
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          confirmText={confirmDialog.confirmText}
+          variant={confirmDialog.variant}
+          onConfirm={confirmDialog.onConfirm}
+          onCancel={() => setConfirmDialog(null)}
+        />
       )}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>

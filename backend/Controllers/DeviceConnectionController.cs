@@ -138,6 +138,12 @@ public class DeviceConnectionController(
 
         if (cascade && dc.EquipmentType != null)
         {
+            // Remove LineEquipment rows that reference this EquipmentType first (FK Restrict)
+            var lineEquipments = await db.LineEquipments
+                .Where(le => le.EquipmentTypeId == dc.EquipmentType.Id)
+                .ToListAsync();
+            db.LineEquipments.RemoveRange(lineEquipments);
+
             db.EquipmentTypes.Remove(dc.EquipmentType);
         }
 

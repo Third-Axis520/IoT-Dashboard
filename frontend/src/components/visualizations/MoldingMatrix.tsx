@@ -52,7 +52,7 @@ export const MoldingMatrix = React.memo(function MoldingMatrix({ points, onPoint
           "bg-[var(--border-base)] border border-transparent"
         )}>
         <div className="absolute bottom-0 left-0 right-0 h-1/2 opacity-20 pointer-events-none">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
             <AreaChart data={p.history}>
               <defs>
                 <linearGradient id={`grad-mold-${p.id}`} x1="0" y1="0" x2="0" y2="1">

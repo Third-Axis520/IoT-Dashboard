@@ -36,24 +36,23 @@ export default function Step3Discovery() {
   }
 
   if (isPush) {
-    // Push protocol: skip discovery, proceed with empty points
     return (
       <div className="p-6">
-        <h3 className="text-base font-medium mb-1">推送設備</h3>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+        <h3 className="text-base font-medium text-[var(--text-main)] mb-1">推送設備</h3>
+        <p className="text-sm text-[var(--text-muted)] mb-6">
           推送類型的設備會自動發送資料，不需要掃描。請直接進入下一步手動設定資料點。
         </p>
 
         <div className="flex justify-between mt-6">
           <button
             onClick={() => dispatch({ type: 'PREV_STEP' })}
-            className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="px-4 py-2 rounded-lg border border-[var(--border-base)] text-sm text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--border-base)] transition-colors"
           >
             上一步
           </button>
           <button
             onClick={() => dispatch({ type: 'NEXT_STEP' })}
-            className="px-5 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
+            className="px-5 py-2 rounded-lg bg-[var(--accent-green)] text-[var(--bg-panel)] text-sm font-medium hover:bg-[var(--accent-green-hover)] transition-colors"
           >
             下一步
           </button>
@@ -64,23 +63,26 @@ export default function Step3Discovery() {
 
   return (
     <div className="p-6">
-      <h3 className="text-base font-medium mb-1">掃描設備</h3>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+      <h3 className="text-base font-medium text-[var(--text-main)] mb-1">掃描設備</h3>
+      <p className="text-sm text-[var(--text-muted)] mb-4">
         連接設備並掃描可用的資料點
       </p>
 
       <button
         onClick={handleScan}
         disabled={loading}
-        className="px-5 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+        className="px-5 py-2 rounded-lg bg-[var(--accent-green)] text-[var(--bg-panel)] text-sm font-medium hover:bg-[var(--accent-green-hover)] disabled:opacity-50 transition-colors"
       >
         {loading ? '掃描中...' : '開始掃描'}
       </button>
 
       {scanError && (
-        <div className="mt-4 px-4 py-3 rounded-lg bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm">
-          {scanError}
-          <button onClick={handleScan} className="ml-3 underline hover:no-underline">
+        <div className="mt-4 px-4 py-3 rounded-lg bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-sm">
+          <p className="font-medium">{scanError}</p>
+          <p className="text-xs mt-2 opacity-80">
+            請確認：1) IP 位址與 Port 是否正確　2) 設備是否已開機並連接網路　3) 防火牆是否允許連線
+          </p>
+          <button onClick={handleScan} className="mt-2 text-xs underline hover:no-underline">
             重試
           </button>
         </div>
@@ -88,24 +90,24 @@ export default function Step3Discovery() {
 
       {state.discoveryPoints.length > 0 && (
         <div className="mt-4">
-          <div className="text-sm text-gray-500 mb-2">
+          <div className="text-sm text-[var(--text-muted)] mb-2">
             找到 {state.discoveryPoints.length} 個資料點
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-200 dark:border-gray-700">
-                  <th className="text-left py-2 px-3">位址</th>
-                  <th className="text-right py-2 px-3">當前值</th>
-                  <th className="text-left py-2 px-3">型別</th>
+                <tr className="border-b border-[var(--border-base)]">
+                  <th className="text-left py-2 px-3 text-[var(--text-muted)]">位址</th>
+                  <th className="text-right py-2 px-3 text-[var(--text-muted)]">當前值</th>
+                  <th className="text-left py-2 px-3 text-[var(--text-muted)]">型別</th>
                 </tr>
               </thead>
               <tbody>
                 {state.discoveryPoints.map((pt, i) => (
-                  <tr key={i} className="border-b border-gray-100 dark:border-gray-700/50">
-                    <td className="py-2 px-3 font-mono">{pt.rawAddress}</td>
-                    <td className="py-2 px-3 text-right font-mono">{pt.currentValue}</td>
-                    <td className="py-2 px-3 text-gray-500">{pt.dataType}</td>
+                  <tr key={i} className="border-b border-[var(--border-base)]/50">
+                    <td className="py-2 px-3 font-mono text-[var(--text-main)]">{pt.rawAddress}</td>
+                    <td className="py-2 px-3 text-right font-mono text-[var(--text-main)]">{pt.currentValue}</td>
+                    <td className="py-2 px-3 text-[var(--text-muted)]">{pt.dataType}</td>
                   </tr>
                 ))}
               </tbody>
@@ -117,14 +119,14 @@ export default function Step3Discovery() {
       <div className="flex justify-between mt-6">
         <button
           onClick={() => dispatch({ type: 'PREV_STEP' })}
-          className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+          className="px-4 py-2 rounded-lg border border-[var(--border-base)] text-sm text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--border-base)] transition-colors"
         >
           上一步
         </button>
         <button
           onClick={() => dispatch({ type: 'NEXT_STEP' })}
           disabled={state.discoveryPoints.length === 0}
-          className="px-5 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium disabled:opacity-40 hover:bg-blue-700"
+          className="px-5 py-2 rounded-lg bg-[var(--accent-green)] text-[var(--bg-panel)] text-sm font-medium disabled:opacity-40 hover:bg-[var(--accent-green-hover)] transition-colors"
         >
           下一步
         </button>
