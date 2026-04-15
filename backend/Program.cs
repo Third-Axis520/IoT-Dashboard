@@ -13,11 +13,11 @@ using OpenTelemetry.Trace;
 var builder = WebApplication.CreateBuilder(args);
 
 // ── CORS（允許 React Dashboard 跨域）──────────────────────────────────────
+var corsOrigins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>()
+    ?? ["http://localhost:3000", "http://localhost:5173"];
 builder.Services.AddCors(options =>
     options.AddPolicy("IoTDashboard", policy =>
-        policy.WithOrigins(
-                "http://localhost:3000",
-                "http://localhost:5173")
+        policy.WithOrigins(corsOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod()));
 
