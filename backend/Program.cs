@@ -447,6 +447,15 @@ using (var scope = app.Services.CreateScope())
             WHERE object_id = OBJECT_ID('dbo.EquipmentTypeSensors') AND name = 'Role'
         )
         BEGIN
+            -- Drop any DEFAULT constraint on Role before dropping the column
+            DECLARE @df NVARCHAR(256);
+            SELECT @df = d.name
+            FROM sys.default_constraints d
+            JOIN sys.columns c ON d.parent_column_id = c.column_id AND d.parent_object_id = c.object_id
+            WHERE c.object_id = OBJECT_ID('dbo.EquipmentTypeSensors') AND c.name = 'Role';
+            IF @df IS NOT NULL
+                EXEC('ALTER TABLE [dbo].[EquipmentTypeSensors] DROP CONSTRAINT ' + @df);
+
             ALTER TABLE [dbo].[EquipmentTypeSensors] DROP COLUMN Role;
         END
         """);
