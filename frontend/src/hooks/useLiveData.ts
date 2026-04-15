@@ -84,7 +84,7 @@ export function useLiveData(
           }))
         );
       } catch {
-        // 靜默失敗，使用 liveLineConfig 預設值
+        // 靜默失敗，使用前端預設值
       }
     }
 
