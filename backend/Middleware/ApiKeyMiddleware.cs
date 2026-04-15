@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using IoT.CentralApi.Dtos;
 
 namespace IoT.CentralApi.Middleware;
@@ -21,8 +23,12 @@ public class ApiKeyMiddleware(RequestDelegate next, IConfiguration config, IHost
             return;
         }
 
-        if (!context.Request.Headers.TryGetValue(HeaderName, out var providedKey)
-            || providedKey != expectedKey)
+        var authorized = context.Request.Headers.TryGetValue(HeaderName, out var providedKey)
+            && CryptographicOperations.FixedTimeEquals(
+                Encoding.UTF8.GetBytes(providedKey.ToString()),
+                Encoding.UTF8.GetBytes(expectedKey));
+
+        if (!authorized)
         {
             context.Response.StatusCode = 401;
             context.Response.ContentType = "application/json";

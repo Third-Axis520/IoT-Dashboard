@@ -6,15 +6,18 @@ interface PropertyTypePickerProps {
   onChange: (id: number, item: PropertyTypeItem) => void;
 }
 
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 let cachedTypes: PropertyTypeItem[] | null = null;
+let cacheExpiresAt = 0;
 
 export default function PropertyTypePicker({ value, onChange }: PropertyTypePickerProps) {
   const [types, setTypes] = useState<PropertyTypeItem[]>(cachedTypes ?? []);
 
   useEffect(() => {
-    if (cachedTypes) return;
+    if (cachedTypes && Date.now() < cacheExpiresAt) return;
     fetchPropertyTypes().then((items) => {
       cachedTypes = items;
+      cacheExpiresAt = Date.now() + CACHE_TTL_MS;
       setTypes(items);
     });
   }, []);

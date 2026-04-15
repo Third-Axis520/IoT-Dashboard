@@ -114,6 +114,9 @@ public class ModbusTcpAdapter : IProtocolAdapter
                 return ValidationResult.Invalid(
                     $"dataType 無效: '{config.DataType}'。有效值: {string.Join(", ", ValidDataTypes)}");
 
+            if (config.Scale == 0)
+                return ValidationResult.Invalid("scale 不能為 0（所有讀值會變成 0）");
+
             return ValidationResult.Valid();
         }
         catch (JsonException ex)

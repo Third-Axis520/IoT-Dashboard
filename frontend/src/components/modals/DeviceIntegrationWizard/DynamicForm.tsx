@@ -11,10 +11,12 @@ export default function DynamicForm({ schema, values, onChange }: DynamicFormPro
     <div className="space-y-4">
       {schema.map((field) => (
         <div key={field.name}>
-          <label className="block text-sm font-medium mb-1">
-            {field.label}
-            {field.required && <span className="text-red-500 ml-0.5">*</span>}
-          </label>
+          {field.type !== 'boolean' && (
+            <label className="block text-sm font-medium mb-1">
+              {field.label}
+              {field.required && <span className="text-red-500 ml-0.5">*</span>}
+            </label>
+          )}
           {field.type === 'enum' && field.options ? (
             <select
               value={values[field.name] ?? field.defaultValue ?? ''}
@@ -33,7 +35,7 @@ export default function DynamicForm({ schema, values, onChange }: DynamicFormPro
                 onChange={(e) => onChange(field.name, e.target.checked ? 'true' : 'false')}
                 className="rounded"
               />
-              {field.label}
+              <span className="font-medium">{field.label}</span>
             </label>
           ) : (
             <input
