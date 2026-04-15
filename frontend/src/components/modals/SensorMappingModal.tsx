@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { X, Save, CheckCircle, AlertCircle } from 'lucide-react';
 import type { Equipment } from '../../types';
-import { SENSOR_CONFIG } from '../../constants/sensorConfig';
 import { cn } from '../../utils/cn';
 
 interface SensorMappingModalProps {
@@ -152,11 +151,9 @@ export const SensorMappingModal = ({
                     <option value="">— 未設定 —</option>
                     {sensorIds.map(id => {
                       const val = liveSensors?.get(id);
-                      const unit = SENSOR_CONFIG[id]?.unit ?? '℃';
-                      const label = SENSOR_CONFIG[id]?.label ?? '感測器';
                       return (
                         <option key={id} value={id}>
-                          #{id} {val !== undefined ? `${val.toFixed(1)}${unit}` : label}
+                          #{id} {val !== undefined ? val.toFixed(1) : '—'}
                         </option>
                       );
                     })}
@@ -165,7 +162,7 @@ export const SensorMappingModal = ({
                   {/* Live value badge */}
                   {liveVal !== undefined && (
                     <span className="text-[11px] font-mono text-[var(--accent-green)] bg-[var(--accent-green)]/10 border border-[var(--accent-green)]/30 rounded px-1.5 py-0.5 shrink-0">
-                      {liveVal.toFixed(1)}{SENSOR_CONFIG[currentSensorId!]?.unit ?? '℃'}
+                      {liveVal.toFixed(1)}{equipment.points[idx]?.unit ?? ''}
                     </span>
                   )}
                 </div>

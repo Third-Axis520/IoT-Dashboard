@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, X, ArrowLeft, ArrowRight, Check, Cpu, Link2, Sliders } from 'lucide-react';
 import type { MachineTemplate } from '../../types';
-import { SENSOR_CONFIG } from '../../constants/sensorConfig';
 import type { DeviceDto } from '../../hooks/useDevices';
 import { cn } from '../../utils/cn';
 
@@ -280,7 +279,6 @@ export const AddDeviceModal = ({
                           <div key={id} className="text-xs text-[var(--text-muted)] flex items-center gap-1">
                             <span className="font-mono opacity-60">#{id}</span>
                             <span className="text-[var(--text-main)] font-mono">{val.toFixed(1)}</span>
-                            <span className="opacity-50">{SENSOR_CONFIG[id]?.unit ?? '℃'}</span>
                           </div>
                         ))}
                       </div>
@@ -362,11 +360,9 @@ export const AddDeviceModal = ({
                         <option value="">— 未設定 —</option>
                         {sensorIds.map(id => {
                           const val = liveSensors?.get(id);
-                          const unit = SENSOR_CONFIG[id]?.unit ?? '℃';
-                          const label = SENSOR_CONFIG[id]?.label ?? '感測器';
                           return (
                             <option key={id} value={id}>
-                              #{id} {val !== undefined ? `${val.toFixed(1)}${unit}` : label}
+                              #{id} {val !== undefined ? val.toFixed(1) : '—'}
                             </option>
                           );
                         })}
@@ -375,7 +371,7 @@ export const AddDeviceModal = ({
                       {/* Live value badge */}
                       {liveVal !== undefined && (
                         <span className="text-[11px] font-mono text-[var(--accent-green)] bg-[var(--accent-green)]/10 border border-[var(--accent-green)]/30 rounded px-1.5 py-0.5 shrink-0">
-                          {liveVal.toFixed(1)}{SENSOR_CONFIG[currentSensorId!]?.unit ?? '℃'}
+                          {liveVal.toFixed(1)}
                         </span>
                       )}
                     </div>
