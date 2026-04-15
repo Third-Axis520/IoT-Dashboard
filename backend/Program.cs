@@ -468,7 +468,7 @@ using (var scope = app.Services.CreateScope())
                 [Id]               INT            IDENTITY(1,1) NOT NULL,
                 [Name]             NVARCHAR(200)  NOT NULL,
                 [Protocol]         NVARCHAR(50)   NOT NULL,
-                [ConfigJson]       NVARCHAR(MAX)  NOT NULL DEFAULT '{}',
+                [ConfigJson]       NVARCHAR(MAX)  NOT NULL DEFAULT '{{}}',
                 [PollIntervalMs]   INT            NULL,
                 [IsEnabled]        BIT            NOT NULL DEFAULT 1,
                 [LastPollAt]       DATETIME2      NULL,
