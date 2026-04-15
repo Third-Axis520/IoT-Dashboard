@@ -358,6 +358,24 @@ using (var scope = app.Services.CreateScope())
             CREATE UNIQUE INDEX [IX_PropertyTypes_Key] ON [dbo].[PropertyTypes] ([Key]);
         END
         """);
+
+    // Seed 8 內建屬性 (must run BEFORE backfill so PropertyTypes has data for FK references)
+    if (!await ctx.PropertyTypes.AnyAsync())
+    {
+        var now = DateTime.UtcNow;
+        ctx.PropertyTypes.AddRange(
+            new PropertyType { Key = "temperature",     Name = "溫度",     Icon = "thermometer",  DefaultUnit = "℃",    Behavior = "normal",          IsBuiltIn = true, SortOrder = 1, CreatedAt = now },
+            new PropertyType { Key = "pressure",        Name = "壓力",     Icon = "gauge",        DefaultUnit = "kPa",  Behavior = "normal",          IsBuiltIn = true, SortOrder = 2, CreatedAt = now },
+            new PropertyType { Key = "humidity",        Name = "濕度",     Icon = "droplets",     DefaultUnit = "%",    Behavior = "normal",          IsBuiltIn = true, SortOrder = 3, CreatedAt = now },
+            new PropertyType { Key = "flow",            Name = "流量",     Icon = "waves",        DefaultUnit = "L/min",Behavior = "normal",          IsBuiltIn = true, SortOrder = 4, CreatedAt = now },
+            new PropertyType { Key = "counter",         Name = "計數器",   Icon = "hash",         DefaultUnit = "count",Behavior = "counter",         IsBuiltIn = true, SortOrder = 5, CreatedAt = now },
+            new PropertyType { Key = "state",           Name = "狀態",     Icon = "activity",     DefaultUnit = "",     Behavior = "state",           IsBuiltIn = true, SortOrder = 6, CreatedAt = now },
+            new PropertyType { Key = "asset_code",      Name = "資產編號", Icon = "tag",          DefaultUnit = "",     Behavior = "asset_code",      IsBuiltIn = true, SortOrder = 7, CreatedAt = now },
+            new PropertyType { Key = "material_detect", Name = "在位",     Icon = "check-circle", DefaultUnit = "",     Behavior = "material_detect", IsBuiltIn = true, SortOrder = 8, CreatedAt = now }
+        );
+        await ctx.SaveChangesAsync();
+    }
+
     // Migration: EquipmentTypeSensors.Role → PropertyTypeId + RawAddress
     await ctx.Database.ExecuteSqlRawAsync("""
         IF NOT EXISTS (
@@ -459,7 +477,7 @@ using (var scope = app.Services.CreateScope())
 
     } // end if (!IsEnvironment("Test"))
 
-    // Seed 8 內建屬性 (runs in both prod and test, db-agnostic)
+    // Seed for test environment (DDL block above already seeds for production)
     if (!await ctx.PropertyTypes.AnyAsync())
     {
         var now = DateTime.UtcNow;
