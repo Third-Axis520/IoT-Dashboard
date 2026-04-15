@@ -56,7 +56,8 @@ public abstract class IntegrationTestBase : IAsyncLifetime
                         ["WeChat:Enabled"] = "false",
                         ["FasApi:BaseUrl"] = "http://localhost:1",
                         ["FasApi:ApiKey"] = "test-key",
-                        ["ConnectionStrings:DefaultConnection"] = $"Data Source={DbPath}"
+                        ["ConnectionStrings:DefaultConnection"] = $"Data Source={DbPath}",
+                        ["Authentication:ApiKey"] = "test-api-key-123"
                     });
                 });
 
@@ -64,6 +65,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
             });
 
         Client = Factory.CreateClient();
+        Client.DefaultRequestHeaders.Add("X-Api-Key", "test-api-key-123");
 
         // 確保 DB schema 存在
         using var scope = Factory.Services.CreateScope();

@@ -2,6 +2,7 @@ using IoT.CentralApi.Adapters;
 using IoT.CentralApi.Adapters.Contracts;
 using IoT.CentralApi.Data;
 using IoT.CentralApi.Dtos;
+using IoT.CentralApi.Middleware;
 using IoT.CentralApi.Models;
 using IoT.CentralApi.Services;
 using Microsoft.AspNetCore.RateLimiting;
@@ -494,6 +495,8 @@ if (!app.Environment.IsDevelopment())
             new ErrorResponse("internal_error", "An unexpected error occurred."));
     }));
 }
+
+app.UseMiddleware<ApiKeyMiddleware>();
 
 app.UseCors("IoTDashboard");
 app.UseRateLimiter();
