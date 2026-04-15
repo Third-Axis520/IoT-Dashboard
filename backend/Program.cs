@@ -389,23 +389,26 @@ using (var scope = app.Services.CreateScope())
         """);
 
     // Backfill existing sensors: material_detect → PropertyType key='material_detect', normal → 'temperature'
+    // Must use EXEC() so SQL Server doesn't validate 'Role' column reference at parse time when Role is already gone
     await ctx.Database.ExecuteSqlRawAsync("""
         IF EXISTS (
             SELECT 1 FROM sys.columns
             WHERE object_id = OBJECT_ID('dbo.EquipmentTypeSensors') AND name = 'Role'
         )
         BEGIN
-            UPDATE ets
-            SET ets.PropertyTypeId = pt.Id
-            FROM [dbo].[EquipmentTypeSensors] ets
-            INNER JOIN [dbo].[PropertyTypes] pt ON pt.[Key] = 'material_detect'
-            WHERE ets.Role = 'material_detect' AND ets.PropertyTypeId IS NULL;
+            EXEC(N'
+                UPDATE ets
+                SET ets.PropertyTypeId = pt.Id
+                FROM [dbo].[EquipmentTypeSensors] ets
+                INNER JOIN [dbo].[PropertyTypes] pt ON pt.[Key] = ''material_detect''
+                WHERE ets.Role = ''material_detect'' AND ets.PropertyTypeId IS NULL;
 
-            UPDATE ets
-            SET ets.PropertyTypeId = pt.Id
-            FROM [dbo].[EquipmentTypeSensors] ets
-            INNER JOIN [dbo].[PropertyTypes] pt ON pt.[Key] = 'temperature'
-            WHERE ets.Role = 'normal' AND ets.PropertyTypeId IS NULL;
+                UPDATE ets
+                SET ets.PropertyTypeId = pt.Id
+                FROM [dbo].[EquipmentTypeSensors] ets
+                INNER JOIN [dbo].[PropertyTypes] pt ON pt.[Key] = ''temperature''
+                WHERE ets.Role = ''normal'' AND ets.PropertyTypeId IS NULL;
+            ');
         END
         """);
 
