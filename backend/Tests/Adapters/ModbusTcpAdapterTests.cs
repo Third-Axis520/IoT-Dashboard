@@ -31,7 +31,9 @@ public class ModbusTcpAdapterTests
         fieldNames.Should().Contain("startAddress");
         fieldNames.Should().Contain("count");
         fieldNames.Should().Contain("dataType");
-        schema.Fields.Should().HaveCount(6);
+        schema.Fields.Should().HaveCount(8);
+        fieldNames.Should().Contain("byteSwap");
+        fieldNames.Should().Contain("scale");
     }
 
     // ── ValidateConfig ─────────────────────────────────────────────────────────
@@ -207,6 +209,83 @@ public class ModbusTcpAdapterTests
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorKind.Should().Be(ErrorKind.InvalidConfig);
+    }
+
+    // ── ByteSwap + Scale ───────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Discover_WithByteSwap_SwapsHighLowBytes()
+    {
+        await using var fixture = await ModbusTestServerFixture.StartAsync();
+
+        // 0xE101 stored as int16 = -7935; after byte swap: 0x01E1 = 481
+        fixture.SetRegister(0, unchecked((short)0xE101));
+
+        var json = JsonSerializer.Serialize(new
+        {
+            host = "127.0.0.1",
+            port = fixture.Port,
+            unitId = 0,
+            startAddress = 0,
+            count = 1,
+            dataType = "int16",
+            byteSwap = true
+        });
+
+        var result = await _sut.DiscoverAsync(json, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Points[0].CurrentValue.Should().Be(481);
+    }
+
+    [Fact]
+    public async Task Discover_WithScale_MultipliesValue()
+    {
+        await using var fixture = await ModbusTestServerFixture.StartAsync();
+
+        fixture.SetRegister(0, 1000);
+
+        var json = JsonSerializer.Serialize(new
+        {
+            host = "127.0.0.1",
+            port = fixture.Port,
+            unitId = 0,
+            startAddress = 0,
+            count = 1,
+            dataType = "uint16",
+            scale = 0.1
+        });
+
+        var result = await _sut.DiscoverAsync(json, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Points[0].CurrentValue.Should().BeApproximately(100.0, 0.001);
+    }
+
+    [Fact]
+    public async Task Discover_WithByteSwapAndScale_ConvertsTemperatureCorrectly()
+    {
+        // OvenDataReceive scenario: raw 0xE101 → byte-swap → 481 → ×0.1 = 48.1°C
+        await using var fixture = await ModbusTestServerFixture.StartAsync();
+
+        fixture.SetRegister(0, unchecked((short)0xE101));
+
+        var json = JsonSerializer.Serialize(new
+        {
+            host = "127.0.0.1",
+            port = fixture.Port,
+            unitId = 0,
+            startAddress = 0,
+            count = 1,
+            dataType = "int16",
+            byteSwap = true,
+            scale = 0.1
+        });
+
+        var result = await _sut.DiscoverAsync(json, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Points[0].CurrentValue.Should().BeApproximately(48.1, 0.001);
     }
 
     [Fact]

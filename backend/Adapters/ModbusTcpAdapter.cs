@@ -70,7 +70,21 @@ public class ModbusTcpAdapter : IProtocolAdapter
                 Label: "資料型別",
                 Required: false,
                 DefaultValue: "uint16",
-                Options: ValidDataTypes)
+                Options: ValidDataTypes),
+            new ConfigField(
+                Name: "byteSwap",
+                Type: "boolean",
+                Label: "Byte Swap（高低位元組交換）",
+                Required: false,
+                DefaultValue: "false"),
+            new ConfigField(
+                Name: "scale",
+                Type: "number",
+                Label: "縮放係數（乘數，例如 0.1）",
+                Required: false,
+                DefaultValue: "1",
+                Min: -1000000,
+                Max: 1000000)
         }
     };
 
@@ -174,17 +188,26 @@ public class ModbusTcpAdapter : IProtocolAdapter
                 for (int i = 0; i < config.Count; i++)
                 {
                     var rawAddress = (offset + i * registersPerValue).ToString();
+
+                    // Apply byte swap to each 16-bit register before combining
+                    var r0 = config.ByteSwap ? SwapBytes16(raw[i * registersPerValue])
+                                             : (ushort)raw[i * registersPerValue];
+                    var r1 = registersPerValue > 1
+                        ? (config.ByteSwap ? SwapBytes16(raw[i * registersPerValue + 1])
+                                           : (ushort)raw[i * registersPerValue + 1])
+                        : (ushort)0;
+
                     double value = dataType switch
                     {
-                        "uint16"  => (ushort)raw[i],
-                        "int16"   => raw[i],
-                        "uint32"  => (uint)(((ushort)raw[i * 2] << 16) | (ushort)raw[i * 2 + 1]),
-                        "int32"   => (int)(((ushort)raw[i * 2] << 16) | (ushort)raw[i * 2 + 1]),
-                        "float32" => BitConverter.Int32BitsToSingle(
-                                         (int)(((ushort)raw[i * 2] << 16) | (ushort)raw[i * 2 + 1])),
+                        "uint16"  => r0,
+                        "int16"   => (short)r0,
+                        "uint32"  => (uint)((r0 << 16) | r1),
+                        "int32"   => (int)((r0 << 16) | r1),
+                        "float32" => BitConverter.Int32BitsToSingle((int)((r0 << 16) | r1)),
                         _ => throw new FormatException($"Unknown dataType: {dataType}")
                     };
-                    values[rawAddress] = value;
+
+                    values[rawAddress] = value * config.Scale;
                 }
 
                 return Result<Dictionary<string, double>>.Ok(values);
@@ -257,6 +280,14 @@ public class ModbusTcpAdapter : IProtocolAdapter
             || msg.Contains("timeout", StringComparison.OrdinalIgnoreCase)
             || msg.Contains("拒絕連線", StringComparison.OrdinalIgnoreCase)   // zh-TW: connection refused
             || msg.Contains("無法連線", StringComparison.OrdinalIgnoreCase);  // zh-TW: unable to connect
+    }
+
+    // ── Byte-swap helper ───────────────────────────────────────────────────────
+
+    private static ushort SwapBytes16(short raw)
+    {
+        var u = (ushort)raw;
+        return (ushort)((u << 8) | (u >> 8));
     }
 
     // ── Config parsing helper ──────────────────────────────────────────────────

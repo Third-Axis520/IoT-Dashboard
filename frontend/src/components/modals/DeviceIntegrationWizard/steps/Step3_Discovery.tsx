@@ -15,6 +15,8 @@ export default function Step3Discovery() {
     try {
       const coercedConfig = Object.fromEntries(
         Object.entries(state.config).map(([k, v]) => {
+          if (v === 'true') return [k, true];
+          if (v === 'false') return [k, false];
           const n = Number(v);
           return [k, v !== '' && !isNaN(n) ? n : v];
         })

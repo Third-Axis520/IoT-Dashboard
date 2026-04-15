@@ -39,6 +39,8 @@ export default function Step7Review({ onClose, onSuccess }: Step7ReviewProps) {
       // typed config classes (e.g. ModbusTcpConfig.Port expects int, not string)
       const coercedConfig = Object.fromEntries(
         Object.entries(state.config).map(([k, v]) => {
+          if (v === 'true') return [k, true];
+          if (v === 'false') return [k, false];
           const n = Number(v);
           return [k, v !== '' && !isNaN(n) ? n : v];
         })

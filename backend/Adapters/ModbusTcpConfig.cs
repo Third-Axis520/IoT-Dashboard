@@ -6,4 +6,6 @@ internal record ModbusTcpConfig(
     int UnitId,
     int StartAddress,
     int Count,
-    string DataType);
+    string DataType,
+    bool ByteSwap = false,
+    double Scale = 1.0);
