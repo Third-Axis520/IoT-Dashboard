@@ -53,9 +53,4 @@ public class DiagnosticsController(
             Connections: connectionDtos));
     }
 
-    [HttpGet("throw-test")]
-    public IActionResult ThrowTest()
-    {
-        throw new InvalidOperationException("Deliberate test explosion");
-    }
 }

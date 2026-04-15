@@ -587,23 +587,43 @@ export default function App() {
             <SlidersHorizontal className="w-4 h-4" />
           </button>
 
-          <button
-            onClick={() => setShowRegisterMap(true)}
-            className="flex items-center justify-center w-8 h-8 text-[var(--text-muted)] hover:text-[var(--accent-blue)] hover:bg-[var(--accent-blue)]/10 rounded-md transition-colors"
-            title="暫存器對應設定"
-            aria-label="暫存器對應設定"
-          >
-            <Network className="w-4 h-4" />
-          </button>
-
-          <button
-            onClick={() => setShowPlcTemplates(true)}
-            className="flex items-center justify-center w-8 h-8 text-[var(--text-muted)] hover:text-[var(--accent-blue)] hover:bg-[var(--accent-blue)]/10 rounded-md transition-colors"
-            title="PLC 型號管理"
-            aria-label="PLC 型號管理"
-          >
-            <FileCode2 className="w-4 h-4" />
-          </button>
+          {/* ⚙️ System Settings dropdown */}
+          <div className="relative group">
+            <button
+              className="flex items-center justify-center w-8 h-8 text-[var(--text-muted)] hover:text-[var(--accent-blue)] hover:bg-[var(--accent-blue)]/10 rounded-md transition-colors"
+              title="系統設定"
+              aria-label="系統設定"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+            <div className="absolute right-0 top-full mt-1 bg-[var(--bg-panel)] border border-[var(--border-base)] rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 min-w-[160px]">
+              <p className="px-3 pt-2 pb-1 text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">系統設定</p>
+              <button
+                onClick={() => setShowConnections(true)}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--bg-card)] transition-colors"
+              >
+                <Network className="w-3.5 h-3.5 text-[var(--text-muted)]" /> 連線管理
+              </button>
+              <button
+                onClick={() => setShowPropertyTypes(true)}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--bg-card)] transition-colors"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--text-muted)]" /> 屬性管理
+              </button>
+              <button
+                onClick={() => setShowRegisterMap(true)}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--bg-card)] transition-colors"
+              >
+                <FileCode2 className="w-3.5 h-3.5 text-[var(--text-muted)]" /> 暫存器對應
+              </button>
+              <button
+                onClick={() => setShowPlcTemplates(true)}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--bg-card)] rounded-b-lg transition-colors"
+              >
+                <Cpu className="w-3.5 h-3.5 text-[var(--text-muted)]" /> PLC 型號管理
+              </button>
+            </div>
+          </div>
 
           <div className="w-px h-4 bg-[var(--border-base)]" />
 
@@ -629,20 +649,6 @@ export default function App() {
               </button>
             </div>
           </div>
-
-          {/* Management buttons */}
-          <button
-            onClick={() => setShowPropertyTypes(true)}
-            className="px-2 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-base)] rounded-md transition-colors"
-          >
-            屬性管理
-          </button>
-          <button
-            onClick={() => setShowConnections(true)}
-            className="px-2 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-base)] rounded-md transition-colors"
-          >
-            連線管理
-          </button>
 
           <div className="w-px h-4 bg-[var(--border-base)]" />
 
