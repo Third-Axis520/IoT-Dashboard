@@ -207,7 +207,7 @@ export function useLiveData(
 
             // 計算 status（與 useSimulation 相同邏輯）
             let pStatus: PointStatus = 'normal';
-            if (pValue > ucl || pValue < lcl) {
+            if ((ucl > 0 && pValue > ucl) || (lcl > 0 && pValue < lcl)) {
               pStatus = 'danger';
               if (point.status !== 'danger') {
                 newAlerts.push({
@@ -222,7 +222,7 @@ export function useLiveData(
                   status: 'danger',
                 });
               }
-            } else if (pValue > ucl * 0.95 || (lcl > 0 && pValue < lcl * 1.05)) {
+            } else if ((ucl > 0 && pValue > ucl * 0.95) || (lcl > 0 && pValue < lcl * 1.05)) {
               pStatus = 'warning';
               if (point.status === 'normal') {
                 newAlerts.push({

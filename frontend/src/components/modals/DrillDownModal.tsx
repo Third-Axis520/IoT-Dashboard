@@ -220,7 +220,7 @@ export const DrillDownModal = ({
                 </div>
                 <div className="flex-1 min-h-0 w-full">
                   <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                    <LineChart data={historyMap[point.id] ?? point.history} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <LineChart data={historyMap[point.id]?.length ? historyMap[point.id]! : point.history} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                       <XAxis dataKey="time" tickFormatter={(t) => new Date(t).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} stroke="var(--bg-scrollbar)" tick={{fill: 'var(--text-muted)', fontSize: 'clamp(10px, 2.5cqw, 16px)'}} minTickGap={30} />
                       <YAxis
                         domain={[
