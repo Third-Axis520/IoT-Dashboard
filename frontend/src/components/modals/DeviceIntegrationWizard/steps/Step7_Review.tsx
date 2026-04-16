@@ -50,7 +50,7 @@ export default function Step7Review({ onClose, onSuccess }: Step7ReviewProps) {
         name: state.connectionName,
         protocol: state.protocol!,
         config: JSON.stringify(coercedConfig),
-        pollIntervalMs: state.protocol === 'push_ingest' ? null : 5000,
+        pollIntervalMs: state.protocol === 'push_ingest' ? null : state.pollIntervalMs,
         isEnabled: true,
         equipmentType: {
           name: state.equipmentName,
@@ -84,6 +84,12 @@ export default function Step7Review({ onClose, onSuccess }: Step7ReviewProps) {
           <div className="grid grid-cols-2 gap-1 text-[var(--text-muted)]">
             <span>名稱</span><span className="text-[var(--text-main)]">{state.connectionName}</span>
             <span>協議</span><span className="text-[var(--text-main)]">{state.protocol}</span>
+            {state.protocol !== 'push_ingest' && (
+              <>
+                <span className="text-[var(--text-muted)]">輪詢間隔</span>
+                <span>{state.pollIntervalMs / 1000} 秒</span>
+              </>
+            )}
           </div>
         </div>
 
