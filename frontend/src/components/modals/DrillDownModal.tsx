@@ -224,8 +224,16 @@ export const DrillDownModal = ({
                       <XAxis dataKey="time" tickFormatter={(t) => new Date(t).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} stroke="var(--bg-scrollbar)" tick={{fill: 'var(--text-muted)', fontSize: 'clamp(10px, 2.5cqw, 16px)'}} minTickGap={30} />
                       <YAxis
                         domain={[
-                          (dataMin: number) => Math.min(dataMin, point.lcl) - Math.max((point.ucl - point.lcl) * 0.1, 5),
-                          (dataMax: number) => Math.max(dataMax, point.ucl) + Math.max((point.ucl - point.lcl) * 0.1, 5)
+                          (dataMin: number) => {
+                            const lo = point.lcl > 0 ? Math.min(dataMin, point.lcl) : dataMin;
+                            const pad = (point.ucl > 0 && point.lcl > 0) ? Math.max((point.ucl - point.lcl) * 0.1, 3) : 3;
+                            return Math.floor(lo - pad);
+                          },
+                          (dataMax: number) => {
+                            const hi = point.ucl > 0 ? Math.max(dataMax, point.ucl) : dataMax;
+                            const pad = (point.ucl > 0 && point.lcl > 0) ? Math.max((point.ucl - point.lcl) * 0.1, 3) : 3;
+                            return Math.ceil(hi + pad);
+                          }
                         ]}
                         stroke="var(--bg-scrollbar)"
                         tick={{fill: 'var(--text-muted)', fontSize: 'clamp(10px, 2.5cqw, 16px)'}}
@@ -235,10 +243,10 @@ export const DrillDownModal = ({
                         itemStyle={{ color: 'var(--accent-green)' }}
                         labelFormatter={(l) => new Date(l).toLocaleTimeString()}
                       />
-                      <ReferenceArea y1={point.ucl} y2={999999} fill="var(--accent-red)" fillOpacity={0.08} />
-                      <ReferenceArea y1={-999999} y2={point.lcl} fill="var(--accent-red)" fillOpacity={0.08} />
-                      <ReferenceLine y={point.ucl} stroke="var(--accent-red)" strokeOpacity={0.4} strokeDasharray="4 4" strokeWidth={1} />
-                      <ReferenceLine y={point.lcl} stroke="var(--accent-red)" strokeOpacity={0.4} strokeDasharray="4 4" strokeWidth={1} />
+                      {point.ucl > 0 && <ReferenceArea y1={point.ucl} y2={999999} fill="var(--accent-red)" fillOpacity={0.08} />}
+                      {point.lcl > 0 && <ReferenceArea y1={-999999} y2={point.lcl} fill="var(--accent-red)" fillOpacity={0.08} />}
+                      {point.ucl > 0 && <ReferenceLine y={point.ucl} stroke="var(--accent-red)" strokeOpacity={0.4} strokeDasharray="4 4" strokeWidth={1} />}
+                      {point.lcl > 0 && <ReferenceLine y={point.lcl} stroke="var(--accent-red)" strokeOpacity={0.4} strokeDasharray="4 4" strokeWidth={1} />}
                       <Line type="linear" dataKey="value" stroke={point.status === 'danger' ? "var(--accent-red)" : "var(--accent-blue)"} strokeWidth={2} dot={false} isAnimationActive={false} />
                     </LineChart>
                   </ResponsiveContainer>

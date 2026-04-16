@@ -25,6 +25,7 @@ export function usePointHistory(
     const to = new Date();
     const from = new Date(to.getTime() - RANGE_HOURS[timeRange] * 3_600_000);
 
+    setHistoryMap({});
     setLoading(true);
 
     Promise.allSettled(
