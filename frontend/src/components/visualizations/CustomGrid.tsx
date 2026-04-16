@@ -41,6 +41,12 @@ export const CustomGrid = React.memo(function CustomGrid({ points, onPointSwap, 
         >
           <span className="text-[10px] text-[var(--text-muted)] block truncate">{p.name}</span>
           <AnimatedValue value={p.value} status={p.status} className="text-2xl font-bold" />
+          {(p.ucl > 0 || p.lcl > 0) && (
+            <div className="flex gap-1.5 text-[8px] font-mono text-[var(--text-muted)] opacity-50 mt-0.5">
+              {p.ucl > 0 && <span>↑{p.ucl.toFixed(0)}</span>}
+              {p.lcl > 0 && <span>↓{p.lcl.toFixed(0)}</span>}
+            </div>
+          )}
         </div>
       ))}
     </div>

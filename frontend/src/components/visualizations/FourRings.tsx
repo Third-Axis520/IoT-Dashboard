@@ -1,6 +1,5 @@
 import React from 'react';
 import type { Point } from '../../types';
-import { cn } from '../../utils/cn';
 import { getStatusColor } from '../../constants/templates';
 import { AnimatedValue } from './AnimatedValue';
 
@@ -12,11 +11,13 @@ interface RingProgressProps {
 }
 
 const RingProgress = React.memo(function RingProgress({ point, index, onPointSwap, dragScope }: RingProgressProps) {
-  const percentage = Math.min(100, Math.max(0, ((point.value - point.lcl) / (point.ucl - point.lcl)) * 100));
+  const hasLimits = point.ucl > 0 && point.ucl > point.lcl;
+  const percentage = hasLimits
+    ? Math.min(100, Math.max(0, ((point.value - point.lcl) / (point.ucl - point.lcl)) * 100))
+    : 0;
   const radius = 48.5;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
-  const isHot = point.name.includes('热') || point.value > 50;
 
   return (
     <div
@@ -57,7 +58,13 @@ const RingProgress = React.memo(function RingProgress({ point, index, onPointSwa
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <AnimatedValue value={point.value} status={point.status} className={cn("text-2xl md:text-3xl font-bold tracking-tighter", isHot ? "text-[var(--accent-orange)]" : "text-[var(--accent-blue)]")} />
+          <AnimatedValue value={point.value} status={point.status} className="text-2xl md:text-3xl font-bold tracking-tighter" />
+          {hasLimits && (
+            <div className="flex gap-1 text-[7px] font-mono text-[var(--text-muted)] opacity-50 mt-0.5">
+              <span>↑{point.ucl.toFixed(0)}</span>
+              <span>↓{point.lcl.toFixed(0)}</span>
+            </div>
+          )}
         </div>
       </div>
       <span className="text-[10px] md:text-xs text-[var(--text-muted)] text-center leading-none">{point.name}</span>

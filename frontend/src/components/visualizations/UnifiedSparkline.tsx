@@ -1,5 +1,5 @@
 import React from 'react';
-import { LineChart, Line, ResponsiveContainer, YAxis } from 'recharts';
+import { LineChart, Line, ResponsiveContainer, YAxis, ReferenceLine } from 'recharts';
 import type { Point, VisType } from '../../types';
 import { getStatusColor } from '../../constants/templates';
 
@@ -9,11 +9,18 @@ interface UnifiedSparklineProps {
 }
 
 export const UnifiedSparkline = React.memo(function UnifiedSparkline({ points, visType }: UnifiedSparklineProps) {
+  const primary = points[0];
   return (
     <div className="h-10 shrink-0 w-full bg-[var(--bg-panel)] border-t border-[var(--border-base)] relative overflow-hidden">
       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
         <LineChart margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
           <YAxis domain={['dataMin - 1', 'dataMax + 1']} hide />
+          {primary?.ucl > 0 && (
+            <ReferenceLine y={primary.ucl} stroke="var(--accent-red)" strokeOpacity={0.5} strokeDasharray="3 2" strokeWidth={1} />
+          )}
+          {primary?.lcl > 0 && (
+            <ReferenceLine y={primary.lcl} stroke="var(--accent-red)" strokeOpacity={0.5} strokeDasharray="3 2" strokeWidth={1} />
+          )}
           {points.map((p, i) => (
             <Line
               key={p.id}

@@ -11,7 +11,7 @@ interface DualSideSparkProps {
 export const DualSideSpark = React.memo(function DualSideSpark({ points, onPointSwap, dragScope }: DualSideSparkProps) {
   const renderPoint = (p: Point, index: number) => (
     <div key={p.id}
-      className="bg-[var(--border-base)]/30 rounded p-2 flex justify-between items-center border border-[var(--border-base)]"
+      className="bg-[var(--border-base)]/30 rounded p-2 flex justify-between items-start border border-[var(--border-base)]"
       draggable={!!onPointSwap}
       onDragStart={(e) => {
         if (onPointSwap) {
@@ -38,9 +38,17 @@ export const DualSideSpark = React.memo(function DualSideSpark({ points, onPoint
       }}
     >
       <span className="text-[10px] text-[var(--text-muted)]">{p.name}</span>
-      <div className="flex items-baseline gap-1">
-        <AnimatedValue value={p.value} status={p.status} className="text-2xl font-bold" />
-        <span className="text-[10px] text-[var(--text-muted)] opacity-60">{p.unit}</span>
+      <div className="flex flex-col items-end">
+        <div className="flex items-baseline gap-1">
+          <AnimatedValue value={p.value} status={p.status} className="text-2xl font-bold" />
+          <span className="text-[10px] text-[var(--text-muted)] opacity-60">{p.unit}</span>
+        </div>
+        {(p.ucl > 0 || p.lcl > 0) && (
+          <div className="flex gap-1.5 text-[8px] font-mono text-[var(--text-muted)] opacity-50">
+            {p.ucl > 0 && <span>↑{p.ucl.toFixed(0)}</span>}
+            {p.lcl > 0 && <span>↓{p.lcl.toFixed(0)}</span>}
+          </div>
+        )}
       </div>
     </div>
   );

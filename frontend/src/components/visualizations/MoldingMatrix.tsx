@@ -69,6 +69,12 @@ export const MoldingMatrix = React.memo(function MoldingMatrix({ points, onPoint
           <AnimatedValue value={p.value} status={p.status} className="text-2xl md:text-3xl font-bold" />
           <span className="text-[9px] text-[var(--text-muted)] opacity-60">{p.unit}</span>
         </div>
+        {(p.ucl > 0 || p.lcl > 0) && (
+          <div className="flex gap-1.5 text-[8px] font-mono text-[var(--text-muted)] opacity-50 z-10 mt-0.5">
+            {p.ucl > 0 && <span>↑{p.ucl.toFixed(0)}</span>}
+            {p.lcl > 0 && <span>↓{p.lcl.toFixed(0)}</span>}
+          </div>
+        )}
         {isDanger && <div className="absolute inset-0 border-2 animate-breathe-danger pointer-events-none rounded-md z-20" />}
       </div>
     );

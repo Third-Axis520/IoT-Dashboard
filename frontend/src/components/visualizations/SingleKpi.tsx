@@ -32,6 +32,12 @@ export const SingleKpi = React.memo(function SingleKpi({ points }: SingleKpiProp
         <AnimatedValue value={point.value} status={point.status} className="text-7xl md:text-8xl tracking-tight font-bold" />
         <span className="text-lg md:text-xl text-[var(--text-muted)] opacity-60">{point.unit}</span>
       </div>
+      {(point.ucl > 0 || point.lcl > 0) && (
+        <div className="flex gap-3 text-xs font-mono text-[var(--text-muted)] opacity-50 z-10 mt-1">
+          {point.ucl > 0 && <span>↑ UCL {point.ucl.toFixed(1)}</span>}
+          {point.lcl > 0 && <span>↓ LCL {point.lcl.toFixed(1)}</span>}
+        </div>
+      )}
     </div>
   );
 });
