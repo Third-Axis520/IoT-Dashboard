@@ -5,6 +5,20 @@ import type { Equipment } from '../../types';
 import { cn } from '../../utils/cn';
 import { getStatusColor } from '../../constants/templates';
 import { savePointLimits } from '../../hooks/useSensorLimits';
+import { usePointHistory, type TimeRange } from '../../hooks/usePointHistory';
+
+const TIME_RANGES: TimeRange[] = ['1h', '4h', '24h'];
+
+const getGridStyle = (count: number) => {
+  if (count === 1) return { gridTemplateColumns: '1fr', gridTemplateRows: '1fr' };
+  if (count === 2) return { gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr' };
+  if (count === 3) return { gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: '1fr' };
+  if (count === 4) return { gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr' };
+  if (count <= 6) return { gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: '1fr 1fr' };
+  if (count <= 8) return { gridTemplateColumns: 'repeat(4, 1fr)', gridTemplateRows: '1fr 1fr' };
+  if (count <= 9) return { gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: 'repeat(3, 1fr)' };
+  return { gridTemplateColumns: 'repeat(4, 1fr)', gridTemplateRows: 'repeat(3, 1fr)' };
+};
 
 interface DrillDownModalProps {
   equipment: Equipment;
@@ -32,6 +46,8 @@ export const DrillDownModal = ({
   const [progress, setProgress] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [timeRange, setTimeRange] = useState<TimeRange>('1h');
+  const { historyMap, loading: historyLoading } = usePointHistory(assetCode, localEq.points, timeRange);
 
   useEffect(() => {
     setLocalEq(prev => {
@@ -97,17 +113,6 @@ export const DrillDownModal = ({
     }
   }, [localEq, assetCode, onSaveConfig]);
 
-  const getGridStyle = (count: number) => {
-    if (count === 1) return { gridTemplateColumns: '1fr', gridTemplateRows: '1fr' };
-    if (count === 2) return { gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr' };
-    if (count === 3) return { gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: '1fr' };
-    if (count === 4) return { gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr' };
-    if (count <= 6) return { gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: '1fr 1fr' };
-    if (count <= 8) return { gridTemplateColumns: 'repeat(4, 1fr)', gridTemplateRows: '1fr 1fr' };
-    if (count <= 9) return { gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: 'repeat(3, 1fr)' };
-    return { gridTemplateColumns: 'repeat(4, 1fr)', gridTemplateRows: 'repeat(3, 1fr)' };
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-root)]/90 backdrop-blur-md p-4 md:p-6" role="dialog" aria-modal="true" aria-labelledby="drilldown-title">
       <div className="bg-[var(--bg-card)]/90 border border-[var(--border-base)] rounded-2xl w-[94vw] max-w-[1800px] h-[94vh] shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-300 relative">
@@ -128,6 +133,25 @@ export const DrillDownModal = ({
             <p className="text-[var(--text-muted)] mt-1" style={{ fontSize: 'clamp(12px, 1.2vw, 18px)' }}>Unified Trend Matrix (Drill-down)</p>
           </div>
           <div className="flex items-center gap-3">
+            {assetCode && (
+              <div className="flex items-center gap-1 bg-[var(--bg-panel)] border border-[var(--border-base)] rounded-lg p-1">
+                {TIME_RANGES.map(r => (
+                  <button
+                    key={r}
+                    onClick={() => setTimeRange(r)}
+                    className={cn(
+                      'px-3 py-1 rounded text-sm font-mono font-medium transition-colors',
+                      timeRange === r
+                        ? 'bg-[var(--accent-blue)] text-[var(--bg-panel)]'
+                        : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
+                    )}
+                  >
+                    {r}
+                  </button>
+                ))}
+                {historyLoading && <RefreshCw className="w-4 h-4 text-[var(--text-muted)] animate-spin ml-1" />}
+              </div>
+            )}
             {isAutoPlaying ? (
               <button onClick={onStopAutoPlay} className="flex items-center gap-2 px-4 py-2 bg-[var(--accent-red)]/20 text-[var(--accent-red)] border border-[var(--accent-red)]/50 font-bold rounded-lg text-sm hover:bg-[var(--accent-red)]/30 transition-colors">
                 <Pause className="w-4 h-4" /> Stop Auto-Play
@@ -196,7 +220,7 @@ export const DrillDownModal = ({
                 </div>
                 <div className="flex-1 min-h-0 w-full">
                   <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                    <LineChart data={point.history} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <LineChart data={historyMap[point.id] ?? point.history} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                       <XAxis dataKey="time" tickFormatter={(t) => new Date(t).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} stroke="var(--bg-scrollbar)" tick={{fill: 'var(--text-muted)', fontSize: 'clamp(10px, 2.5cqw, 16px)'}} minTickGap={30} />
                       <YAxis
                         domain={[
