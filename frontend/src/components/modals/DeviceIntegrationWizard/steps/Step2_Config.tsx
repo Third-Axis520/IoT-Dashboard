@@ -53,6 +53,29 @@ export default function Step2Config() {
         )}
       </div>
 
+      {/* Poll interval — only for polling protocols */}
+      {state.protocol !== 'push_ingest' && (
+        <div className="mb-5">
+          <label className="block text-sm font-medium text-[var(--text-main)] mb-1">
+            輪詢間隔
+          </label>
+          <select
+            value={state.pollIntervalMs / 1000}
+            onChange={(e) =>
+              dispatch({ type: 'SET_POLL_INTERVAL', ms: Number(e.target.value) * 1000 })
+            }
+            className="w-full px-3 py-2 rounded-lg border border-[var(--border-input)] bg-[var(--bg-panel)] text-[var(--text-main)] text-sm outline-none focus:border-[var(--accent-green)]"
+          >
+            {[1, 2, 5, 10, 30, 60].map((s) => (
+              <option key={s} value={s}>
+                {s} 秒
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-[var(--text-muted)] mt-1">每隔多久向設備讀取一次資料</p>
+        </div>
+      )}
+
       {/* Protocol-specific config */}
       {protocol && (
         <DynamicForm
