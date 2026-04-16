@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import {
   fetchPollingDiagnostics,
+  fetchDeviceConnections,
   updateDeviceConnection,
   deleteDeviceConnection,
   testDeviceConnection,
   type PollingDiagnostics,
+  type DeviceConnectionItem,
 } from '../../lib/apiDeviceConnections';
 import ConfirmModal from '../ui/ConfirmModal';
 
@@ -24,11 +26,18 @@ export default function DeviceConnectionsModal({ onClose }: DeviceConnectionsMod
   const [testingId, setTestingId] = useState<number | null>(null);
   const [testResult, setTestResult] = useState<{ id: number; ok: boolean; msg: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
+  const [fullConns, setFullConns] = useState<DeviceConnectionItem[]>([]);
+  const [editingInterval, setEditingInterval] = useState<{ id: number; value: string } | null>(null);
 
   async function load() {
     setLoading(true);
     try {
-      setDiag(await fetchPollingDiagnostics());
+      const [diagData, fullData] = await Promise.all([
+        fetchPollingDiagnostics(),
+        fetchDeviceConnections(),
+      ]);
+      setDiag(diagData);
+      setFullConns(fullData);
     } finally {
       setLoading(false);
     }
@@ -37,12 +46,7 @@ export default function DeviceConnectionsModal({ onClose }: DeviceConnectionsMod
   useEffect(() => { load(); }, []);
 
   async function handleToggle(id: number, currentEnabled: boolean) {
-    const conn = diag?.connections.find((c) => c.id === id);
-    if (!conn) return;
-    // We need the full connection to update — fetch and toggle
-    const { fetchDeviceConnections } = await import('../../lib/apiDeviceConnections');
-    const all = await fetchDeviceConnections();
-    const full = all.find((c) => c.id === id);
+    const full = fullConns.find((c) => c.id === id);
     if (!full) return;
     await updateDeviceConnection(id, {
       name: full.name,
@@ -70,6 +74,21 @@ export default function DeviceConnectionsModal({ onClose }: DeviceConnectionsMod
     if (!deleteTarget) return;
     await deleteDeviceConnection(deleteTarget.id, true);
     setDeleteTarget(null);
+    await load();
+  }
+
+  async function handleIntervalBlur(id: number) {
+    if (!editingInterval || editingInterval.id !== id) return;
+    const full = fullConns.find((c) => c.id === id);
+    if (!full) { setEditingInterval(null); return; }
+    const ms = Math.max(500, Math.round(Number(editingInterval.value)) * 1000);
+    await updateDeviceConnection(id, {
+      name: full.name,
+      config: full.configJson,
+      pollIntervalMs: ms,
+      isEnabled: full.isEnabled,
+    });
+    setEditingInterval(null);
     await load();
   }
 
@@ -102,6 +121,7 @@ export default function DeviceConnectionsModal({ onClose }: DeviceConnectionsMod
                   <th className="py-2 px-2">協議</th>
                   <th className="py-2 px-2">狀態</th>
                   <th className="py-2 px-2">錯誤</th>
+                  <th className="py-2 px-2">間隔</th>
                   <th className="py-2 px-2 text-right">操作</th>
                 </tr>
               </thead>
@@ -125,6 +145,43 @@ export default function DeviceConnectionsModal({ onClose }: DeviceConnectionsMod
                       </td>
                       <td className="py-2 px-2 text-xs text-gray-400 max-w-[200px] truncate">
                         {conn.lastErrorMessage ?? '-'}
+                      </td>
+                      <td className="py-2 px-2">
+                        {(() => {
+                          const full = fullConns.find((c) => c.id === conn.id);
+                          if (!full || full.pollIntervalMs === null)
+                            return <span className="text-xs text-gray-400">-</span>;
+                          const isEditing = editingInterval?.id === conn.id;
+                          if (isEditing) {
+                            return (
+                              <input
+                                type="number"
+                                min={1}
+                                max={3600}
+                                autoFocus
+                                value={editingInterval.value}
+                                onChange={(e) => setEditingInterval({ id: conn.id, value: e.target.value })}
+                                onBlur={() => handleIntervalBlur(conn.id)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') e.currentTarget.blur();
+                                  if (e.key === 'Escape') setEditingInterval(null);
+                                }}
+                                className="w-14 px-1 py-0.5 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 outline-none"
+                              />
+                            );
+                          }
+                          return (
+                            <button
+                              onClick={() =>
+                                setEditingInterval({ id: conn.id, value: String(full.pollIntervalMs! / 1000) })
+                              }
+                              title="點擊編輯輪詢間隔"
+                              className="text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 transition-colors cursor-pointer"
+                            >
+                              {full.pollIntervalMs / 1000}s
+                            </button>
+                          );
+                        })()}
                       </td>
                       <td className="py-2 px-2 text-right">
                         <div className="flex justify-end gap-1">
