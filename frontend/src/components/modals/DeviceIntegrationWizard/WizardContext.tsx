@@ -20,6 +20,7 @@ export interface WizardState {
   equipmentName: string;
   visType: string;
   description: string;
+  pollIntervalMs: number;
   error: string | null;
 }
 
@@ -34,6 +35,7 @@ const initialState: WizardState = {
   equipmentName: '',
   visType: 'single_kpi',
   description: '',
+  pollIntervalMs: 5000,
   error: null,
 };
 
@@ -53,6 +55,7 @@ type Action =
   | { type: 'NEXT_STEP' }
   | { type: 'PREV_STEP' }
   | { type: 'SET_ERROR'; error: string | null }
+  | { type: 'SET_POLL_INTERVAL'; ms: number }
   | { type: 'RESET' };
 
 export function wizardReducer(state: WizardState, action: Action): WizardState {
@@ -117,6 +120,9 @@ export function wizardReducer(state: WizardState, action: Action): WizardState {
 
     case 'PREV_STEP':
       return { ...state, step: Math.max(state.step - 1, 1), error: null };
+
+    case 'SET_POLL_INTERVAL':
+      return { ...state, pollIntervalMs: action.ms };
 
     case 'SET_ERROR':
       return { ...state, error: action.error };
