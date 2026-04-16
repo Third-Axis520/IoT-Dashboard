@@ -16,6 +16,9 @@ interface AddDeviceModalProps {
     sensorMapping: Record<number, number>,
     pointNames: string[]
   ) => void;
+  /** 從精靈完成後帶入：預選模板 + 預填 AssetCode */
+  initialTemplateId?: string;
+  initialAssetCode?: string;
 }
 
 const STEPS = [
@@ -30,17 +33,19 @@ export const AddDeviceModal = ({
   latestRawSensors,
   onClose,
   onAdd,
+  initialTemplateId,
+  initialAssetCode,
 }: AddDeviceModalProps) => {
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // Step 1
   const [deviceName, setDeviceName] = useState('');
-  const [selectedTplId, setSelectedTplId] = useState(templates[0]?.id ?? '');
+  const [selectedTplId, setSelectedTplId] = useState(initialTemplateId ?? templates[0]?.id ?? '');
 
   // Step 2
-  const [assetCodeMode, setAssetCodeMode] = useState<'list' | 'manual'>('list');
+  const [assetCodeMode, setAssetCodeMode] = useState<'list' | 'manual'>(initialAssetCode ? 'manual' : 'list');
   const [selectedSerial, setSelectedSerial] = useState('');
-  const [manualAssetCode, setManualAssetCode] = useState('');
+  const [manualAssetCode, setManualAssetCode] = useState(initialAssetCode ?? '');
 
   // Step 3
   const [sensorMapping, setSensorMapping] = useState<Record<number, number>>({});
@@ -207,6 +212,11 @@ export const AddDeviceModal = ({
           {/* ─── Step 2: Link Device ─── */}
           {step === 2 && (
             <>
+              {initialAssetCode && (
+                <div className="px-3 py-2 rounded-lg border border-[var(--accent-green)]/40 bg-[var(--accent-green)]/5 text-xs text-[var(--accent-green)]">
+                  ✓ AssetCode 已由精靈自動填入，可直接進入下一步
+                </div>
+              )}
               <div>
                 <label className="text-xs text-[var(--text-muted)] uppercase tracking-wider block mb-1.5">
                   連結後端設備

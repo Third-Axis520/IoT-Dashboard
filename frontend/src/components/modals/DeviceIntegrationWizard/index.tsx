@@ -6,11 +6,11 @@ import Step3Discovery from './steps/Step3_Discovery';
 import Step4SelectPoints from './steps/Step4_SelectPoints';
 import Step5Labels from './steps/Step5_Labels';
 import Step6Equipment from './steps/Step6_Equipment';
-import Step7Review from './steps/Step7_Review';
+import Step7Review, { type WizardSuccessInfo } from './steps/Step7_Review';
 
 interface DeviceIntegrationWizardProps {
   onClose: () => void;
-  onSuccess?: () => void;
+  onSuccess?: (info: WizardSuccessInfo) => void;
 }
 
 function WizardContent({ onClose, onSuccess }: DeviceIntegrationWizardProps) {

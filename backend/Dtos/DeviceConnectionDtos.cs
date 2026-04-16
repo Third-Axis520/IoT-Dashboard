@@ -29,7 +29,9 @@ public record DeviceConnectionDetailDto(
     int ConsecutiveErrors,
     int? EquipmentTypeId,
     EquipmentTypeDto? EquipmentType,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    /// <summary>自動建立的 Device.AssetCode；push_ingest 時為 null</summary>
+    string? AssetCode = null);
 
 public record SaveDeviceConnectionRequest(
     [Required, MaxLength(200)] string Name,

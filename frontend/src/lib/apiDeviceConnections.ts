@@ -65,8 +65,14 @@ export function fetchDeviceConnections(): Promise<DeviceConnectionItem[]> {
   return apiCall<DeviceConnectionItem[]>('/api/device-connections');
 }
 
-export function createDeviceConnection(req: SaveDeviceConnectionRequest) {
-  return apiCall('/api/device-connections', {
+export interface DeviceConnectionCreatedDto {
+  id: number;
+  equipmentTypeId: number | null;
+  assetCode: string | null;
+}
+
+export function createDeviceConnection(req: SaveDeviceConnectionRequest): Promise<DeviceConnectionCreatedDto> {
+  return apiCall<DeviceConnectionCreatedDto>('/api/device-connections', {
     method: 'POST',
     body: JSON.stringify(req),
   });

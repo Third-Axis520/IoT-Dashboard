@@ -2,9 +2,15 @@ import { useState } from 'react';
 import { useWizard } from '../WizardContext';
 import { createDeviceConnection, type SaveDeviceConnectionRequest } from '../../../../lib/apiDeviceConnections';
 
+export interface WizardSuccessInfo {
+  name: string;
+  assetCode: string | null;
+  equipmentTypeId: number | null;
+}
+
 interface Step7ReviewProps {
   onClose: () => void;
-  onSuccess?: () => void;
+  onSuccess?: (info: WizardSuccessInfo) => void;
 }
 
 export default function Step7Review({ onClose, onSuccess }: Step7ReviewProps) {
@@ -60,8 +66,8 @@ export default function Step7Review({ onClose, onSuccess }: Step7ReviewProps) {
         },
       };
 
-      await createDeviceConnection(req);
-      onSuccess?.();
+      const created = await createDeviceConnection(req);
+      onSuccess?.({ name: state.connectionName, assetCode: created.assetCode, equipmentTypeId: created.equipmentTypeId });
       onClose();
     } catch (err) {
       dispatch({

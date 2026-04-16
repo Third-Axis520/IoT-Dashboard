@@ -91,6 +91,24 @@ public class DeviceConnectionController(
         db.DeviceConnections.Add(dc);
         await db.SaveChangesAsync();
 
+        // Auto-provision Device for polling protocols so data ingestion works immediately.
+        // push_ingest devices register themselves on first push, so skip those.
+        string? assetCode = null;
+        if (req.Protocol != "push_ingest")
+        {
+            assetCode = $"dc_{dc.Id}";
+            var device = new Device
+            {
+                SerialNumber = $"poll_{dc.Id}",
+                AssetCode = assetCode,
+                FriendlyName = req.Name,
+                FirstSeen = DateTime.UtcNow,
+                LastSeen = DateTime.UtcNow,
+            };
+            db.Devices.Add(device);
+            await db.SaveChangesAsync();
+        }
+
         // Reload with includes
         var created = await db.DeviceConnections
             .Include(x => x.EquipmentType!)
@@ -99,7 +117,7 @@ public class DeviceConnectionController(
             .FirstAsync(x => x.Id == dc.Id);
 
         _ = sseHub.BroadcastConfigAsync("device_connection", created.Id, "created");
-        return Ok(MapToDetailDto(created));
+        return Ok(MapToDetailDto(created, assetCode));
     }
 
     [HttpPut("{id:int}")]
@@ -185,11 +203,12 @@ public class DeviceConnectionController(
         dc.EquipmentTypeId, dc.EquipmentType?.Name,
         dc.CreatedAt);
 
-    private static DeviceConnectionDetailDto MapToDetailDto(DeviceConnection dc) => new(
+    private static DeviceConnectionDetailDto MapToDetailDto(DeviceConnection dc, string? assetCode = null) => new(
         dc.Id, dc.Name, dc.Protocol, dc.ConfigJson,
         dc.PollIntervalMs, dc.IsEnabled,
         dc.LastPollAt, dc.LastPollError, dc.ConsecutiveErrors,
         dc.EquipmentTypeId,
         dc.EquipmentType != null ? EquipmentTypeController.MapToDtoPublic(dc.EquipmentType) : null,
-        dc.CreatedAt);
+        dc.CreatedAt,
+        assetCode);
 }

@@ -58,6 +58,7 @@ export default function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddDevice, setShowAddDevice] = useState(false);
+  const [addDevicePreset, setAddDevicePreset] = useState<{ templateId: string; assetCode: string } | null>(null);
   const [showDeviceMgmt, setShowDeviceMgmt] = useState(false);
   const [showLimits, setShowLimits] = useState(false);
   const [showRegisterMap, setShowRegisterMap] = useState(false);
@@ -944,8 +945,10 @@ export default function App() {
           templates={templates}
           devices={devices}
           latestRawSensors={latestRawSensors}
-          onClose={() => setShowAddDevice(false)}
-          onAdd={handleAddDevice}
+          onClose={() => { setShowAddDevice(false); setAddDevicePreset(null); }}
+          onAdd={(tpl, name, ac, mapping, names) => { handleAddDevice(tpl, name, ac, mapping, names); setAddDevicePreset(null); }}
+          initialTemplateId={addDevicePreset?.templateId}
+          initialAssetCode={addDevicePreset?.assetCode}
         />
       )}
       {showDeviceMgmt && (
@@ -998,9 +1001,14 @@ export default function App() {
       {showWizard && (
         <DeviceIntegrationWizard
           onClose={() => setShowWizard(false)}
-          onSuccess={() => {
-            addToast('success', '設備整合成功！新連線已建立。');
-            reloadConfig();
+          onSuccess={async ({ name, assetCode, equipmentTypeId }) => {
+            setShowWizard(false);
+            await reloadConfig();
+            addToast('success', `「${name}」已建立！請選擇要加入的產線。`);
+            if (assetCode && equipmentTypeId) {
+              setAddDevicePreset({ templateId: String(equipmentTypeId), assetCode });
+              setShowAddDevice(true);
+            }
           }}
         />
       )}
