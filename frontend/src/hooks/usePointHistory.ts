@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import type { Equipment } from '../types';
 import { fetchHistory, type HistoryPoint } from '../lib/apiHistory';
 
@@ -14,7 +14,6 @@ export function usePointHistory(
 ): { historyMap: Record<string, HistoryPoint[]>; loading: boolean } {
   const [historyMap, setHistoryMap] = useState<Record<string, HistoryPoint[]>>({});
   const [loading, setLoading] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (!assetCode) return;
@@ -22,9 +21,7 @@ export function usePointHistory(
     const sensored = points.filter(p => p.sensorId !== undefined);
     if (sensored.length === 0) return;
 
-    abortRef.current?.abort();
-    abortRef.current = new AbortController();
-
+    let stale = false;
     const to = new Date();
     const from = new Date(to.getTime() - RANGE_HOURS[timeRange] * 3_600_000);
 
@@ -35,6 +32,7 @@ export function usePointHistory(
         fetchHistory(assetCode, p.sensorId!, from, to).then(data => ({ id: p.id, data }))
       )
     ).then(results => {
+      if (stale) return;
       const map: Record<string, HistoryPoint[]> = {};
       for (const r of results) {
         if (r.status === 'fulfilled') map[r.value.id] = r.value.data;
@@ -42,6 +40,11 @@ export function usePointHistory(
       setHistoryMap(map);
       setLoading(false);
     });
+
+    return () => {
+      stale = true;
+      setLoading(false);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assetCode, timeRange, points.map(p => p.id).join(',')]);
 
