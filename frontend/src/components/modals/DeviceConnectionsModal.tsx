@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   fetchPollingDiagnostics,
   fetchDeviceConnections,
@@ -14,13 +15,15 @@ interface DeviceConnectionsModalProps {
   onClose: () => void;
 }
 
-const statusBadge: Record<string, { color: string; label: string }> = {
-  healthy: { color: 'bg-green-500', label: '正常' },
-  error: { color: 'bg-red-500', label: '錯誤' },
-  disabled: { color: 'bg-gray-400', label: '停用' },
-};
-
 export default function DeviceConnectionsModal({ onClose }: DeviceConnectionsModalProps) {
+  const { t } = useTranslation();
+
+  const statusBadge: Record<string, { color: string; label: string }> = {
+    healthy: { color: 'bg-green-500', label: t('deviceConnections.statusOk') },
+    error: { color: 'bg-red-500', label: t('deviceConnections.statusError') },
+    disabled: { color: 'bg-gray-400', label: t('deviceConnections.statusDisabled') },
+  };
+
   const [diag, setDiag] = useState<PollingDiagnostics | null>(null);
   const [loading, setLoading] = useState(true);
   const [testingId, setTestingId] = useState<number | null>(null);
@@ -62,9 +65,13 @@ export default function DeviceConnectionsModal({ onClose }: DeviceConnectionsMod
     setTestResult(null);
     try {
       const result = await testDeviceConnection(id) as { success: boolean; error?: string };
-      setTestResult({ id, ok: result.success, msg: result.success ? '連線成功' : (result.error ?? '連線失敗') });
+      setTestResult({
+        id,
+        ok: result.success,
+        msg: result.success ? t('deviceConnections.connectSuccess') : (result.error ?? t('deviceConnections.connectFailed')),
+      });
     } catch (err) {
-      setTestResult({ id, ok: false, msg: err instanceof Error ? err.message : '測試失敗' });
+      setTestResult({ id, ok: false, msg: err instanceof Error ? err.message : t('deviceConnections.connectFailed') });
     } finally {
       setTestingId(null);
     }
@@ -97,11 +104,13 @@ export default function DeviceConnectionsModal({ onClose }: DeviceConnectionsMod
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-3xl max-h-[80vh] flex flex-col mx-4">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <div>
-            <h2 className="text-lg font-semibold">連線管理</h2>
+            <h2 className="text-lg font-semibold">{t('deviceConnections.title')}</h2>
             {diag && (
               <span className="text-xs text-gray-400">
-                輪詢服務: {diag.polling.isRunning ? '運行中' : '停止'} |
-                啟用連線: {diag.polling.activeConnections}
+                {t('deviceConnections.statusInfo', {
+                  status: diag.polling.isRunning ? '運行中' : '停止',
+                  count: diag.polling.activeConnections,
+                })}
               </span>
             )}
           </div>
@@ -110,18 +119,18 @@ export default function DeviceConnectionsModal({ onClose }: DeviceConnectionsMod
 
         <div className="flex-1 overflow-y-auto p-6">
           {loading ? (
-            <div className="text-center py-8 text-gray-400">載入中...</div>
+            <div className="text-center py-8 text-gray-400">{t('common.loading')}</div>
           ) : !diag || diag.connections.length === 0 ? (
-            <div className="text-center py-8 text-gray-400">尚無連線設定</div>
+            <div className="text-center py-8 text-gray-400">{t('deviceConnections.noConnections')}</div>
           ) : (
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200 dark:border-gray-700 text-left">
-                  <th className="py-2 px-2">名稱</th>
-                  <th className="py-2 px-2">協議</th>
-                  <th className="py-2 px-2">狀態</th>
-                  <th className="py-2 px-2">錯誤</th>
-                  <th className="py-2 px-2">間隔</th>
+                  <th className="py-2 px-2">{t('deviceConnections.colName')}</th>
+                  <th className="py-2 px-2">{t('deviceConnections.colProtocol')}</th>
+                  <th className="py-2 px-2">{t('deviceConnections.colStatus')}</th>
+                  <th className="py-2 px-2">{t('deviceConnections.colError')}</th>
+                  <th className="py-2 px-2">{t('deviceConnections.colInterval')}</th>
                   <th className="py-2 px-2 text-right">操作</th>
                 </tr>
               </thead>
@@ -175,7 +184,7 @@ export default function DeviceConnectionsModal({ onClose }: DeviceConnectionsMod
                               onClick={() =>
                                 setEditingInterval({ id: conn.id, value: String(full.pollIntervalMs! / 1000) })
                               }
-                              title="點擊編輯輪詢間隔"
+                              title={t('deviceConnections.intervalHint')}
                               className="text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 transition-colors cursor-pointer"
                             >
                               {full.pollIntervalMs / 1000}s
@@ -189,20 +198,20 @@ export default function DeviceConnectionsModal({ onClose }: DeviceConnectionsMod
                             onClick={() => handleToggle(conn.id, isEnabled)}
                             className="px-2 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
                           >
-                            {isEnabled ? '停用' : '啟用'}
+                            {isEnabled ? t('common.disable') : t('common.enable')}
                           </button>
                           <button
                             onClick={() => handleTest(conn.id)}
                             disabled={testingId === conn.id}
                             className="px-2 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
                           >
-                            {testingId === conn.id ? '...' : '測試'}
+                            {testingId === conn.id ? t('deviceConnections.testing') : t('common.test')}
                           </button>
                           <button
                             onClick={() => setDeleteTarget({ id: conn.id, name: conn.name })}
                             className="px-2 py-1 text-xs rounded border border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
                           >
-                            刪除
+                            {t('common.delete')}
                           </button>
                         </div>
                         {testResult?.id === conn.id && (
@@ -222,9 +231,9 @@ export default function DeviceConnectionsModal({ onClose }: DeviceConnectionsMod
 
       {deleteTarget && (
         <ConfirmModal
-          title="刪除連線"
-          message={`確定要刪除連線「${deleteTarget.name}」嗎？\n這將同時刪除關聯的設備類型。`}
-          confirmText="刪除"
+          title={t('deviceConnections.deleteTitle')}
+          message={t('deviceConnections.deleteConfirm', { name: deleteTarget.name })}
+          confirmText={t('common.delete')}
           variant="danger"
           onConfirm={handleDelete}
           onCancel={() => setDeleteTarget(null)}
