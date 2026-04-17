@@ -13,7 +13,7 @@ PLC → OvenDataReceive → POST /api/data/ingest
 
 **Frontend:** React 19, TypeScript, Tailwind CSS 4, Vite 6, Recharts  
 **Backend:** .NET 9, EF Core 9, SQL Server, SSE  
-**Key features:** Real-time monitoring, PLC template system, register map, UCL/LCL limits, shoe-material presence (reg 40013), LTTB downsampling, OpenTelemetry, Device Integration Wizard (auto-provision + production-line binding)
+**Key features:** Real-time monitoring, PLC template system, register map, UCL/LCL limits, shoe-material presence (reg 40013), LTTB downsampling, OpenTelemetry, Device Integration Wizard (auto-provision + production-line binding), multi-language UI (zh-TW / zh-CN / EN), theme persistence
 
 ## Run Locally
 
