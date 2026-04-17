@@ -657,10 +657,15 @@ export default function App() {
               </button>
               <button
                 onClick={() => setShowPlcTemplates(true)}
-                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--bg-card)] rounded-b-lg transition-colors"
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--bg-card)] transition-colors"
               >
                 <Cpu className="w-3.5 h-3.5 text-[var(--text-muted)]" /> {t('app.plcTemplates')}
               </button>
+              <div className="h-px bg-[var(--border-base)] mx-2 my-1" />
+              <div className="px-3 py-2 flex items-center justify-between rounded-b-lg">
+                <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">Language</span>
+                <LanguageSwitcher />
+              </div>
             </div>
           </div>
 
@@ -736,8 +741,6 @@ export default function App() {
           >
             {isEditMode ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
           </button>
-          <LanguageSwitcher />
-
           <button
             onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
             className="flex items-center justify-center w-8 h-8 bg-[var(--bg-panel)] border border-[var(--border-base)] rounded-md text-[var(--text-muted)] hover:text-[var(--text-main)] hover:border-[var(--accent-blue)]/50 transition-colors"
