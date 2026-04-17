@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWizard } from '../WizardContext';
 import DynamicForm from '../DynamicForm';
@@ -8,6 +8,8 @@ export default function Step2Config() {
   const { state, dispatch } = useWizard();
   const { t } = useTranslation();
   const [protocol, setProtocol] = useState<ProtocolItem | null>(null);
+  const configRef = useRef(state.config);
+  configRef.current = state.config;
 
   useEffect(() => {
     if (state.protocol) {
@@ -15,19 +17,20 @@ export default function Step2Config() {
     }
   }, [state.protocol]);
 
-  // Initialize default values from schema
+  // Initialize default values from schema — runs once when protocol loads
   useEffect(() => {
     if (!protocol) return;
+    const current = configRef.current;
     const defaults: Record<string, string> = {};
     for (const f of protocol.configSchema.fields) {
-      if (f.defaultValue && !state.config[f.name]) {
+      if (f.defaultValue && !current[f.name]) {
         defaults[f.name] = f.defaultValue;
       }
     }
     if (Object.keys(defaults).length > 0) {
-      dispatch({ type: 'SET_CONFIG', config: { ...defaults, ...state.config } });
+      dispatch({ type: 'SET_CONFIG', config: { ...defaults, ...current } });
     }
-  }, [protocol, dispatch, state.config]);
+  }, [protocol, dispatch]);
 
   const canProceed = state.connectionName.trim().length > 0;
 
