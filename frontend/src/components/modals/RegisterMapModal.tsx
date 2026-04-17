@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   X, Save, Network, AlertCircle, CheckCircle, Loader,
   ChevronDown, AlertTriangle,
@@ -35,6 +36,7 @@ interface Props {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export const RegisterMapModal = ({ line, onClose }: Props) => {
+  const { t } = useTranslation();
   const [activeZone, setActiveZone] = useState(0);
   const [profileName, setProfileName] = useState('');
   const [entries, setEntries] = useState<EntryRow[]>([]);
@@ -120,10 +122,10 @@ export const RegisterMapModal = ({ line, onClose }: Props) => {
       return;
     }
     try {
-      const t: PlcTemplate = await fetch(`/api/plc-templates/${id}`).then(r => r.json());
-      setSelectedTemplate(t);
+      const tpl: PlcTemplate = await fetch(`/api/plc-templates/${id}`).then(r => r.json());
+      setSelectedTemplate(tpl);
       setEntries([]);
-      setActiveZone(t.zones[0]?.zoneIndex ?? 0);
+      setActiveZone(tpl.zones[0]?.zoneIndex ?? 0);
     } catch {
       // 保持現狀
     }
@@ -223,7 +225,7 @@ export const RegisterMapModal = ({ line, onClose }: Props) => {
             </div>
             <div className="flex-1 min-w-0">
               <h2 id="regmap-title" className="text-base font-bold text-[var(--text-main)] tracking-wide">
-                暫存器對應設定
+                {t('registerMap.title')}
               </h2>
               <p className="text-xs text-[var(--text-muted)] mt-0.5 font-mono">{line.name}</p>
               {/* PLC 型號 Inline Selector */}
@@ -241,10 +243,10 @@ export const RegisterMapModal = ({ line, onClose }: Props) => {
                         : 'bg-[var(--bg-panel)] border-[var(--border-input)] text-[var(--text-muted)]'
                     )}
                   >
-                    <option value="">— 選擇 PLC 型號 —</option>
-                    {templateList.map(t => (
-                      <option key={t.id} value={t.id} className="bg-[var(--bg-panel)] text-[var(--text-main)]">
-                        {t.modelName}
+                    <option value="">{t('registerMap.selectModel')}</option>
+                    {templateList.map(tpl => (
+                      <option key={tpl.id} value={tpl.id} className="bg-[var(--bg-panel)] text-[var(--text-main)]">
+                        {tpl.modelName}
                       </option>
                     ))}
                   </select>
@@ -302,11 +304,11 @@ export const RegisterMapModal = ({ line, onClose }: Props) => {
         {selectedTemplate && activeZoneDef && (
           <div className="px-6 py-2.5 bg-[var(--bg-panel)]/40 border-b border-[var(--border-base)] shrink-0">
             <p className="text-xs text-[var(--text-muted)]">
-              資產編號暫存器段：
+              {t('registerMap.assetCodeRegRange')}
               <span className="font-mono text-[var(--accent-cyan)] ml-1">
                 {toHex(activeZoneDef.assetCodeRegStart)}–{toHex(activeZoneDef.assetCodeRegStart + activeZoneDef.assetCodeRegCount - 1)}
               </span>
-              <span className="ml-3 opacity-50">（共 {activeZoneDef.assetCodeRegCount} 個暫存器）</span>
+              <span className="ml-3 opacity-50">（{t('registerMap.registerCount', { count: activeZoneDef.assetCodeRegCount })}）</span>
             </p>
           </div>
         )}
@@ -316,20 +318,20 @@ export const RegisterMapModal = ({ line, onClose }: Props) => {
           {loading ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3 text-[var(--text-muted)]">
               <Loader className="w-6 h-6 animate-spin text-[var(--accent-blue)]" />
-              <span className="text-sm">載入設定中…</span>
+              <span className="text-sm">{t('registerMap.loading')}</span>
             </div>
           ) : !selectedTemplate ? (
             /* Empty state：請先選型號 */
             <div className="flex flex-col items-center justify-center py-16 gap-3 border border-dashed border-[var(--border-base)] rounded-xl m-6">
               <Network className="w-8 h-8 text-[var(--border-base)]" />
               <div className="text-center">
-                <p className="text-sm font-semibold text-[var(--text-muted)]">請先選擇 PLC 型號</p>
+                <p className="text-sm font-semibold text-[var(--text-muted)]">{t('registerMap.noModelSelected')}</p>
                 <p className="text-xs text-[var(--text-muted)] mt-1 opacity-60 max-w-xs">
-                  從上方下拉選單選擇此產線使用的 PLC 型號，以開始設定暫存器對應
+                  {t('registerMap.noModelHint')}
                 </p>
                 {templateList.length === 0 && !loadingTemplates && (
                   <p className="text-xs text-[var(--accent-yellow)] mt-2">
-                    目前尚無 PLC 型號範本，請先從工具列的「PLC 型號管理」建立型號
+                    {t('registerMap.noTemplate')}
                   </p>
                 )}
               </div>
@@ -337,13 +339,13 @@ export const RegisterMapModal = ({ line, onClose }: Props) => {
           ) : zoneRegisters.length === 0 ? (
             /* 該 Zone 沒有暫存器定義 */
             <div className="flex flex-col items-center justify-center py-12 gap-3 m-6">
-              <p className="text-sm text-[var(--text-muted)]">此 Zone 在範本中尚未定義任何暫存器</p>
+              <p className="text-sm text-[var(--text-muted)]">{t('registerMap.noRegistersInZone')}</p>
             </div>
           ) : (
             <div className="p-6 space-y-2">
               {/* Table Header */}
               <div className="grid grid-cols-[90px_1fr_1fr_90px] gap-2 px-3 pb-1">
-                {['Reg 地址', '對應設備', '對應點位', '名稱'].map(h => (
+                {[t('registerMap.colAddress'), t('registerMap.colDevice'), t('registerMap.colPoint'), t('registerMap.colName')].map(h => (
                   <span key={h} className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{h}</span>
                 ))}
               </div>
@@ -383,7 +385,7 @@ export const RegisterMapModal = ({ line, onClose }: Props) => {
                       onChange={e => updateEntry(reg.registerAddress, activeZone, { equipmentId: e.target.value })}
                       className="bg-[var(--bg-card)] border border-[var(--border-input)] rounded-md px-2 py-1.5 text-xs text-[var(--text-main)] outline-none focus:border-[var(--accent-blue)] w-full truncate"
                     >
-                      <option value="" className="bg-[var(--bg-panel)]">— 選擇設備 —</option>
+                      <option value="" className="bg-[var(--bg-panel)]">{t('registerMap.selectDevice')}</option>
                       {line.equipments.map(eq => (
                         <option key={eq.id} value={eq.id} className="bg-[var(--bg-panel)]">{eq.name}</option>
                       ))}
@@ -396,7 +398,7 @@ export const RegisterMapModal = ({ line, onClose }: Props) => {
                       disabled={!equipmentId}
                       className="bg-[var(--bg-card)] border border-[var(--border-input)] rounded-md px-2 py-1.5 text-xs text-[var(--text-main)] outline-none focus:border-[var(--accent-blue)] w-full disabled:opacity-40 disabled:cursor-not-allowed truncate"
                     >
-                      <option value="" className="bg-[var(--bg-panel)]">— 選擇點位 —</option>
+                      <option value="" className="bg-[var(--bg-panel)]">{t('registerMap.selectPoint')}</option>
                       {points.map(pt => (
                         <option key={pt.id} value={pt.id} className="bg-[var(--bg-panel)]">{pt.name}</option>
                       ))}
@@ -407,7 +409,7 @@ export const RegisterMapModal = ({ line, onClose }: Props) => {
                       type="text"
                       value={label}
                       onChange={e => updateEntry(reg.registerAddress, activeZone, { label: e.target.value })}
-                      placeholder={reg.defaultLabel || '名稱'}
+                      placeholder={reg.defaultLabel || t('registerMap.colName')}
                       className="bg-[var(--bg-card)] border border-[var(--border-input)] rounded-md px-2 py-1.5 text-xs text-[var(--text-main)] outline-none focus:border-[var(--accent-blue)] w-full"
                     />
                   </div>
@@ -420,7 +422,7 @@ export const RegisterMapModal = ({ line, onClose }: Props) => {
         {/* ── Footer ─────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-[var(--border-base)] shrink-0 gap-4">
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            <label className="text-xs text-[var(--text-muted)] shrink-0">基本檔名稱</label>
+            <label className="text-xs text-[var(--text-muted)] shrink-0">{t('registerMap.profileName')}</label>
             <input
               type="text"
               value={profileName}
@@ -432,7 +434,7 @@ export const RegisterMapModal = ({ line, onClose }: Props) => {
           <div className="flex items-center gap-2 shrink-0">
             {saveStatus === 'ok' && (
               <span className="flex items-center gap-1.5 text-xs text-[var(--accent-green)] animate-in fade-in duration-300">
-                <CheckCircle className="w-3.5 h-3.5" /> 已儲存
+                <CheckCircle className="w-3.5 h-3.5" /> {t('common.saved')}
               </span>
             )}
             {saveStatus === 'err' && (
@@ -444,7 +446,7 @@ export const RegisterMapModal = ({ line, onClose }: Props) => {
               onClick={onClose}
               className="px-4 py-2 text-xs text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--border-base)] rounded-lg transition-colors"
             >
-              關閉
+              {t('common.close')}
             </button>
             <button
               onClick={handleSave}
@@ -453,7 +455,7 @@ export const RegisterMapModal = ({ line, onClose }: Props) => {
             >
               {saving
                 ? <><Loader className="w-3.5 h-3.5 animate-spin" /> 儲存中…</>
-                : <><Save className="w-3.5 h-3.5" /> 儲存基本檔</>
+                : <><Save className="w-3.5 h-3.5" /> {t('registerMap.saveProfile')}</>
               }
             </button>
           </div>
@@ -469,9 +471,9 @@ export const RegisterMapModal = ({ line, onClose }: Props) => {
                 <AlertTriangle className="w-4 h-4 text-[var(--accent-yellow)]" />
               </div>
               <div>
-                <p className="text-sm font-bold text-[var(--text-main)]">確定更換 PLC 型號？</p>
+                <p className="text-sm font-bold text-[var(--text-main)]">{t('registerMap.changeModelConfirm')}</p>
                 <p className="text-xs text-[var(--text-muted)] mt-1">
-                  此操作將清除所有已設定的暫存器對應，無法復原。
+                  {t('registerMap.changeModelWarning')}
                 </p>
               </div>
             </div>
@@ -480,13 +482,13 @@ export const RegisterMapModal = ({ line, onClose }: Props) => {
                 onClick={cancelSwitch}
                 className="px-4 py-2 text-xs text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--border-base)] rounded-lg transition-colors"
               >
-                取消
+                {t('common.cancel')}
               </button>
               <button
                 onClick={confirmSwitch}
                 className="px-4 py-2 text-xs font-bold text-[var(--accent-yellow)] border border-[var(--accent-yellow)]/30 bg-[var(--accent-yellow)]/10 hover:bg-[var(--accent-yellow)]/20 rounded-lg transition-colors"
               >
-                確認更換
+                {t('registerMap.changeModelConfirmBtn')}
               </button>
             </div>
           </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   X, Plus, Trash2, Save, FileCode2, AlertCircle, CheckCircle,
   Loader, ChevronLeft, Edit2, Layers, Cpu,
@@ -32,6 +33,7 @@ interface Props {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export const PlcTemplateModal = ({ onClose }: Props) => {
+  const { t } = useTranslation();
   const [view, setView] = useState<View>('list');
   const [templates, setTemplates] = useState<PlcTemplateSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,18 +79,18 @@ export const PlcTemplateModal = ({ onClose }: Props) => {
   const openEdit = async (id: number) => {
     setLoading(true);
     try {
-      const t: PlcTemplate = await fetch(`/api/plc-templates/${id}`).then(r => r.json());
+      const tpl: PlcTemplate = await fetch(`/api/plc-templates/${id}`).then(r => r.json());
       setEditingId(id);
-      setFormName(t.modelName);
-      setFormDesc(t.description ?? '');
-      setFormZones(t.zones.map(z => ({
+      setFormName(tpl.modelName);
+      setFormDesc(tpl.description ?? '');
+      setFormZones(tpl.zones.map(z => ({
         localId: newLocalId(),
         zoneIndex: z.zoneIndex,
         zoneName: z.zoneName,
         assetCodeRegStart: z.assetCodeRegStart,
         assetCodeRegCount: z.assetCodeRegCount,
       })));
-      setFormRegs(t.registers.map(r => ({
+      setFormRegs(tpl.registers.map(r => ({
         localId: newLocalId(),
         registerAddress: r.registerAddress,
         defaultLabel: r.defaultLabel,
@@ -236,7 +238,7 @@ export const PlcTemplateModal = ({ onClose }: Props) => {
             </div>
             <div>
               <h2 id="plc-tpl-title" className="text-base font-bold text-[var(--text-main)] tracking-wide">
-                {view === 'list' ? 'PLC 型號管理' : editingId != null ? `編輯型號` : '新增型號'}
+                {view === 'list' ? t('plcTemplate.title') : editingId != null ? t('plcTemplate.editTitle') : t('plcTemplate.createTitle')}
               </h2>
               {view === 'edit' && editingId != null && (
                 <p className="text-xs text-[var(--text-muted)] mt-0.5">{formName}</p>
@@ -250,7 +252,7 @@ export const PlcTemplateModal = ({ onClose }: Props) => {
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-[var(--accent-blue)]/10 text-[var(--accent-blue)] border border-[var(--accent-blue)]/30 hover:bg-[var(--accent-blue)]/20 rounded-lg transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" />
-                新增型號
+                {t('plcTemplate.createButton')}
               </button>
             )}
             <button
@@ -268,7 +270,7 @@ export const PlcTemplateModal = ({ onClose }: Props) => {
           {loading && view === 'list' ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3 text-[var(--text-muted)]">
               <Loader className="w-6 h-6 animate-spin text-[var(--accent-blue)]" />
-              <span className="text-sm">載入中…</span>
+              <span className="text-sm">{t('common.loading')}</span>
             </div>
           ) : view === 'list' ? (
             <ListView
@@ -303,7 +305,7 @@ export const PlcTemplateModal = ({ onClose }: Props) => {
           <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[var(--border-base)] shrink-0">
             {saveStatus === 'ok' && (
               <span className="flex items-center gap-1.5 text-xs text-[var(--accent-green)] animate-in fade-in duration-300 mr-auto">
-                <CheckCircle className="w-3.5 h-3.5" /> 已儲存
+                <CheckCircle className="w-3.5 h-3.5" /> {t('common.saved')}
               </span>
             )}
             {saveStatus === 'err' && (
@@ -315,7 +317,7 @@ export const PlcTemplateModal = ({ onClose }: Props) => {
               onClick={() => setView('list')}
               className="px-4 py-2 text-xs text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--border-base)] rounded-lg transition-colors"
             >
-              取消
+              {t('common.cancel')}
             </button>
             <button
               onClick={handleSave}
@@ -324,7 +326,7 @@ export const PlcTemplateModal = ({ onClose }: Props) => {
             >
               {saving
                 ? <><Loader className="w-3.5 h-3.5 animate-spin" /> 儲存中…</>
-                : <><Save className="w-3.5 h-3.5" /> 儲存型號</>
+                : <><Save className="w-3.5 h-3.5" /> {t('plcTemplate.saveModel')}</>
               }
             </button>
           </div>
@@ -349,14 +351,16 @@ const ListView = ({
   templates, deleteConfirmId, deleteError,
   onEdit, onDeleteRequest, onDeleteConfirm, onDeleteCancel,
 }: ListViewProps) => {
+  const { t } = useTranslation();
+
   if (templates.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 gap-3 border border-dashed border-[var(--border-base)] rounded-xl m-6">
         <Cpu className="w-8 h-8 text-[var(--border-base)]" />
         <div className="text-center">
-          <p className="text-sm font-semibold text-[var(--text-muted)]">尚無 PLC 型號範本</p>
+          <p className="text-sm font-semibold text-[var(--text-muted)]">{t('plcTemplate.empty')}</p>
           <p className="text-xs text-[var(--text-muted)] mt-0.5 opacity-60">
-            點擊右上角「新增型號」建立第一個 PLC 型號範本
+            {t('plcTemplate.emptyHint')}
           </p>
         </div>
       </div>
@@ -365,41 +369,41 @@ const ListView = ({
 
   return (
     <div className="p-6 space-y-3">
-      {templates.map(t => (
-        <div key={t.id} className="rounded-xl border border-[var(--border-base)] bg-[var(--bg-panel)]/50 overflow-hidden">
+      {templates.map(tpl => (
+        <div key={tpl.id} className="rounded-xl border border-[var(--border-base)] bg-[var(--bg-panel)]/50 overflow-hidden">
           <div className="flex items-center gap-3 p-4">
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-[var(--text-main)] truncate">{t.modelName}</p>
-              {t.description && (
-                <p className="text-xs text-[var(--text-muted)] mt-0.5 truncate">{t.description}</p>
+              <p className="text-sm font-bold text-[var(--text-main)] truncate">{tpl.modelName}</p>
+              {tpl.description && (
+                <p className="text-xs text-[var(--text-muted)] mt-0.5 truncate">{tpl.description}</p>
               )}
               <div className="flex items-center gap-2 mt-1.5">
                 <span className="flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--accent-blue)]/10 text-[var(--accent-blue)] border border-[var(--accent-blue)]/20">
-                  <Layers className="w-3 h-3" /> {t.zoneCount} Zones
+                  <Layers className="w-3 h-3" /> {t('plcTemplate.zonesCount', { count: tpl.zoneCount })}
                 </span>
                 <span className="flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)] border border-[var(--accent-cyan)]/20">
-                  <Cpu className="w-3 h-3" /> {t.registerCount} Registers
+                  <Cpu className="w-3 h-3" /> {t('plcTemplate.registersCount', { count: tpl.registerCount })}
                 </span>
               </div>
             </div>
             <button
-              onClick={() => onEdit(t.id)}
+              onClick={() => onEdit(tpl.id)}
               className="flex items-center justify-center w-8 h-8 text-[var(--text-muted)] hover:text-[var(--accent-blue)] hover:bg-[var(--accent-blue)]/10 rounded-lg transition-colors shrink-0"
-              aria-label="編輯"
+              aria-label={t('common.edit')}
             >
               <Edit2 className="w-4 h-4" />
             </button>
             <button
-              onClick={() => onDeleteRequest(t.id)}
+              onClick={() => onDeleteRequest(tpl.id)}
               className="flex items-center justify-center w-8 h-8 text-[var(--text-muted)] hover:text-[var(--accent-red)] hover:bg-[var(--accent-red)]/10 rounded-lg transition-colors shrink-0"
-              aria-label="刪除"
+              aria-label={t('common.delete')}
             >
               <Trash2 className="w-4 h-4" />
             </button>
           </div>
 
           {/* 刪除確認列 */}
-          {deleteConfirmId === t.id && (
+          {deleteConfirmId === tpl.id && (
             <div className="border-t border-[var(--border-base)] bg-[var(--accent-red)]/5 px-4 py-3">
               {deleteError ? (
                 <p className="text-xs text-[var(--accent-red)] flex items-start gap-1.5">
@@ -407,19 +411,19 @@ const ListView = ({
                 </p>
               ) : (
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs text-[var(--accent-red)]">確定要刪除「{t.modelName}」？此操作無法復原。</p>
+                  <p className="text-xs text-[var(--accent-red)]">{t('plcTemplate.deleteConfirm', { name: tpl.modelName })}</p>
                   <div className="flex items-center gap-2 shrink-0">
                     <button
                       onClick={onDeleteCancel}
                       className="px-3 py-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--border-base)] rounded-lg transition-colors"
                     >
-                      取消
+                      {t('common.cancel')}
                     </button>
                     <button
-                      onClick={() => onDeleteConfirm(t.id)}
+                      onClick={() => onDeleteConfirm(tpl.id)}
                       className="px-3 py-1.5 text-xs font-bold text-[var(--accent-red)] border border-[var(--accent-red)]/30 bg-[var(--accent-red)]/10 hover:bg-[var(--accent-red)]/20 rounded-lg transition-colors"
                     >
-                      確認刪除
+                      {t('plcTemplate.confirmDelete')}
                     </button>
                   </div>
                 </div>
@@ -455,132 +459,136 @@ const EditView = ({
   onNameChange, onDescChange,
   onAddZone, onUpdateZone, onRemoveZone,
   onAddReg, onUpdateReg, onRemoveReg,
-}: EditViewProps) => (
-  <div className="p-6 space-y-6">
-    {/* 基本資訊 */}
-    <section>
-      <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)] mb-3">基本資訊</h3>
-      <div className="space-y-3">
-        <div>
-          <label className="block text-xs text-[var(--text-muted)] mb-1">型號名稱 <span className="text-[var(--accent-red)]">*</span></label>
-          <input value={formName} onChange={e => onNameChange(e.target.value)} placeholder="例：烤箱控制器 v2" className={inputCls} />
-        </div>
-        <div>
-          <label className="block text-xs text-[var(--text-muted)] mb-1">說明（選填）</label>
-          <textarea value={formDesc} onChange={e => onDescChange(e.target.value)} rows={2} placeholder="型號用途說明…" className={cn(inputCls, 'resize-none')} />
-        </div>
-      </div>
-    </section>
+}: EditViewProps) => {
+  const { t } = useTranslation();
 
-    {/* Zone 定義 */}
-    <section>
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Zone 定義</h3>
-        <button onClick={onAddZone} className="flex items-center gap-1 text-xs text-[var(--accent-blue)] hover:underline">
-          <Plus className="w-3.5 h-3.5" /> 新增 Zone
-        </button>
-      </div>
-      {formZones.length === 0 ? (
-        <p className="text-xs text-[var(--text-muted)] opacity-60 py-2">尚未定義任何 Zone。</p>
-      ) : (
-        <div className="space-y-2">
-          {/* Header */}
-          <div className="grid grid-cols-[48px_1fr_120px_72px_28px] gap-2 px-3 pb-1">
-            {['Index', 'Zone 名稱', '資產碼起始（十進位）', '長度', ''].map(h => (
-              <span key={h} className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">{h}</span>
-            ))}
+  return (
+    <div className="p-6 space-y-6">
+      {/* 基本資訊 */}
+      <section>
+        <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)] mb-3">{t('plcTemplate.basicInfo')}</h3>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">{t('plcTemplate.modelName')} <span className="text-[var(--accent-red)]">*</span></label>
+            <input value={formName} onChange={e => onNameChange(e.target.value)} placeholder={t('plcTemplate.namePlaceholder')} className={inputCls} />
           </div>
-          {formZones.map(z => (
-            <div key={z.localId} className="grid grid-cols-[48px_1fr_120px_72px_28px] gap-2 items-center p-2.5 rounded-lg border border-[var(--border-base)] bg-[var(--bg-panel)]/50">
-              <input
-                type="number" min={0} value={z.zoneIndex}
-                onChange={e => onUpdateZone(z.localId, { zoneIndex: Number(e.target.value) })}
-                className={inputCls}
-              />
-              <input
-                value={z.zoneName}
-                onChange={e => onUpdateZone(z.localId, { zoneName: e.target.value })}
-                placeholder="Zone 1"
-                className={inputCls}
-              />
-              <div className="flex flex-col gap-0.5">
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">{t('plcTemplate.description')}</label>
+            <textarea value={formDesc} onChange={e => onDescChange(e.target.value)} rows={2} placeholder={t('plcTemplate.descriptionPlaceholder')} className={cn(inputCls, 'resize-none')} />
+          </div>
+        </div>
+      </section>
+
+      {/* Zone 定義 */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{t('plcTemplate.zoneDef')}</h3>
+          <button onClick={onAddZone} className="flex items-center gap-1 text-xs text-[var(--accent-blue)] hover:underline">
+            <Plus className="w-3.5 h-3.5" /> {t('plcTemplate.addZone')}
+          </button>
+        </div>
+        {formZones.length === 0 ? (
+          <p className="text-xs text-[var(--text-muted)] opacity-60 py-2">{t('plcTemplate.noZones')}</p>
+        ) : (
+          <div className="space-y-2">
+            {/* Header */}
+            <div className="grid grid-cols-[48px_1fr_120px_72px_28px] gap-2 px-3 pb-1">
+              {[t('plcTemplate.colIndex'), t('plcTemplate.colZoneName'), t('plcTemplate.colAssetStart'), t('plcTemplate.colLength'), ''].map(h => (
+                <span key={h} className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">{h}</span>
+              ))}
+            </div>
+            {formZones.map(z => (
+              <div key={z.localId} className="grid grid-cols-[48px_1fr_120px_72px_28px] gap-2 items-center p-2.5 rounded-lg border border-[var(--border-base)] bg-[var(--bg-panel)]/50">
                 <input
-                  type="number" min={0} value={z.assetCodeRegStart}
-                  onChange={e => onUpdateZone(z.localId, { assetCodeRegStart: Number(e.target.value) })}
+                  type="number" min={0} value={z.zoneIndex}
+                  onChange={e => onUpdateZone(z.localId, { zoneIndex: Number(e.target.value) })}
                   className={inputCls}
                 />
-                <span className="text-[9px] font-mono text-[var(--accent-cyan)] pl-0.5">{toHex(z.assetCodeRegStart)}</span>
-              </div>
-              <input
-                type="number" min={1} value={z.assetCodeRegCount}
-                onChange={e => onUpdateZone(z.localId, { assetCodeRegCount: Number(e.target.value) })}
-                className={inputCls}
-              />
-              <button onClick={() => onRemoveZone(z.localId)} className="flex items-center justify-center w-7 h-7 text-[var(--text-muted)] hover:text-[var(--accent-red)] hover:bg-[var(--accent-red)]/10 rounded-md transition-colors" aria-label="刪除此 Zone">
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
-
-    {/* Register 定義 */}
-    <section>
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">暫存器定義</h3>
-        <button onClick={onAddReg} className="flex items-center gap-1 text-xs text-[var(--accent-blue)] hover:underline">
-          <Plus className="w-3.5 h-3.5" /> 新增暫存器
-        </button>
-      </div>
-      {formRegs.length === 0 ? (
-        <p className="text-xs text-[var(--text-muted)] opacity-60 py-2">尚未定義任何暫存器。</p>
-      ) : (
-        <div className="space-y-2">
-          {/* Header */}
-          <div className="grid grid-cols-[90px_1fr_60px_90px_28px] gap-2 px-3 pb-1">
-            {['地址（十進位）', '預設名稱', '單位', '預設 Zone', ''].map(h => (
-              <span key={h} className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">{h}</span>
-            ))}
-          </div>
-          {formRegs.map(r => (
-            <div key={r.localId} className="grid grid-cols-[90px_1fr_60px_90px_28px] gap-2 items-center p-2.5 rounded-lg border border-[var(--border-base)] bg-[var(--bg-panel)]/50">
-              <div className="flex flex-col gap-0.5">
                 <input
-                  type="number" min={1} value={r.registerAddress}
-                  onChange={e => onUpdateReg(r.localId, { registerAddress: Number(e.target.value) })}
+                  value={z.zoneName}
+                  onChange={e => onUpdateZone(z.localId, { zoneName: e.target.value })}
+                  placeholder={t('plcTemplate.zoneNamePlaceholder')}
                   className={inputCls}
                 />
-                <span className="text-[9px] font-mono text-[var(--accent-cyan)] pl-0.5">{toHex(r.registerAddress)}</span>
+                <div className="flex flex-col gap-0.5">
+                  <input
+                    type="number" min={0} value={z.assetCodeRegStart}
+                    onChange={e => onUpdateZone(z.localId, { assetCodeRegStart: Number(e.target.value) })}
+                    className={inputCls}
+                  />
+                  <span className="text-[9px] font-mono text-[var(--accent-cyan)] pl-0.5">{toHex(z.assetCodeRegStart)}</span>
+                </div>
+                <input
+                  type="number" min={1} value={z.assetCodeRegCount}
+                  onChange={e => onUpdateZone(z.localId, { assetCodeRegCount: Number(e.target.value) })}
+                  className={inputCls}
+                />
+                <button onClick={() => onRemoveZone(z.localId)} className="flex items-center justify-center w-7 h-7 text-[var(--text-muted)] hover:text-[var(--accent-red)] hover:bg-[var(--accent-red)]/10 rounded-md transition-colors" aria-label={t('plcTemplate.deleteZone')}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
               </div>
-              <input
-                value={r.defaultLabel}
-                onChange={e => onUpdateReg(r.localId, { defaultLabel: e.target.value })}
-                placeholder="例：熱定型右溫度"
-                className={inputCls}
-              />
-              <input
-                value={r.defaultUnit}
-                onChange={e => onUpdateReg(r.localId, { defaultUnit: e.target.value })}
-                className={inputCls}
-              />
-              <select
-                value={r.defaultZoneIndex ?? ''}
-                onChange={e => onUpdateReg(r.localId, { defaultZoneIndex: e.target.value === '' ? null : Number(e.target.value) })}
-                className={cn(inputCls, 'bg-[var(--bg-card)]')}
-              >
-                <option value="">— 未指定 —</option>
-                {formZones.map(z => (
-                  <option key={z.localId} value={z.zoneIndex}>{z.zoneName}</option>
-                ))}
-              </select>
-              <button onClick={() => onRemoveReg(r.localId)} className="flex items-center justify-center w-7 h-7 text-[var(--text-muted)] hover:text-[var(--accent-red)] hover:bg-[var(--accent-red)]/10 rounded-md transition-colors" aria-label="刪除此暫存器">
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ))}
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Register 定義 */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{t('plcTemplate.registerDef')}</h3>
+          <button onClick={onAddReg} className="flex items-center gap-1 text-xs text-[var(--accent-blue)] hover:underline">
+            <Plus className="w-3.5 h-3.5" /> {t('plcTemplate.addRegister')}
+          </button>
         </div>
-      )}
-    </section>
-  </div>
-);
+        {formRegs.length === 0 ? (
+          <p className="text-xs text-[var(--text-muted)] opacity-60 py-2">{t('plcTemplate.noRegisters')}</p>
+        ) : (
+          <div className="space-y-2">
+            {/* Header */}
+            <div className="grid grid-cols-[90px_1fr_60px_90px_28px] gap-2 px-3 pb-1">
+              {[t('plcTemplate.colAddress'), t('plcTemplate.colDefaultName'), t('plcTemplate.colUnit'), t('plcTemplate.colDefaultZone'), ''].map(h => (
+                <span key={h} className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">{h}</span>
+              ))}
+            </div>
+            {formRegs.map(r => (
+              <div key={r.localId} className="grid grid-cols-[90px_1fr_60px_90px_28px] gap-2 items-center p-2.5 rounded-lg border border-[var(--border-base)] bg-[var(--bg-panel)]/50">
+                <div className="flex flex-col gap-0.5">
+                  <input
+                    type="number" min={1} value={r.registerAddress}
+                    onChange={e => onUpdateReg(r.localId, { registerAddress: Number(e.target.value) })}
+                    className={inputCls}
+                  />
+                  <span className="text-[9px] font-mono text-[var(--accent-cyan)] pl-0.5">{toHex(r.registerAddress)}</span>
+                </div>
+                <input
+                  value={r.defaultLabel}
+                  onChange={e => onUpdateReg(r.localId, { defaultLabel: e.target.value })}
+                  placeholder={t('plcTemplate.labelPlaceholder')}
+                  className={inputCls}
+                />
+                <input
+                  value={r.defaultUnit}
+                  onChange={e => onUpdateReg(r.localId, { defaultUnit: e.target.value })}
+                  className={inputCls}
+                />
+                <select
+                  value={r.defaultZoneIndex ?? ''}
+                  onChange={e => onUpdateReg(r.localId, { defaultZoneIndex: e.target.value === '' ? null : Number(e.target.value) })}
+                  className={cn(inputCls, 'bg-[var(--bg-card)]')}
+                >
+                  <option value="">{t('plcTemplate.unspecified')}</option>
+                  {formZones.map(z => (
+                    <option key={z.localId} value={z.zoneIndex}>{z.zoneName}</option>
+                  ))}
+                </select>
+                <button onClick={() => onRemoveReg(r.localId)} className="flex items-center justify-center w-7 h-7 text-[var(--text-muted)] hover:text-[var(--accent-red)] hover:bg-[var(--accent-red)]/10 rounded-md transition-colors" aria-label={t('plcTemplate.deleteRegister')}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+};
