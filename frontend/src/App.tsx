@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Trash2, Plus, ChevronDown, X, Layers, LayoutDashboard, Activity, Maximize, Minimize, Search, Sun, Moon, Check, Play, Pause, Lock, Unlock, Cpu, SlidersHorizontal, Settings, Network, FileCode2 } from 'lucide-react';
+import { Trash2, Plus, ChevronDown, X, Layers, LayoutDashboard, Activity, Maximize, Minimize, Search, Check, Play, Pause, Lock, Unlock, Cpu, SlidersHorizontal, Settings, Network, FileCode2 } from 'lucide-react';
 
 import type { Equipment, MachineTemplate, PointStatus, ProductionLine } from './types';
 import { cn } from './utils/cn';
@@ -58,7 +58,10 @@ export default function App() {
   const [isAddingLine, setIsAddingLine] = useState(false);
   const [newLineName, setNewLineName] = useState('');
   const [viewMode, setViewMode] = useState<'dashboard' | 'temp_trends'>('dashboard');
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [theme, setTheme] = useState<'dark' | 'light'>(
+    () => (localStorage.getItem('iot-theme') as 'dark' | 'light') ?? 'dark'
+  );
+  useEffect(() => { localStorage.setItem('iot-theme', theme); }, [theme]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddDevice, setShowAddDevice] = useState(false);
   const [addDevicePreset, setAddDevicePreset] = useState<{ templateId: string; assetCode: string } | null>(null);
@@ -630,13 +633,13 @@ export default function App() {
           <div className="relative group">
             <button
               className="flex items-center justify-center w-8 h-8 text-[var(--text-muted)] hover:text-[var(--accent-blue)] hover:bg-[var(--accent-blue)]/10 rounded-md transition-colors"
-              title="系統設定"
-              aria-label="系統設定"
+              title={t('app.systemSettings')}
+              aria-label={t('app.systemSettings')}
             >
               <Settings className="w-4 h-4" />
             </button>
-            <div className="absolute right-0 top-full mt-1 bg-[var(--bg-panel)] border border-[var(--border-base)] rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 min-w-[160px]">
-              <p className="px-3 pt-2 pb-1 text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">系統設定</p>
+            <div className="absolute right-0 top-full mt-1 bg-[var(--bg-panel)] border border-[var(--border-base)] rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 min-w-[210px]">
+              <p className="px-3 pt-2 pb-1 text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">{t('app.systemSettings')}</p>
               <button
                 onClick={() => setShowConnections(true)}
                 className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--bg-card)] transition-colors"
@@ -661,10 +664,32 @@ export default function App() {
               >
                 <Cpu className="w-3.5 h-3.5 text-[var(--text-muted)]" /> {t('app.plcTemplates')}
               </button>
-              <div className="h-px bg-[var(--border-base)] mx-2 my-1" />
-              <div className="px-3 py-2 flex items-center justify-between rounded-b-lg">
-                <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">Language</span>
-                <LanguageSwitcher />
+              {/* Preferences section */}
+              <div className="border-t border-[var(--border-base)] mt-1">
+                <p className="px-3 pt-2 pb-1 text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">{t('app.preferences')}</p>
+                {/* Theme row */}
+                <div className="px-3 py-1.5 flex items-center justify-between gap-2">
+                  <span className="text-xs text-[var(--text-main)] shrink-0">{t('app.theme')}</span>
+                  <div className="flex items-center gap-0.5 rounded-md border border-[var(--border-base)] overflow-hidden">
+                    <button
+                      onClick={() => setTheme('dark')}
+                      className={`px-2 py-1 text-xs font-medium transition-colors ${theme === 'dark' ? 'bg-[var(--border-base)] text-[var(--text-main)]' : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--border-base)]/50'}`}
+                    >
+                      {t('app.themeDark')}
+                    </button>
+                    <button
+                      onClick={() => setTheme('light')}
+                      className={`px-2 py-1 text-xs font-medium transition-colors ${theme === 'light' ? 'bg-[var(--border-base)] text-[var(--text-main)]' : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--border-base)]/50'}`}
+                    >
+                      {t('app.themeLight')}
+                    </button>
+                  </div>
+                </div>
+                {/* Language row */}
+                <div className="px-3 py-1.5 pb-3 flex items-center justify-between gap-2">
+                  <span className="text-xs text-[var(--text-main)] shrink-0">{t('app.language')}</span>
+                  <LanguageSwitcher />
+                </div>
               </div>
             </div>
           </div>
@@ -740,14 +765,6 @@ export default function App() {
             aria-label={isEditMode ? "Lock layout" : "Unlock layout"}
           >
             {isEditMode ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-          </button>
-          <button
-            onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
-            className="flex items-center justify-center w-8 h-8 bg-[var(--bg-panel)] border border-[var(--border-base)] rounded-md text-[var(--text-muted)] hover:text-[var(--text-main)] hover:border-[var(--accent-blue)]/50 transition-colors"
-            title={theme === 'dark' ? t('app.lightTheme') : t('app.darkTheme')}
-            aria-label="Toggle theme"
-          >
-            {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
           </button>
           <button
             onClick={toggleFullscreen}
