@@ -15,9 +15,11 @@
   },
   "dependencies": {
     "clsx": "^2.1.1",
+    "i18next": "^26.0.5",
     "lucide-react": "^0.546.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-i18next": "^17.0.3",
     "recharts": "^3.8.0",
     "tailwind-merge": "^3.5.0"
   },
