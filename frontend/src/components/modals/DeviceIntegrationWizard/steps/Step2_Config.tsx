@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useWizard } from '../WizardContext';
 import DynamicForm from '../DynamicForm';
 import { fetchProtocol, type ProtocolItem } from '../../../../lib/apiProtocols';
 
 export default function Step2Config() {
   const { state, dispatch } = useWizard();
+  const { t } = useTranslation();
   const [protocol, setProtocol] = useState<ProtocolItem | null>(null);
 
   useEffect(() => {
@@ -31,25 +33,25 @@ export default function Step2Config() {
 
   return (
     <div className="p-6">
-      <h3 className="text-base font-medium text-[var(--text-main)] mb-1">連線設定</h3>
+      <h3 className="text-base font-medium text-[var(--text-main)] mb-1">{t('wizard.config.title')}</h3>
       <p className="text-sm text-[var(--text-muted)] mb-6">
-        輸入 {protocol?.displayName ?? state.protocol} 的連線參數
+        {t('wizard.config.desc', { protocol: protocol?.displayName ?? state.protocol })}
       </p>
 
       {/* Connection name */}
       <div className="mb-5">
         <label className="block text-sm font-medium text-[var(--text-main)] mb-1">
-          連線名稱 <span className="text-[var(--accent-red)]">*</span>
+          {t('wizard.config.nameLabel')} <span className="text-[var(--accent-red)]">*</span>
         </label>
         <input
           type="text"
           value={state.connectionName}
           onChange={(e) => dispatch({ type: 'SET_CONNECTION_NAME', name: e.target.value })}
-          placeholder="例如：A棟 Modbus 主機"
+          placeholder={t('wizard.config.namePlaceholder')}
           className="w-full px-3 py-2 rounded-lg border border-[var(--border-input)] bg-[var(--bg-panel)] text-[var(--text-main)] text-sm outline-none focus:border-[var(--accent-green)]"
         />
         {!canProceed && state.connectionName !== undefined && (
-          <p className="text-xs text-[var(--accent-yellow)] mt-1">請輸入連線名稱以繼續</p>
+          <p className="text-xs text-[var(--accent-yellow)] mt-1">{t('wizard.config.nameHint')}</p>
         )}
       </div>
 
@@ -57,7 +59,7 @@ export default function Step2Config() {
       {state.protocol !== 'push_ingest' && (
         <div className="mb-5">
           <label className="block text-sm font-medium text-[var(--text-main)] mb-1">
-            輪詢間隔
+            {t('wizard.config.intervalLabel')}
           </label>
           <select
             value={state.pollIntervalMs / 1000}
@@ -68,11 +70,11 @@ export default function Step2Config() {
           >
             {[1, 2, 5, 10, 30, 60].map((s) => (
               <option key={s} value={s}>
-                {s} 秒
+                {t('wizard.config.intervalOption', { seconds: s })}
               </option>
             ))}
           </select>
-          <p className="text-xs text-[var(--text-muted)] mt-1">每隔多久向設備讀取一次資料</p>
+          <p className="text-xs text-[var(--text-muted)] mt-1">{t('wizard.config.intervalHint')}</p>
         </div>
       )}
 
@@ -90,14 +92,14 @@ export default function Step2Config() {
           onClick={() => dispatch({ type: 'PREV_STEP' })}
           className="px-4 py-2 rounded-lg border border-[var(--border-base)] text-sm text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--border-base)] transition-colors"
         >
-          上一步
+          {t('common.previous')}
         </button>
         <button
           onClick={() => dispatch({ type: 'NEXT_STEP' })}
           disabled={!canProceed}
           className="px-5 py-2 rounded-lg bg-[var(--accent-green)] text-[var(--bg-panel)] text-sm font-medium disabled:opacity-40 hover:bg-[var(--accent-green-hover)] transition-colors"
         >
-          下一步
+          {t('common.next')}
         </button>
       </div>
     </div>

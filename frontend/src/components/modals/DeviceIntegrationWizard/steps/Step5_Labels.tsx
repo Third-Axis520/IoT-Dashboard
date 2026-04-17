@@ -1,17 +1,19 @@
+import { useTranslation } from 'react-i18next';
 import { useWizard } from '../WizardContext';
 import PropertyTypePicker from '../PropertyTypePicker';
 
 export default function Step5Labels() {
   const { state, dispatch } = useWizard();
+  const { t } = useTranslation();
   const selectedPoints = state.discoveryPoints
     .map((pt, i) => ({ pt, i }))
     .filter(({ i }) => state.selectedPointIndices.has(i));
 
   return (
     <div className="p-6">
-      <h3 className="text-base font-medium text-[var(--text-main)] mb-1">標籤與屬性</h3>
+      <h3 className="text-base font-medium text-[var(--text-main)] mb-1">{t('wizard.labels.title')}</h3>
       <p className="text-sm text-[var(--text-muted)] mb-4">
-        為每個資料點設定名稱、屬性類型與單位
+        {t('wizard.labels.desc')}
       </p>
 
       <div className="space-y-4 max-h-[45vh] overflow-y-auto">
@@ -25,7 +27,7 @@ export default function Step5Labels() {
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs text-[var(--text-muted)] mb-1">名稱</label>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">{t('wizard.labels.colName')}</label>
                   <input
                     type="text"
                     value={label.name}
@@ -34,12 +36,12 @@ export default function Step5Labels() {
                       index: i,
                       label: { ...label, name: e.target.value },
                     })}
-                    placeholder="溫度1"
+                    placeholder={t('wizard.labels.namePlaceholder')}
                     className="w-full px-2 py-1.5 rounded border border-[var(--border-input)] bg-[var(--bg-panel)] text-[var(--text-main)] text-sm outline-none focus:border-[var(--accent-green)]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-[var(--text-muted)] mb-1">屬性類型</label>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">{t('wizard.labels.colPropertyType')}</label>
                   <PropertyTypePicker
                     value={label.propertyTypeId}
                     onChange={(id, item) => dispatch({
@@ -50,7 +52,7 @@ export default function Step5Labels() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-[var(--text-muted)] mb-1">單位</label>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">{t('wizard.labels.colUnit')}</label>
                   <input
                     type="text"
                     value={label.unit}
@@ -59,7 +61,7 @@ export default function Step5Labels() {
                       index: i,
                       label: { ...label, unit: e.target.value },
                     })}
-                    placeholder="℃"
+                    placeholder={t('wizard.labels.unitPlaceholder')}
                     className="w-full px-2 py-1.5 rounded border border-[var(--border-input)] bg-[var(--bg-panel)] text-[var(--text-main)] text-sm outline-none focus:border-[var(--accent-green)]"
                   />
                 </div>
@@ -74,13 +76,13 @@ export default function Step5Labels() {
           onClick={() => dispatch({ type: 'PREV_STEP' })}
           className="px-4 py-2 rounded-lg border border-[var(--border-base)] text-sm text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--border-base)] transition-colors"
         >
-          上一步
+          {t('common.previous')}
         </button>
         <button
           onClick={() => dispatch({ type: 'NEXT_STEP' })}
           className="px-5 py-2 rounded-lg bg-[var(--accent-green)] text-[var(--bg-panel)] text-sm font-medium hover:bg-[var(--accent-green-hover)] transition-colors"
         >
-          下一步
+          {t('common.next')}
         </button>
       </div>
     </div>

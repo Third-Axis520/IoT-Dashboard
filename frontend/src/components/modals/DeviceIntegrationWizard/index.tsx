@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { WizardProvider, useWizard } from './WizardContext';
 import WizardStepper from './WizardStepper';
 import Step1Protocol from './steps/Step1_Protocol';
@@ -15,6 +16,7 @@ interface DeviceIntegrationWizardProps {
 
 function WizardContent({ onClose, onSuccess }: DeviceIntegrationWizardProps) {
   const { state } = useWizard();
+  const { t } = useTranslation();
 
   const stepComponent = (() => {
     switch (state.step) {
@@ -34,7 +36,7 @@ function WizardContent({ onClose, onSuccess }: DeviceIntegrationWizardProps) {
       <div className="bg-[var(--bg-card)] border border-[var(--border-base)] rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col mx-4">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-base)]">
-          <h2 className="text-lg font-semibold text-[var(--text-main)]">設備整合精靈</h2>
+          <h2 className="text-lg font-semibold text-[var(--text-main)]">{t('wizard.title')}</h2>
           <button
             onClick={onClose}
             className="text-[var(--text-muted)] hover:text-[var(--text-main)] text-xl leading-none transition-colors"

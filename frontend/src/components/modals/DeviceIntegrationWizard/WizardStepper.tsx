@@ -1,18 +1,21 @@
-const STEP_LABELS = [
-  '選擇協議',
-  '連線設定',
-  '掃描設備',
-  '選擇資料點',
-  '標籤屬性',
-  '設備資訊',
-  '確認建立',
-];
+import { useTranslation } from 'react-i18next';
 
 interface WizardStepperProps {
   currentStep: number;
 }
 
 export default function WizardStepper({ currentStep }: WizardStepperProps) {
+  const { t } = useTranslation();
+  const STEP_LABELS = [
+    t('wizard.step1'),
+    t('wizard.step2'),
+    t('wizard.step3'),
+    t('wizard.step4'),
+    t('wizard.step5'),
+    t('wizard.step6'),
+    t('wizard.step7'),
+  ];
+
   return (
     <div className="flex items-center gap-1 px-6 py-3 border-b border-[var(--border-base)] overflow-x-auto">
       {STEP_LABELS.map((label, i) => {
