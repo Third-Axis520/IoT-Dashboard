@@ -1,5 +1,6 @@
 import { CheckCircle, Cpu, Loader2, Plus, X, XCircle } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { DeviceDto } from '../../hooks/useDevices';
 import { cn } from '../../utils/cn';
 
@@ -29,6 +30,7 @@ interface RegisterFormProps {
 }
 
 function RegisterForm({ onRegister, onCancel }: RegisterFormProps) {
+  const { t } = useTranslation();
   const [sn, setSn] = useState('');
   const [name, setName] = useState('');
   const [registering, setRegistering] = useState(false);
@@ -44,9 +46,9 @@ function RegisterForm({ onRegister, onCancel }: RegisterFormProps) {
       setDone(true);
     } catch (e) {
       if (e instanceof Error && e.message === 'DUPLICATE') {
-        setError(`序號 "${sn.trim()}" 已存在於系統中`);
+        setError(t('deviceManagement.duplicateError', { sn: sn.trim() }));
       } else {
-        setError('登記失敗，請確認後重試');
+        setError(t('deviceManagement.registerError'));
       }
     } finally {
       setRegistering(false);
@@ -58,11 +60,11 @@ function RegisterForm({ onRegister, onCancel }: RegisterFormProps) {
       <div className="bg-[var(--accent-green)]/10 border border-[var(--accent-green)]/30 rounded-lg p-4 flex items-center gap-3">
         <CheckCircle className="w-5 h-5 text-[var(--accent-green)] flex-shrink-0" />
         <div>
-          <p className="font-medium text-[var(--accent-green)] text-sm">登記成功</p>
+          <p className="font-medium text-[var(--accent-green)] text-sm">{t('deviceManagement.registerSuccess')}</p>
           <p className="text-xs text-[var(--text-muted)] mt-0.5 font-mono">{sn.trim()}</p>
         </div>
         <button onClick={onCancel} className="ml-auto text-xs text-[var(--text-muted)] hover:text-[var(--text-main)]">
-          關閉
+          {t('common.close')}
         </button>
       </div>
     );
@@ -70,14 +72,14 @@ function RegisterForm({ onRegister, onCancel }: RegisterFormProps) {
 
   return (
     <div className="bg-[var(--bg-panel)] border border-[var(--accent-blue)]/30 rounded-lg p-4 space-y-3">
-      <p className="text-xs font-semibold text-[var(--accent-blue)] uppercase tracking-wider">手動登記新設備</p>
+      <p className="text-xs font-semibold text-[var(--accent-blue)] uppercase tracking-wider">{t('deviceManagement.registerTitle')}</p>
 
       <div>
-        <label className="text-xs text-[var(--text-muted)] block mb-1">設備序號 SerialNumber <span className="text-[var(--accent-red)]">*</span></label>
+        <label className="text-xs text-[var(--text-muted)] block mb-1">{t('deviceManagement.serialNumber')} <span className="text-[var(--accent-red)]">*</span></label>
         <input
           autoFocus
           type="text"
-          placeholder="例：SHX32rDtIQc4ahtc"
+          placeholder={t('deviceManagement.serialPlaceholder')}
           value={sn}
           onChange={e => { setSn(e.target.value); setError(null); }}
           onKeyDown={e => e.key === 'Enter' && handleSubmit()}
@@ -94,10 +96,10 @@ function RegisterForm({ onRegister, onCancel }: RegisterFormProps) {
       </div>
 
       <div>
-        <label className="text-xs text-[var(--text-muted)] block mb-1">自訂名稱（選填）</label>
+        <label className="text-xs text-[var(--text-muted)] block mb-1">{t('deviceManagement.friendlyName')}</label>
         <input
           type="text"
-          placeholder="例：測試烤箱-01"
+          placeholder={t('deviceManagement.namePlaceholder')}
           value={name}
           onChange={e => setName(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleSubmit()}
@@ -107,7 +109,7 @@ function RegisterForm({ onRegister, onCancel }: RegisterFormProps) {
 
       <div className="flex items-center justify-between pt-1">
         <button onClick={onCancel} className="text-xs text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors">
-          取消
+          {t('common.cancel')}
         </button>
         <button
           onClick={handleSubmit}
@@ -115,7 +117,7 @@ function RegisterForm({ onRegister, onCancel }: RegisterFormProps) {
           className="bg-[var(--accent-blue)] text-white font-bold rounded-lg text-sm px-4 py-1.5 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity flex items-center gap-1.5"
         >
           {registering && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-          登記
+          {t('common.register')}
         </button>
       </div>
     </div>
@@ -131,6 +133,7 @@ interface UnboundCardProps {
 }
 
 function UnboundCard({ device, onBind, validateAsset }: UnboundCardProps) {
+  const { t } = useTranslation();
   const [assetCodeInput, setAssetCodeInput] = useState('');
   const [friendlyNameInput, setFriendlyNameInput] = useState('');
   const [validation, setValidation] = useState<AssetValidation | null>(null);
@@ -150,10 +153,10 @@ function UnboundCard({ device, onBind, validateAsset }: UnboundCardProps) {
       if (result) {
         setValidation(result);
       } else {
-        setValidationError(`找不到資產編號 "${assetCodeInput.trim()}"，請確認後重試`);
+        setValidationError(t('deviceManagement.validationError', { code: assetCodeInput.trim() }));
       }
     } catch {
-      setValidationError('驗證失敗，請檢查網路連線');
+      setValidationError(t('deviceManagement.validationNetworkError'));
     } finally {
       setValidating(false);
     }
@@ -176,7 +179,7 @@ function UnboundCard({ device, onBind, validateAsset }: UnboundCardProps) {
       <div className="bg-[var(--accent-green)]/10 border border-[var(--accent-green)]/30 rounded-lg p-4 flex items-center gap-3">
         <CheckCircle className="w-5 h-5 text-[var(--accent-green)] flex-shrink-0" />
         <div>
-          <p className="font-medium text-[var(--accent-green)] text-sm">綁定成功</p>
+          <p className="font-medium text-[var(--accent-green)] text-sm">{t('deviceManagement.bindSuccess')}</p>
           <p className="text-xs text-[var(--text-muted)] mt-0.5">
             {device.serialNumber} → {assetCodeInput.trim()}
           </p>
@@ -195,7 +198,7 @@ function UnboundCard({ device, onBind, validateAsset }: UnboundCardProps) {
         <span className="font-mono text-sm text-[var(--text-muted)] border border-[var(--border-base)] px-2 py-0.5 rounded bg-[var(--border-base)]/50">
           {device.serialNumber}
         </span>
-        <span className="text-xs text-[var(--text-muted)] ml-auto">最後連線 {relativeTime(device.lastSeen)}</span>
+        <span className="text-xs text-[var(--text-muted)] ml-auto">{t('deviceManagement.lastSeen', { time: relativeTime(device.lastSeen) })}</span>
       </div>
 
       {/* FAS validation result */}
@@ -231,18 +234,18 @@ function UnboundCard({ device, onBind, validateAsset }: UnboundCardProps) {
           )} />
         </div>
         <span className="text-xs text-[var(--text-muted)] group-hover:text-[var(--text-main)] transition-colors">
-          跳過 FAS 驗證（無資產編號時使用自訂名稱）
+          {t('deviceManagement.skipFas')}
         </span>
       </label>
 
       {/* Asset code input */}
       <div>
         <label className="text-xs text-[var(--text-muted)] uppercase tracking-wider block mb-1">
-          {skipFas ? '自訂資產編號 / 代號' : 'FAS 資產編號'}
+          {skipFas ? t('deviceManagement.assetCodeLabelCustom') : t('deviceManagement.assetCodeLabel')}
         </label>
         <input
           type="text"
-          placeholder={skipFas ? '例：TEST-001、OVEN-A' : '例：EQ-2024-001'}
+          placeholder={skipFas ? t('deviceManagement.assetCodeCustomPlaceholder') : t('deviceManagement.assetCodePlaceholder')}
           value={assetCodeInput}
           onChange={(e) => {
             setAssetCodeInput(e.target.value);
@@ -267,11 +270,11 @@ function UnboundCard({ device, onBind, validateAsset }: UnboundCardProps) {
       {(skipFas || validation) && (
         <div>
           <label className="text-xs text-[var(--text-muted)] uppercase tracking-wider block mb-1">
-            自訂名稱（選填）
+            {t('deviceManagement.friendlyName')}
           </label>
           <input
             type="text"
-            placeholder="例：一號烤箱產線"
+            placeholder={t('deviceManagement.namePlaceholder')}
             value={friendlyNameInput}
             onChange={(e) => setFriendlyNameInput(e.target.value)}
             className="w-full bg-[var(--bg-panel)] border border-[var(--border-input)] rounded-lg px-3 py-2 text-sm text-[var(--text-main)] outline-none focus:border-[var(--accent-green)] transition-colors"
@@ -288,10 +291,10 @@ function UnboundCard({ device, onBind, validateAsset }: UnboundCardProps) {
             className="text-sm px-3 py-1.5 rounded-lg border border-[var(--border-base)] hover:border-[var(--accent-blue)] text-[var(--text-muted)] hover:text-[var(--accent-blue)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
           >
             {validating && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-            驗證
+            {t('common.validate')}
           </button>
         ) : (
-          <span className="text-xs text-[var(--accent-blue)] opacity-70">⚡ 跳過 FAS 驗證模式</span>
+          <span className="text-xs text-[var(--accent-blue)] opacity-70">{t('deviceManagement.skipFasHint')}</span>
         )}
         <button
           onClick={handleBind}
@@ -299,7 +302,7 @@ function UnboundCard({ device, onBind, validateAsset }: UnboundCardProps) {
           className="bg-[var(--accent-green)] text-[var(--bg-panel)] font-bold rounded-lg text-sm px-4 py-2 hover:bg-[var(--accent-green-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
         >
           {binding && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-          確認綁定
+          {t('deviceManagement.bindConfirm')}
         </button>
       </div>
     </div>
@@ -314,6 +317,7 @@ interface BoundCardProps {
 }
 
 function BoundCard({ device, onUnbind }: BoundCardProps) {
+  const { t } = useTranslation();
   const [unbinding, setUnbinding] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
@@ -341,26 +345,26 @@ function BoundCard({ device, onUnbind }: BoundCardProps) {
           )}
         </div>
         <p className="text-xs text-[var(--text-muted)] mt-0.5">
-          SN: <span className="font-mono">{device.serialNumber}</span> · 最後連線 {relativeTime(device.lastSeen)}
+          SN: <span className="font-mono">{device.serialNumber}</span> · {t('deviceManagement.lastSeen', { time: relativeTime(device.lastSeen) })}
         </p>
       </div>
       <div className="flex-shrink-0">
         {confirming ? (
           <div className="flex items-center gap-2">
-            <span className="text-xs text-[var(--accent-red)]">確認解除？</span>
+            <span className="text-xs text-[var(--accent-red)]">{t('deviceManagement.unbindConfirm')}</span>
             <button
               onClick={handleConfirmUnbind}
               disabled={unbinding}
               className="bg-[var(--accent-red)]/20 text-[var(--accent-red)] border border-[var(--accent-red)]/50 text-xs px-3 py-1 rounded-lg hover:bg-[var(--accent-red)]/30 transition-colors disabled:opacity-40 flex items-center gap-1"
             >
               {unbinding && <Loader2 className="w-3 h-3 animate-spin" />}
-              確認
+              {t('common.confirm')}
             </button>
             <button
               onClick={() => setConfirming(false)}
               className="text-xs px-2 py-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors"
             >
-              取消
+              {t('common.cancel')}
             </button>
           </div>
         ) : (
@@ -368,7 +372,7 @@ function BoundCard({ device, onUnbind }: BoundCardProps) {
             onClick={() => setConfirming(true)}
             className="bg-[var(--accent-red)]/20 text-[var(--accent-red)] border border-[var(--accent-red)]/50 text-xs px-3 py-1 rounded-lg hover:bg-[var(--accent-red)]/30 transition-colors"
           >
-            解除綁定
+            {t('deviceManagement.unbind')}
           </button>
         )}
       </div>
@@ -395,6 +399,7 @@ export function DeviceManagementModal({
   onRegister,
   validateAsset,
 }: DeviceManagementModalProps) {
+  const { t } = useTranslation();
   const [showRegisterForm, setShowRegisterForm] = useState(false);
   const unbound = devices.filter((d) => !d.isBound);
   const bound = devices.filter((d) => d.isBound);
@@ -412,10 +417,10 @@ export function DeviceManagementModal({
         <div className="flex justify-between items-center p-4 border-b border-[var(--border-base)] bg-[var(--border-base)]/30">
           <h3 id="device-mgmt-title" className="font-bold text-[var(--text-main)] flex items-center gap-2">
             <Cpu className="w-4 h-4 text-[var(--accent-blue)]" />
-            設備管理
+            {t('deviceManagement.title')}
             {unbound.length > 0 && (
               <span className="ml-1 px-1.5 py-0.5 bg-[var(--accent-red)]/20 text-[var(--accent-red)] border border-[var(--accent-red)]/40 rounded text-xs font-bold">
-                {unbound.length} 待綁定
+                {t('deviceManagement.unboundCount', { count: unbound.length })}
               </span>
             )}
           </h3>
@@ -431,12 +436,12 @@ export function DeviceManagementModal({
               title="手動登記尚未連線的設備"
             >
               <Plus className="w-3.5 h-3.5" />
-              手動登記
+              {t('deviceManagement.manualRegister')}
             </button>
             <button
               onClick={onClose}
               className="p-2 bg-[var(--border-base)] rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors"
-              aria-label="關閉"
+              aria-label={t('common.close')}
             >
               <X className="w-4 h-4" />
             </button>
@@ -456,8 +461,8 @@ export function DeviceManagementModal({
           {devices.length === 0 && !showRegisterForm ? (
             <div className="text-center py-10 text-[var(--text-muted)]">
               <Cpu className="w-10 h-10 mx-auto mb-3 opacity-30" />
-              <p className="text-sm">尚無設備連線</p>
-              <p className="text-xs mt-1 opacity-60">OvenDataReceive 啟動後會自動出現，或點「手動登記」預先新增</p>
+              <p className="text-sm">{t('deviceManagement.noDevices')}</p>
+              <p className="text-xs mt-1 opacity-60">{t('deviceManagement.noDevicesHint')}</p>
             </div>
           ) : (
             <>
@@ -465,7 +470,7 @@ export function DeviceManagementModal({
               {unbound.length > 0 && (
                 <section className="space-y-3">
                   <p className="text-xs text-[var(--text-muted)] uppercase tracking-wider">
-                    待綁定設備 ({unbound.length})
+                    {t('deviceManagement.unboundSection', { count: unbound.length })}
                   </p>
                   {unbound.map((d) => (
                     <UnboundCard
@@ -482,7 +487,7 @@ export function DeviceManagementModal({
               {bound.length > 0 && (
                 <section className="space-y-3">
                   <p className="text-xs text-[var(--text-muted)] uppercase tracking-wider">
-                    已綁定設備 ({bound.length})
+                    {t('deviceManagement.boundSection', { count: bound.length })}
                   </p>
                   {bound.map((d) => (
                     <BoundCard key={d.serialNumber} device={d} onUnbind={onUnbind} />

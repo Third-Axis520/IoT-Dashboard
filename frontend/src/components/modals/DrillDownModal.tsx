@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { LineChart, Line, ResponsiveContainer, YAxis, XAxis, Tooltip, ReferenceLine, ReferenceArea } from 'recharts';
 import { X, Play, Pause, Save, RefreshCw, CheckCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { Equipment } from '../../types';
 import { cn } from '../../utils/cn';
 import { getStatusColor } from '../../constants/templates';
@@ -42,6 +43,7 @@ export const DrillDownModal = ({
   onAutoPlayNextEq,
   onStopAutoPlay
 }: DrillDownModalProps) => {
+  const { t } = useTranslation();
   const [localEq, setLocalEq] = useState<Equipment>(JSON.parse(JSON.stringify(equipment)));
   const [progress, setProgress] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -126,11 +128,11 @@ export const DrillDownModal = ({
               <span className="text-[var(--text-muted)] font-mono border border-[var(--border-base)] px-2 py-0.5 rounded bg-[var(--border-base)]/50" style={{ fontSize: 'clamp(10px, 1vw, 16px)' }}>{localEq.deviceId}</span>
               {isAutoPlaying && (
                 <span className="flex items-center gap-1 font-bold text-[var(--accent-blue)] bg-[var(--accent-blue)]/10 px-2 py-1 rounded-full animate-pulse" style={{ fontSize: 'clamp(10px, 1vw, 16px)' }}>
-                  <Play className="w-3 h-3" /> Auto-Playing
+                  <Play className="w-3 h-3" /> {t('drillDown.autoPlaying')}
                 </span>
               )}
             </div>
-            <p className="text-[var(--text-muted)] mt-1" style={{ fontSize: 'clamp(12px, 1.2vw, 18px)' }}>Unified Trend Matrix (Drill-down)</p>
+            <p className="text-[var(--text-muted)] mt-1" style={{ fontSize: 'clamp(12px, 1.2vw, 18px)' }}>{t('drillDown.subtitle')}</p>
           </div>
           <div className="flex items-center gap-3">
             {assetCode && (
@@ -154,7 +156,7 @@ export const DrillDownModal = ({
             )}
             {isAutoPlaying ? (
               <button onClick={onStopAutoPlay} className="flex items-center gap-2 px-4 py-2 bg-[var(--accent-red)]/20 text-[var(--accent-red)] border border-[var(--accent-red)]/50 font-bold rounded-lg text-sm hover:bg-[var(--accent-red)]/30 transition-colors">
-                <Pause className="w-4 h-4" /> Stop Auto-Play
+                <Pause className="w-4 h-4" /> {t('drillDown.stopAutoPlay')}
               </button>
             ) : (
               <button
@@ -168,7 +170,7 @@ export const DrillDownModal = ({
                     ? <CheckCircle className="w-4 h-4" />
                     : <Save className="w-4 h-4" />
                 }
-                {saving ? '儲存中...' : saved ? '已儲存' : 'Save Thresholds'}
+                {saving ? t('drillDown.saving') : saved ? t('drillDown.saved') : t('drillDown.saveThresholds')}
               </button>
             )}
             <button onClick={onClose} className="p-2 bg-[var(--border-base)] text-[var(--text-muted)] hover:text-[var(--text-main)] rounded-lg transition-colors" aria-label="Close">
@@ -192,7 +194,7 @@ export const DrillDownModal = ({
                     <span className="font-medium text-[var(--text-main)]" style={{ fontSize: 'clamp(14px, 4cqw, 24px)' }}>{point.name}</span>
                     <div className="flex items-center gap-2 mt-1">
                       <div className="flex items-center gap-1">
-                        <span className="text-[var(--accent-red)] opacity-80" style={{ fontSize: 'clamp(10px, 2.5cqw, 16px)' }}>UCL:</span>
+                        <span className="text-[var(--accent-red)] opacity-80" style={{ fontSize: 'clamp(10px, 2.5cqw, 16px)' }}>{t('drillDown.uclLabel')}</span>
                         <input
                           type="number"
                           value={point.ucl}
@@ -202,7 +204,7 @@ export const DrillDownModal = ({
                         />
                       </div>
                       <div className="flex items-center gap-1">
-                        <span className="text-[var(--accent-red)] opacity-80" style={{ fontSize: 'clamp(10px, 2.5cqw, 16px)' }}>LCL:</span>
+                        <span className="text-[var(--accent-red)] opacity-80" style={{ fontSize: 'clamp(10px, 2.5cqw, 16px)' }}>{t('drillDown.lclLabel')}</span>
                         <input
                           type="number"
                           value={point.lcl}

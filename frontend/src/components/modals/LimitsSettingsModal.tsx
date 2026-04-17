@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { X, Save, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { Equipment } from '../../types';
 import { fetchPointLimits, savePointLimits } from '../../hooks/useSensorLimits';
 import { cn } from '../../utils/cn';
@@ -23,6 +24,7 @@ interface LimitRow {
 }
 
 export const LimitsSettingsModal = ({ assetCode, equipments, onClose, onSaved }: LimitsSettingsModalProps) => {
+  const { t } = useTranslation();
   const initialRows = useMemo<LimitRow[]>(() =>
     equipments
       .flatMap(eq => eq.points
@@ -116,17 +118,17 @@ export const LimitsSettingsModal = ({ assetCode, equipments, onClose, onSaved }:
         <div className="flex items-center justify-between p-5 border-b border-[var(--border-base)] shrink-0">
           <div>
             <h2 id="limits-modal-title" className="text-lg font-bold text-[var(--text-main)]">
-              UCL / LCL 限值設定
+              {t('limitsSettings.title')}
             </h2>
             <p className="text-xs text-[var(--text-muted)] mt-0.5">
-              資產碼：<span className="font-mono text-[var(--accent-blue)]">{assetCode}</span>
-              　·　修改後點擊「儲存至資料庫」生效，下次重啟自動載入
+              {t('limitsSettings.assetCode', { code: assetCode })}
+              　·　{t('limitsSettings.infoHint')}
             </p>
           </div>
           <button
             onClick={onClose}
             className="p-2 text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--border-base)] rounded-lg transition-colors"
-            aria-label="關閉"
+            aria-label={t('common.close')}
           >
             <X className="w-5 h-5" />
           </button>
@@ -137,13 +139,13 @@ export const LimitsSettingsModal = ({ assetCode, equipments, onClose, onSaved }:
           {loading ? (
             <div className="flex items-center justify-center py-16 text-[var(--text-muted)]">
               <RefreshCw className="w-5 h-5 animate-spin mr-2" />
-              從資料庫載入限值中...
+              {t('limitsSettings.loading')}
             </div>
           ) : hasNoRows ? (
             <div className="flex flex-col items-center justify-center py-16 text-[var(--text-muted)] text-sm text-center gap-3">
               <AlertCircle className="w-8 h-8 opacity-40" />
-              <p>此 AssetCode 尚無設定感測器對應的設備卡片。</p>
-              <p className="text-xs opacity-70">請先在「新增設備」時完成感測器對應，或在設備卡片的「感測器對應設定」中指定。</p>
+              <p>{t('limitsSettings.empty')}</p>
+              <p className="text-xs opacity-70">{t('limitsSettings.emptyHint')}</p>
             </div>
           ) : (
             Object.entries(groups).map(([eqName, groupRows]) => (
@@ -155,12 +157,12 @@ export const LimitsSettingsModal = ({ assetCode, equipments, onClose, onSaved }:
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-[var(--border-base)] text-[var(--text-muted)] text-xs">
-                        <th className="text-left px-4 py-2 font-medium">感測器</th>
+                        <th className="text-left px-4 py-2 font-medium">{t('limitsSettings.colSensor')}</th>
                         <th className="text-right px-4 py-2 font-medium w-32">
-                          <span className="text-[var(--accent-red)]">UCL</span> 上限
+                          {t('limitsSettings.colUcl')}
                         </th>
                         <th className="text-right px-4 py-2 font-medium w-32">
-                          <span className="text-[var(--accent-blue)]">LCL</span> 下限
+                          {t('limitsSettings.colLcl')}
                         </th>
                       </tr>
                     </thead>
@@ -214,7 +216,7 @@ export const LimitsSettingsModal = ({ assetCode, equipments, onClose, onSaved }:
             {saveResult === 'success' && (
               <span className="flex items-center gap-1.5 text-[var(--accent-green)] animate-in fade-in duration-300">
                 <CheckCircle className="w-4 h-4" />
-                已成功儲存至資料庫，告警判斷即時生效
+                {t('limitsSettings.saveSuccess')}
               </span>
             )}
             {saveResult === 'error' && (
@@ -229,7 +231,7 @@ export const LimitsSettingsModal = ({ assetCode, equipments, onClose, onSaved }:
               onClick={onClose}
               className="px-4 py-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--border-base)] rounded-lg transition-colors"
             >
-              關閉
+              {t('common.close')}
             </button>
             <button
               onClick={handleSave}
@@ -240,7 +242,7 @@ export const LimitsSettingsModal = ({ assetCode, equipments, onClose, onSaved }:
                 ? <RefreshCw className="w-4 h-4 animate-spin" />
                 : <Save className="w-4 h-4" />
               }
-              {saving ? '儲存中...' : '儲存至資料庫'}
+              {saving ? t('drillDown.saving') : t('limitsSettings.saveButton')}
             </button>
           </div>
         </div>
