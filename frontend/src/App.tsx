@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Trash2, Plus, ChevronDown, X, Layers, LayoutDashboard, Activity, Maximize, Minimize, Search, Sun, Moon, Check, Play, Pause, Lock, Unlock, Cpu, SlidersHorizontal, Settings, Network, FileCode2 } from 'lucide-react';
 
 import type { Equipment, MachineTemplate, PointStatus, ProductionLine } from './types';
@@ -16,6 +17,7 @@ import {
 import type { ApiLineConfig } from './types';
 import { useLiveData } from './hooks/useLiveData';
 import { ConnectionStatusBadge } from './components/ui/ConnectionStatusBadge';
+import { LanguageSwitcher } from './components/ui/LanguageSwitcher';
 
 import { MoldingMatrix } from './components/visualizations/MoldingMatrix';
 import { FourRings } from './components/visualizations/FourRings';
@@ -42,6 +44,7 @@ import { useDevices } from './hooks/useDevices';
 const ALERTS_STORAGE_KEY = 'iot-dashboard-alerts';
 
 export default function App() {
+  const { t } = useTranslation();
   const [templates, setTemplates] = useState<MachineTemplate[]>([]);
   const [data, setData] = useState<ProductionLine[]>([]);
   const [apiLineConfigs, setApiLineConfigs] = useState<ApiLineConfig[]>([]);
@@ -132,7 +135,7 @@ export default function App() {
         }
       } catch (err) {
         console.error('Failed to load config from API:', err);
-        addToast('error', '載入產線設定失敗，請確認後端服務是否正常運行');
+        addToast('error', t('app.loadFailed'));
       }
     }
     loadConfig();
@@ -302,9 +305,9 @@ export default function App() {
 
   const handleDeleteEquipment = useCallback((lineId: string, eqId: string, eqName: string) => {
     setConfirmDialog({
-      title: '刪除設備',
-      message: `確定要從產線移除「${eqName}」嗎？`,
-      confirmText: '刪除',
+      title: t('app.deleteDevice'),
+      message: t('app.deleteDeviceConfirm', { name: eqName }),
+      confirmText: t('common.delete'),
       variant: 'danger',
       onConfirm: () => { setConfirmDialog(null); executeDeleteEquipment(lineId, eqId); },
     });
@@ -358,9 +361,9 @@ export default function App() {
     if (data.length <= 1) return;
     const lineName = data.find(l => l.id === lineId)?.name ?? '此產線';
     setConfirmDialog({
-      title: '刪除產線',
-      message: `確定要刪除「${lineName}」嗎？\n該產線上的所有設備卡片也會一併移除。`,
-      confirmText: '刪除',
+      title: t('app.deleteLine'),
+      message: t('app.deleteLineConfirm', { name: lineName }),
+      confirmText: t('common.delete'),
       variant: 'danger',
       onConfirm: () => { setConfirmDialog(null); executeDeleteLine(lineId); },
     });
@@ -493,7 +496,7 @@ export default function App() {
                         if (e.key === 'Escape') setIsAddingLine(false);
                       }}
                       className="flex-1 min-w-0 bg-[var(--bg-root)] border border-[var(--border-input)] rounded px-2 py-1 text-xs text-[var(--text-main)] outline-none focus:border-[var(--accent-green)]"
-                      placeholder="产线名称"
+                      placeholder={t('app.lineName')}
                     />
                     <button onClick={handleAddLine} className="p-1 text-[var(--accent-green)] hover:bg-[var(--accent-green)]/10 rounded shrink-0" aria-label="Confirm">
                       <Check className="w-3 h-3" />
@@ -507,7 +510,7 @@ export default function App() {
                     onClick={(e) => { e.stopPropagation(); setIsAddingLine(true); }}
                     className="flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--border-base)] rounded-md transition-colors"
                   >
-                    <Plus className="w-3 h-3" /> 添加产线
+                    <Plus className="w-3 h-3" /> {t('app.addLine')}
                   </button>
                 )}
               </div>
@@ -519,26 +522,26 @@ export default function App() {
             <button
               onClick={() => setViewMode('dashboard')}
               className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors text-xs font-medium", viewMode === 'dashboard' ? "bg-[var(--border-base)] text-[var(--accent-green)]" : "text-[var(--text-muted)] hover:text-[var(--text-main)]")}
-              title="仪表盘视图"
+              title={t('app.dashboard')}
             >
               <LayoutDashboard className="w-3.5 h-3.5" />
-              <span className="hidden xl:inline">仪表盘</span>
+              <span className="hidden xl:inline">{t('app.dashboard')}</span>
             </button>
             <button
               onClick={() => setViewMode('temp_trends')}
               className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors text-xs font-medium", viewMode === 'temp_trends' ? "bg-[var(--border-base)] text-[var(--accent-green)]" : "text-[var(--text-muted)] hover:text-[var(--text-main)]")}
-              title="温度趋势视图"
+              title={t('app.trend')}
             >
               <Activity className="w-3.5 h-3.5" />
-              <span className="hidden xl:inline">趋势</span>
+              <span className="hidden xl:inline">{t('app.trend')}</span>
             </button>
           </div>
 
           {/* Stats */}
           <div className="hidden md:flex items-center gap-2.5 text-xs">
-            <span className="font-mono font-bold text-[var(--accent-blue)]" title="监控点位数">{totalPoints} pts</span>
+            <span className="font-mono font-bold text-[var(--accent-blue)]" title={t('app.monitoringPoints')}>{totalPoints} {t('app.pts')}</span>
             <div className="w-px h-3 bg-[var(--border-base)]" />
-            <div className="flex items-center gap-1" title="当前报警数">
+            <div className="flex items-center gap-1" title={t('app.currentAlarms')}>
               <div className={cn("w-1.5 h-1.5 rounded-full", alarmCount > 0 ? "bg-[var(--accent-red)] animate-pulse" : "bg-[var(--accent-green)]")} />
               <span className={cn("font-mono font-bold", alarmCount > 0 ? "text-[var(--accent-red)]" : "text-[var(--accent-green)]")}>{alarmCount}</span>
             </div>
@@ -547,7 +550,7 @@ export default function App() {
                 <div className="w-px h-3 bg-[var(--border-base)]" />
                 <div
                   className="flex items-center gap-1.5"
-                  title={`鞋子在位：${shoePresent}/${shoeTotal} 台`}
+                  title={t('app.shoePresentCount', { count: shoePresent, total: shoeTotal })}
                 >
                   <span className="text-[var(--text-muted)] tracking-widest">
                     {activeLine.equipments.map(eq => {
@@ -572,7 +575,7 @@ export default function App() {
                   )}>
                     {shoePresent}/{shoeTotal}
                   </span>
-                  <span className="text-[var(--text-muted)]">在位</span>
+                  <span className="text-[var(--text-muted)]">{t('app.present')}</span>
                 </div>
               </>
             )}
@@ -588,7 +591,7 @@ export default function App() {
             <Search className="w-3.5 h-3.5 text-[var(--text-muted)] absolute left-2.5" />
             <input
               type="text"
-              placeholder="搜索设备..."
+              placeholder={t('app.searchDevices')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-8 pr-3 py-1.5 bg-[var(--bg-panel)] border border-[var(--border-base)] rounded-md text-xs text-[var(--text-main)] outline-none focus:border-[var(--accent-green)] transition-colors w-32 focus:w-44"
@@ -602,8 +605,8 @@ export default function App() {
           <button
             onClick={() => setShowDeviceMgmt(true)}
             className="relative flex items-center justify-center w-8 h-8 text-[var(--text-muted)] hover:text-[var(--accent-blue)] hover:bg-[var(--accent-blue)]/10 rounded-md transition-colors"
-            title="设备管理"
-            aria-label="设备管理"
+            title={t('app.deviceManagement')}
+            aria-label={t('app.deviceManagement')}
           >
             <Cpu className="w-4 h-4" />
             {unboundCount > 0 && (
@@ -617,8 +620,8 @@ export default function App() {
             onClick={() => setShowLimits(true)}
             disabled={!assetCode}
             className="flex items-center justify-center w-8 h-8 text-[var(--text-muted)] hover:text-[var(--accent-blue)] hover:bg-[var(--accent-blue)]/10 rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            title={assetCode ? '限值設定（UCL/LCL）' : '等待設備連線後可用'}
-            aria-label="限值設定"
+            title={assetCode ? t('app.limitsSettings') : t('app.limitsDisabled')}
+            aria-label={t('app.limitsSettings')}
           >
             <SlidersHorizontal className="w-4 h-4" />
           </button>
@@ -638,25 +641,25 @@ export default function App() {
                 onClick={() => setShowConnections(true)}
                 className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--bg-card)] transition-colors"
               >
-                <Network className="w-3.5 h-3.5 text-[var(--text-muted)]" /> 連線管理
+                <Network className="w-3.5 h-3.5 text-[var(--text-muted)]" /> {t('app.connectionManagement')}
               </button>
               <button
                 onClick={() => setShowPropertyTypes(true)}
                 className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--bg-card)] transition-colors"
               >
-                <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--text-muted)]" /> 屬性管理
+                <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--text-muted)]" /> {t('app.propertyManagement')}
               </button>
               <button
                 onClick={() => setShowRegisterMap(true)}
                 className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--bg-card)] transition-colors"
               >
-                <FileCode2 className="w-3.5 h-3.5 text-[var(--text-muted)]" /> 暫存器對應
+                <FileCode2 className="w-3.5 h-3.5 text-[var(--text-muted)]" /> {t('app.registerMap')}
               </button>
               <button
                 onClick={() => setShowPlcTemplates(true)}
                 className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--bg-card)] rounded-b-lg transition-colors"
               >
-                <Cpu className="w-3.5 h-3.5 text-[var(--text-muted)]" /> PLC 型號管理
+                <Cpu className="w-3.5 h-3.5 text-[var(--text-muted)]" /> {t('app.plcTemplates')}
               </button>
             </div>
           </div>
@@ -668,23 +671,23 @@ export default function App() {
             <button
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[var(--accent-green)]/10 text-[var(--accent-green)] border border-[var(--accent-green)]/30 hover:bg-[var(--accent-green)]/20 rounded-md transition-colors font-semibold"
             >
-              <Plus className="w-3.5 h-3.5" /> 新增設備 <ChevronDown className="w-3 h-3" />
+              <Plus className="w-3.5 h-3.5" /> {t('app.addDevice')} <ChevronDown className="w-3 h-3" />
             </button>
             <div className="absolute right-0 top-full mt-1 bg-[var(--bg-panel)] border border-[var(--border-base)] rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 min-w-[240px]">
               <button
                 onClick={() => setShowWizard(true)}
                 className="w-full text-left px-3 py-2.5 hover:bg-[var(--bg-card)] rounded-t-lg"
               >
-                <div className="text-xs font-medium text-[var(--text-main)]">整合新設備</div>
-                <div className="text-[10px] text-[var(--text-muted)] mt-0.5">從零開始：選協議、掃描、建立類型（7 步）</div>
+                <div className="text-xs font-medium text-[var(--text-main)]">{t('app.integrateDevice')}</div>
+                <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{t('app.integrateDeviceDesc')}</div>
               </button>
               <div className="h-px bg-[var(--border-base)] mx-2" />
               <button
                 onClick={() => setShowAddDevice(true)}
                 className="w-full text-left px-3 py-2.5 hover:bg-[var(--bg-card)] rounded-b-lg"
               >
-                <div className="text-xs font-medium text-[var(--text-main)]">使用已有模板</div>
-                <div className="text-[10px] text-[var(--text-muted)] mt-0.5">從已建立的設備類型新增卡片（3 步）</div>
+                <div className="text-xs font-medium text-[var(--text-main)]">{t('app.useTemplate')}</div>
+                <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{t('app.useTemplateDesc')}</div>
               </button>
             </div>
           </div>
@@ -701,7 +704,7 @@ export default function App() {
                   ? "bg-[var(--accent-red)]/10 text-[var(--accent-red)] hover:bg-[var(--accent-red)]/20"
                   : "text-[var(--accent-blue)] hover:bg-[var(--accent-blue)]/10"
               )}
-              title={isAutoPlaying ? "停止自动播放" : "自动播放设备趋势"}
+              title={isAutoPlaying ? t('app.stopAutoPlay') : t('app.startAutoPlay')}
               aria-label={isAutoPlaying ? "Stop auto-play" : "Start auto-play"}
             >
               {isAutoPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
@@ -710,7 +713,7 @@ export default function App() {
               value={autoPlaySpeed}
               onChange={(e) => setAutoPlaySpeed(Number(e.target.value))}
               className="bg-transparent text-[var(--text-main)] text-xs px-1.5 py-1.5 outline-none cursor-pointer hover:bg-[var(--bg-card)] transition-colors"
-              title="播放速度"
+              title={t('app.playbackSpeed')}
             >
               <option value={16000} className="bg-[var(--bg-panel)]">0.5×</option>
               <option value={8000} className="bg-[var(--bg-panel)]">1×</option>
@@ -728,15 +731,17 @@ export default function App() {
                 ? "bg-[var(--accent-red)]/10 text-[var(--accent-red)] border-[var(--accent-red)]/50 hover:bg-[var(--accent-red)]/20"
                 : "bg-[var(--bg-panel)] text-[var(--text-muted)] border-[var(--border-base)] hover:text-[var(--text-main)] hover:border-[var(--accent-blue)]/50"
             )}
-            title={isEditMode ? "锁定布局" : "解锁布局（编辑模式）"}
+            title={isEditMode ? t('app.lockLayout') : t('app.unlockLayout')}
             aria-label={isEditMode ? "Lock layout" : "Unlock layout"}
           >
             {isEditMode ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
           </button>
+          <LanguageSwitcher />
+
           <button
-            onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+            onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
             className="flex items-center justify-center w-8 h-8 bg-[var(--bg-panel)] border border-[var(--border-base)] rounded-md text-[var(--text-muted)] hover:text-[var(--text-main)] hover:border-[var(--accent-blue)]/50 transition-colors"
-            title={theme === 'dark' ? "浅色主题" : "深色主题"}
+            title={theme === 'dark' ? t('app.lightTheme') : t('app.darkTheme')}
             aria-label="Toggle theme"
           >
             {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
@@ -744,7 +749,7 @@ export default function App() {
           <button
             onClick={toggleFullscreen}
             className="flex items-center justify-center w-8 h-8 bg-[var(--bg-panel)] border border-[var(--border-base)] rounded-md text-[var(--text-muted)] hover:text-[var(--text-main)] hover:border-[var(--accent-blue)]/50 transition-colors"
-            title={isFullscreen ? "退出全屏" : "全屏显示"}
+            title={isFullscreen ? t('app.exitFullscreen') : t('app.enterFullscreen')}
             aria-label="Toggle fullscreen"
           >
             {isFullscreen ? <Minimize className="w-3.5 h-3.5" /> : <Maximize className="w-3.5 h-3.5" />}
@@ -759,8 +764,8 @@ export default function App() {
             /* 搜尋無結果 */
             <div className="flex-1 flex flex-col items-center justify-center text-[var(--text-muted)]">
               <Search className="w-10 h-10 mb-3 opacity-30" />
-              <p className="text-base">找不到符合「{searchQuery}」的設備</p>
-              <p className="text-sm mt-1 opacity-60">請確認設備名稱或 AssetCode</p>
+              <p className="text-base">{t('app.noSearchResults', { query: searchQuery })}</p>
+              <p className="text-sm mt-1 opacity-60">{t('app.searchHint')}</p>
             </div>
           ) : (
             /* 產線空白 — 引導式首次使用畫面 */
@@ -777,8 +782,8 @@ export default function App() {
 
               {/* 說明文字 */}
               <div className="text-center">
-                <p className="text-xl font-bold text-[var(--text-main)] mb-1">歡迎使用 IoT 監控儀表板</p>
-                <p className="text-sm text-[var(--text-muted)]">「{activeLine.name}」目前沒有任何設備，從這裡開始建立你的監控畫面</p>
+                <p className="text-xl font-bold text-[var(--text-main)] mb-1">{t('app.welcome')}</p>
+                <p className="text-sm text-[var(--text-muted)]">「{activeLine.name}」{t('app.noDevices')}，從這裡開始建立你的監控畫面</p>
               </div>
 
               {/* 主要 CTA */}
@@ -787,13 +792,13 @@ export default function App() {
                 className="flex items-center gap-2.5 px-6 py-3 bg-[var(--accent-green)] text-[var(--bg-panel)] font-bold rounded-xl hover:bg-[var(--accent-green-hover)] transition-colors shadow-lg shadow-[var(--accent-green)]/20 text-base"
               >
                 <Plus className="w-5 h-5" />
-                新增第一台設備
+                {t('app.addFirstDevice')}
               </button>
 
               {/* 分隔線 */}
               <div className="flex items-center gap-4 w-64">
                 <div className="flex-1 h-px bg-[var(--border-base)]" />
-                <span className="text-xs text-[var(--text-muted)]">或</span>
+                <span className="text-xs text-[var(--text-muted)]">{t('app.or')}</span>
                 <div className="flex-1 h-px bg-[var(--border-base)]" />
               </div>
 
@@ -803,9 +808,9 @@ export default function App() {
                   onClick={handleLoadDemo}
                   className="px-5 py-2.5 border border-[var(--border-base)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:border-[var(--accent-blue)]/50 hover:bg-[var(--accent-blue)]/5 rounded-lg transition-colors text-sm font-medium"
                 >
-                  載入示範資料
+                  {t('app.loadDemo')}
                 </button>
-                <p className="text-xs text-[var(--text-muted)] mt-1.5 opacity-60">快速預覽儀表板的完整功能</p>
+                <p className="text-xs text-[var(--text-muted)] mt-1.5 opacity-60">{t('app.loadDemoHint')}</p>
               </div>
             </div>
           )
@@ -877,9 +882,9 @@ export default function App() {
                               isEditMode ? "hover:border-[var(--accent-green)]/50 hover:text-[var(--text-main)] cursor-text" : ""
                             )}
                             onClick={(e) => { if (!isEditMode) return; e.stopPropagation(); setEditingEqId(eq.id); setEditEqName(eq.name); setEditEqDeviceId(eq.deviceId); }}
-                            title={eq.deviceId ? eq.deviceId : '尚未設定 AssetCode'}
+                            title={eq.deviceId ? eq.deviceId : t('app.noAssetCode')}
                           >
-                            {eq.deviceId || '未綁定'}
+                            {eq.deviceId || t('app.notBound')}
                           </span>
                         </>
                       )}
@@ -892,13 +897,13 @@ export default function App() {
                             ? "border-[#00FF66]/30 bg-[#00FF66]/10 text-[#00FF66]"
                             : "border-[var(--accent-red)]/40 bg-[var(--accent-red)]/10 text-[var(--accent-red)]"
                         )}
-                        title={shoeStatus === 'present' ? '鞋子在位 (40013=1)' : '鞋子缺位 (40013=0)'}
+                        title={shoeStatus === 'present' ? t('app.shoePresentTooltip') : t('app.shoeAbsentTooltip')}
                       >
                         <span className={cn(
                           "w-1.5 h-1.5 rounded-full",
                           shoeStatus === 'present' ? "bg-[#00FF66]" : "bg-[var(--accent-red)] animate-pulse"
                         )} />
-                        {shoeStatus === 'present' ? '有鞋' : '無鞋'}
+                        {shoeStatus === 'present' ? t('app.shoePresent') : t('app.shoeAbsent')}
                       </span>
                     )}
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -906,7 +911,7 @@ export default function App() {
                       <button
                         className="p-1.5 text-[var(--text-muted)] hover:text-[var(--accent-blue)] hover:bg-[var(--accent-blue)]/10 rounded transition-colors"
                         onClick={(e) => { e.stopPropagation(); setSensorMappingEq(eq); }}
-                        title="感測器對應設定"
+                        title={t('app.sensorMapping')}
                         aria-label="Sensor mapping settings"
                       >
                         <Settings className="w-3.5 h-3.5" />
