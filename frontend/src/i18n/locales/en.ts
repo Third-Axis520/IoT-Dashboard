@@ -347,6 +347,12 @@ const en: Translation = {
       descDualSide: 'Best for 4-8 sensors',
       descCustomGrid: 'Any number of sensors',
       recommended: 'Recommended',
+      fasButton: 'Import from FAS',
+      fasModalTitle: 'Select Asset Category',
+      fasSearch: 'Search category name or code…',
+      fasEmpty: 'No matching categories',
+      fasError: 'Unable to connect to FAS, please try again later',
+      fasRetry: 'Retry',
     },
     review: {
       title: 'Review & Create',

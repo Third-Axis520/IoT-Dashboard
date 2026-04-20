@@ -345,6 +345,12 @@ const zhTW = {
       descDualSide: '適合 4-8 個感測器',
       descCustomGrid: '適合任意數量',
       recommended: '推薦',
+      fasButton: '從 FAS 帶入',
+      fasModalTitle: '選擇資產類別',
+      fasSearch: '搜尋類別名稱或編號…',
+      fasEmpty: '找不到符合的類別',
+      fasError: '無法連線至 FAS，請稍後再試',
+      fasRetry: '重試',
     },
     review: {
       title: '確認並建立',

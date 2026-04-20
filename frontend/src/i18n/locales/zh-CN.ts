@@ -347,6 +347,12 @@ const zhCN: Translation = {
       descDualSide: '适合 4-8 个传感器',
       descCustomGrid: '适合任意数量',
       recommended: '推荐',
+      fasButton: '从 FAS 带入',
+      fasModalTitle: '选择资产类别',
+      fasSearch: '搜索类别名称或编号…',
+      fasEmpty: '找不到符合的类别',
+      fasError: '无法连接至 FAS，请稍后再试',
+      fasRetry: '重试',
     },
     review: {
       title: '确认并创建',
