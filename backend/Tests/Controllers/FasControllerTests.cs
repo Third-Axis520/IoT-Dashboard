@@ -20,7 +20,7 @@ public class FasControllerTests : IAsyncDisposable
     private HttpClient _client = null!;
     private string _dbPath = null!;
 
-    private WebApplicationFactory<Program> BuildFactory(string? apiKey = "test-key")
+    private WebApplicationFactory<Program> BuildFactory(string? apiKey = "test-key", string? baseUrl = null)
     {
         _dbPath = Path.Combine(Path.GetTempPath(), $"iottest_{Guid.NewGuid():N}.db");
 
@@ -37,7 +37,7 @@ public class FasControllerTests : IAsyncDisposable
                 {
                     c.AddInMemoryCollection(new Dictionary<string, string?>
                     {
-                        ["FasApi:BaseUrl"] = _fas.Url + "/",
+                        ["FasApi:BaseUrl"] = baseUrl ?? (_fas.Url + "/"),
                         ["FasApi:ApiKey"] = apiKey ?? "",
                         ["WeChat:Enabled"] = "false",
                         ["Authentication:ApiKey"] = "test-api-key-123",
@@ -85,29 +85,7 @@ public class FasControllerTests : IAsyncDisposable
     [Fact]
     public async Task GetCategories_Returns503_WhenFasUnreachable()
     {
-        _dbPath = Path.Combine(Path.GetTempPath(), $"iottest_{Guid.NewGuid():N}.db");
-        _factory = new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(builder =>
-            {
-                builder.UseEnvironment("Test");
-                builder.ConfigureServices(services =>
-                {
-                    services.AddDbContextFactory<IoTDbContext>(opts =>
-                        opts.UseSqlite($"Data Source={_dbPath}"));
-                });
-                builder.ConfigureAppConfiguration(c =>
-                {
-                    c.AddInMemoryCollection(new Dictionary<string, string?>
-                    {
-                        ["FasApi:BaseUrl"] = "http://localhost:1/",  // nothing listens here
-                        ["FasApi:ApiKey"] = "test-key",
-                        ["WeChat:Enabled"] = "false",
-                        ["Authentication:ApiKey"] = "test-api-key-123",
-                        ["ConnectionStrings:DefaultConnection"] = $"Data Source={_dbPath}",
-                    });
-                });
-            });
-
+        _factory = BuildFactory(baseUrl: "http://localhost:1/");  // nothing listens here
         _client = _factory.CreateClient();
         _client.DefaultRequestHeaders.Add("X-Api-Key", "test-api-key-123");
 

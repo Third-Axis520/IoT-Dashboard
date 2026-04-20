@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fetchFasCategories, type FasCategoryDto } from '../../../lib/apiFas';
 
@@ -16,18 +16,7 @@ export default function FasCategoryPickerModal({ open, onClose, onSelect }: Prop
   const [error, setError] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    setSearch('');
-    setError(null);
-    load();
-  }, [open]);
-
-  useEffect(() => {
-    if (open) setTimeout(() => searchRef.current?.focus(), 50);
-  }, [open]);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -38,7 +27,25 @@ export default function FasCategoryPickerModal({ open, onClose, onSelect }: Prop
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
+
+  useEffect(() => {
+    if (!open) return;
+    setSearch('');
+    setError(null);
+    load();
+  }, [open, load]);
+
+  useEffect(() => {
+    if (open) setTimeout(() => searchRef.current?.focus(), 50);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [open, onClose]);
 
   const filtered = categories.filter((c) => {
     const q = search.toLowerCase();
@@ -94,7 +101,7 @@ export default function FasCategoryPickerModal({ open, onClose, onSelect }: Prop
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
               </svg>
-              Loading…
+              {t('common.loading')}
             </div>
           )}
 
