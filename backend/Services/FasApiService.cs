@@ -1,4 +1,5 @@
 using IoT.CentralApi.Data;
+using IoT.CentralApi.Dtos;
 using IoT.CentralApi.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
@@ -105,6 +106,52 @@ public class FasApiService(
         Spec = c.Spec
     };
 
+    /// <summary>
+    /// 取得 FAS 所有啟用的資產類別清單。
+    /// </summary>
+    public async Task<List<FasCategoryDto>?> GetCategoriesAsync()
+    {
+        if (string.IsNullOrEmpty(_apiKey))
+        {
+            logger.LogWarning("FasApi:ApiKey is not configured — cannot fetch categories");
+            return null;
+        }
+
+        try
+        {
+            var client = httpClientFactory.CreateClient("FasApi");
+            var response = await client.GetAsync("api/external/categories");
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                logger.LogError("FAS API returned 401 — check FasApi:ApiKey");
+                throw new HttpRequestException("FAS authentication failed", null, System.Net.HttpStatusCode.Unauthorized);
+            }
+
+            response.EnsureSuccessStatusCode();
+
+            var json = await response.Content.ReadAsStringAsync();
+            var items = JsonSerializer.Deserialize<List<FasCategoryItem>>(json, _jsonOptions);
+
+            return items?
+                .Select(i => new FasCategoryDto(
+                    i.Id,
+                    i.CategoryCode ?? "",
+                    i.CategoryName ?? "",
+                    i.Description))
+                .ToList() ?? [];
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            throw; // 讓 Controller 處理 401
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "FAS GetCategories failed");
+            return null; // 連線失敗 → Controller 回 503
+        }
+    }
+
     // FAS API 回傳格式
     private class FasAssetItem
     {
@@ -114,5 +161,14 @@ public class FasApiService(
         public string? DepartmentName { get; set; }
         public string? SupplierName { get; set; }
         public string? Spec { get; set; }
+    }
+
+    private class FasCategoryItem
+    {
+        public int Id { get; set; }
+        public int ParentID { get; set; }
+        public string? CategoryCode { get; set; }
+        public string? CategoryName { get; set; }
+        public string? Description { get; set; }
     }
 }
