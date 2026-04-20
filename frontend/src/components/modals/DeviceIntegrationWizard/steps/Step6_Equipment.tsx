@@ -1,9 +1,12 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWizard } from '../WizardContext';
+import FasCategoryPickerModal from '../FasCategoryPickerModal';
 
 export default function Step6Equipment() {
   const { state, dispatch } = useWizard();
   const { t } = useTranslation();
+  const [fasOpen, setFasOpen] = useState(false);
 
   const VIS_TYPES = [
     { value: 'single_kpi', label: t('wizard.equipment.visSingleKpi'), desc: t('wizard.equipment.descSingleKpi') },
@@ -12,12 +15,20 @@ export default function Step6Equipment() {
     { value: 'custom_grid', label: t('wizard.equipment.visCustomGrid'), desc: t('wizard.equipment.descCustomGrid') },
   ];
 
-  // Smart recommendation based on selected point count
   const pointCount = state.selectedPointIndices.size;
   const recommended = pointCount <= 2 ? 'single_kpi'
     : pointCount <= 4 ? 'four_rings'
     : pointCount <= 8 ? 'dual_side_spark'
     : 'custom_grid';
+
+  function handleFasSelect(categoryName: string, description: string) {
+    dispatch({
+      type: 'SET_EQUIPMENT_INFO',
+      name: categoryName,
+      visType: state.visType,
+      description,
+    });
+  }
 
   return (
     <div className="p-6">
@@ -28,9 +39,21 @@ export default function Step6Equipment() {
 
       <div className="space-y-5">
         <div>
-          <label className="block text-sm font-medium text-[var(--text-main)] mb-1">
-            {t('wizard.equipment.typeNameLabel')} <span className="text-[var(--accent-red)]">*</span>
-          </label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-sm font-medium text-[var(--text-main)]">
+              {t('wizard.equipment.typeNameLabel')} <span className="text-[var(--accent-red)]">*</span>
+            </label>
+            <button
+              type="button"
+              onClick={() => setFasOpen(true)}
+              className="text-xs text-[var(--accent-green)] hover:underline flex items-center gap-1"
+            >
+              <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+              </svg>
+              {t('wizard.equipment.fasButton')}
+            </button>
+          </div>
           <input
             type="text"
             value={state.equipmentName}
@@ -107,6 +130,12 @@ export default function Step6Equipment() {
           {t('common.next')}
         </button>
       </div>
+
+      <FasCategoryPickerModal
+        open={fasOpen}
+        onClose={() => setFasOpen(false)}
+        onSelect={handleFasSelect}
+      />
     </div>
   );
 }
