@@ -18,4 +18,23 @@ public class FasController(FasApiService fasService) : ControllerBase
 
         return Ok(info);
     }
+
+    /// <summary>取得 FAS 資產類別清單（供精靈 Step 6 帶入）</summary>
+    [HttpGet("categories")]
+    public async Task<IActionResult> GetCategories()
+    {
+        try
+        {
+            var categories = await fasService.GetCategoriesAsync();
+
+            if (categories == null)
+                return StatusCode(503, new { error = "FAS unavailable or API key not configured" });
+
+            return Ok(categories);
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            return StatusCode(502, new { error = "FAS authentication failed" });
+        }
+    }
 }
