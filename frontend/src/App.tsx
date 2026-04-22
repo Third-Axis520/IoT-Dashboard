@@ -99,9 +99,11 @@ export default function App() {
   const reloadConfig = useCallback(async () => {
     try {
       const [types, lines] = await Promise.all([fetchEquipmentTypes(), fetchLineConfigs()]);
-      setTemplates(types.map(apiTypeToTemplate));
+      const mapped = types.map(apiTypeToTemplate);
+      setTemplates(mapped);
       setApiLineConfigs(lines);
       setData(lines.map(apiLineConfigToProductionLine));
+      return mapped;
     } catch (err) {
       console.error('Config reload failed:', err);
     }
@@ -1048,17 +1050,14 @@ export default function App() {
           onClose={() => setShowWizard(false)}
           onSuccess={async ({ name, assetCode, equipmentTypeId }) => {
             setShowWizard(false);
-            await reloadConfig();
-            if (assetCode && equipmentTypeId) {
-              setTemplates(prev => {
-                const tpl = prev.find(t => t.id === String(equipmentTypeId));
-                if (tpl) {
-                  setWizardPostInfo({ template: tpl, initialName: name, assetCode });
-                } else {
-                  addToast('success', `「${name}」已建立！`);
-                }
-                return prev;
-              });
+            const freshTemplates = await reloadConfig();
+            if (assetCode && equipmentTypeId && freshTemplates) {
+              const tpl = freshTemplates.find(t => t.id === String(equipmentTypeId));
+              if (tpl) {
+                setWizardPostInfo({ template: tpl, initialName: name, assetCode });
+              } else {
+                addToast('success', `「${name}」已建立！`);
+              }
             } else {
               addToast('success', `「${name}」已建立！`);
             }
