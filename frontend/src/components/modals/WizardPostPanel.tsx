@@ -59,13 +59,14 @@ export default function WizardPostPanel({
       className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-root)]/80 backdrop-blur-sm p-4"
       role="dialog"
       aria-modal="true"
+      aria-labelledby="wizard-post-title"
     >
       <div className="bg-[var(--bg-card)] border border-[var(--border-base)] rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-5 pb-3 shrink-0">
           <div>
-            <h2 className="font-bold text-[var(--text-main)]">{t('wizardPost.title')}</h2>
+            <h2 id="wizard-post-title" className="font-bold text-[var(--text-main)]">{t('wizardPost.title')}</h2>
             <p className="text-xs text-[var(--text-muted)] mt-0.5">{t('wizardPost.subtitle')}</p>
           </div>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-main)]" aria-label={t('common.close')}>
@@ -86,6 +87,13 @@ export default function WizardPostPanel({
               </div>
             )}
           </div>
+
+          {/* No asset code soft notice */}
+          {!assetCode && (
+            <div className="px-3 py-2 rounded-lg border border-[var(--border-base)] bg-[var(--bg-panel)] text-xs text-[var(--text-muted)]">
+              {t('wizardPost.noAssetCodeHint')}
+            </div>
+          )}
 
           {/* Display name */}
           <div>

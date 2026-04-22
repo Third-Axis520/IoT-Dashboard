@@ -378,6 +378,7 @@ const zhTW = {
     noLines: '尚無產線，請先在儀表板建立產線',
     sensorMapping: '感測器對應',
     sensorMappingHint: '（選填，可日後從卡片設定）',
+    noAssetCodeHint: '提交後設備將無即時數據，可日後從儀表板卡片補綁資產碼',
     submit: '加入儀表板',
   },
   errorBoundary: {

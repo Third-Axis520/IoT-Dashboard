@@ -380,6 +380,7 @@ const zhCN: Translation = {
     noLines: '尚无产线，请先在仪表盘建立产线',
     sensorMapping: '传感器对应',
     sensorMappingHint: '（选填，可日后从卡片设定）',
+    noAssetCodeHint: '提交后设备将无即时数据，可日后从仪表盘卡片补绑资产码',
     submit: '加入仪表盘',
   },
   errorBoundary: {

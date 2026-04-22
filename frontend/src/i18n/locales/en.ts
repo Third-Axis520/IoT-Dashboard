@@ -380,6 +380,7 @@ const en: Translation = {
     noLines: 'No production lines — create one on the dashboard first',
     sensorMapping: 'Sensor Mapping',
     sensorMappingHint: '(optional — configure later from the card)',
+    noAssetCodeHint: 'No asset code — this card will have no live data until you link one from the dashboard',
     submit: 'Add to Dashboard',
   },
   errorBoundary: {
