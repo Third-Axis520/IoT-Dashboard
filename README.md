@@ -13,7 +13,7 @@ PLC → OvenDataReceive → POST /api/data/ingest
 
 **Frontend:** React 19, TypeScript, Tailwind CSS 4, Vite 6, Recharts  
 **Backend:** .NET 9, EF Core 9, SQL Server, SSE  
-**Key features:** Real-time monitoring, PLC template system, register map, UCL/LCL limits, shoe-material presence (reg 40013), LTTB downsampling, OpenTelemetry, Device Integration Wizard (auto-provision + production-line binding), multi-language UI (zh-TW / zh-CN / EN), theme persistence
+**Key features:** Real-time monitoring, PLC template system, register map, UCL/LCL limits, shoe-material presence (reg 40013), LTTB downsampling, OpenTelemetry, Device Integration Wizard (auto-provision + production-line binding), FAS asset category integration, multi-language UI (zh-TW / zh-CN / EN), theme persistence
 
 ## Run Locally
 
@@ -77,6 +77,7 @@ Swagger UI at `http://localhost:5200/swagger` (development mode)
 | `GET/POST/PUT/DELETE /api/device-connections` | Device connections (wizard-provisioned, auto-creates Device) |
 | `GET /api/diagnostics/polling` | Polling service diagnostics |
 | `GET /api/fas/validate/{assetCode}` | Validate asset code via FAS |
+| `GET /api/fas/categories` | FAS asset categories (for wizard Step 6) |
 | `GET /api/maintenance/stats` | DB row counts |
 | `DELETE /api/maintenance/sensor-readings` | Purge old readings (keepDays≥7) |
 | `DELETE /api/maintenance/alerts` | Purge acknowledged alerts (keepDays≥30) |
