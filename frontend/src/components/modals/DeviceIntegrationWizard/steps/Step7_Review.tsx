@@ -105,7 +105,7 @@ export default function Step7Review({ onClose, onSuccess }: Step7ReviewProps) {
         <div className="p-3 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-base)]">
           <div className="font-medium text-[var(--text-main)] mb-2">{t('wizard.review.equipmentSection')}</div>
           <div className="grid grid-cols-2 gap-1 text-[var(--text-muted)]">
-            <span>{t('wizard.review.colName')}</span><span className="text-[var(--text-main)]">{state.equipmentName}</span>
+            <span>{t('wizard.review.colEquipmentName')}</span><span className="text-[var(--text-main)]">{state.equipmentName}</span>
             <span>{t('wizard.review.colDisplay')}</span><span className="text-[var(--text-main)]">{state.visType}</span>
             {state.description && <><span>{t('wizard.review.colDesc')}</span><span className="text-[var(--text-main)]">{state.description}</span></>}
           </div>

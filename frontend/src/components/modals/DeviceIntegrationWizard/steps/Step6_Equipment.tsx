@@ -66,6 +66,7 @@ export default function Step6Equipment() {
             placeholder={t('wizard.equipment.typeNamePlaceholder')}
             className="w-full px-3 py-2 rounded-lg border border-[var(--border-input)] bg-[var(--bg-panel)] text-[var(--text-main)] text-sm outline-none focus:border-[var(--accent-green)]"
           />
+          <p className="mt-1 text-xs text-[var(--text-muted)]">{t('wizard.equipment.typeNameHint')}</p>
         </div>
 
         <div>
