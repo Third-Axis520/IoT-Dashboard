@@ -34,6 +34,7 @@ import { RegisterMapModal } from './components/modals/RegisterMapModal';
 import { PlcTemplateModal } from './components/modals/PlcTemplateModal';
 import { PropertyTypesModal } from './components/modals/PropertyTypesModal';
 import DeviceIntegrationWizard from './components/modals/DeviceIntegrationWizard';
+import WizardPostPanel from './components/modals/WizardPostPanel';
 import DeviceConnectionsModal from './components/modals/DeviceConnectionsModal';
 import ToastContainer from './components/ui/Toast';
 import ConfirmModal from './components/ui/ConfirmModal';
@@ -64,7 +65,11 @@ export default function App() {
   useEffect(() => { localStorage.setItem('iot-theme', theme); }, [theme]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddDevice, setShowAddDevice] = useState(false);
-  const [addDevicePreset, setAddDevicePreset] = useState<{ templateId: string; assetCode: string } | null>(null);
+  const [wizardPostInfo, setWizardPostInfo] = useState<{
+    template: MachineTemplate;
+    initialName: string;
+    assetCode: string | null;
+  } | null>(null);
   const [showDeviceMgmt, setShowDeviceMgmt] = useState(false);
   const [showLimits, setShowLimits] = useState(false);
   const [showRegisterMap, setShowRegisterMap] = useState(false);
@@ -377,18 +382,20 @@ export default function App() {
     name: string,
     deviceId: string,
     sensorMapping: Record<number, number>,
-    pointNames: string[]
+    pointNames: string[],
+    targetLineId?: string
   ) => {
+    const lineId = targetLineId ?? activeLineId;
     const newEq = createEquipmentFromTemplate(tpl, name, deviceId, sensorMapping, pointNames);
     // Optimistic UI update
-    setData(prev => prev.map(line => line.id === activeLineId ? { ...line, equipments: [...line.equipments, newEq] } : line));
+    setData(prev => prev.map(line => line.id === lineId ? { ...line, equipments: [...line.equipments, newEq] } : line));
     setShowAddDevice(false);
     // Persist to API
-    const lineConfig = apiLineConfigs.find(lc => lc.lineId === activeLineId);
+    const lineConfig = apiLineConfigs.find(lc => lc.lineId === lineId);
     if (lineConfig && tpl.id) {
       try {
         const updated = await saveLineConfig(
-          activeLineId,
+          lineId,
           lineConfig.name,
           [
             ...lineConfig.equipments.map((le, i) => ({
@@ -405,7 +412,7 @@ export default function App() {
             },
           ]
         );
-        setApiLineConfigs(prev => prev.map(lc => lc.lineId === activeLineId ? updated : lc));
+        setApiLineConfigs(prev => prev.map(lc => lc.lineId === lineId ? updated : lc));
       } catch (err) {
         console.error('Failed to persist equipment to API:', err);
       }
@@ -970,10 +977,23 @@ export default function App() {
           templates={templates}
           devices={devices}
           latestRawSensors={latestRawSensors}
-          onClose={() => { setShowAddDevice(false); setAddDevicePreset(null); }}
-          onAdd={(tpl, name, ac, mapping, names) => { handleAddDevice(tpl, name, ac, mapping, names); setAddDevicePreset(null); }}
-          initialTemplateId={addDevicePreset?.templateId}
-          initialAssetCode={addDevicePreset?.assetCode}
+          onClose={() => setShowAddDevice(false)}
+          onAdd={(tpl, name, ac, mapping, names) => handleAddDevice(tpl, name, ac, mapping, names)}
+        />
+      )}
+      {wizardPostInfo && (
+        <WizardPostPanel
+          template={wizardPostInfo.template}
+          initialName={wizardPostInfo.initialName}
+          assetCode={wizardPostInfo.assetCode}
+          lines={data}
+          latestRawSensors={latestRawSensors}
+          onAdd={(lineId, name, assetCode, mapping, names) => {
+            handleAddDevice(wizardPostInfo.template, name, assetCode, mapping, names, lineId);
+            setWizardPostInfo(null);
+            addToast('success', `「${name}」已加入儀表板`);
+          }}
+          onClose={() => setWizardPostInfo(null)}
         />
       )}
       {showDeviceMgmt && (
@@ -1029,10 +1049,18 @@ export default function App() {
           onSuccess={async ({ name, assetCode, equipmentTypeId }) => {
             setShowWizard(false);
             await reloadConfig();
-            addToast('success', `「${name}」已建立！請選擇要加入的產線。`);
             if (assetCode && equipmentTypeId) {
-              setAddDevicePreset({ templateId: String(equipmentTypeId), assetCode });
-              setShowAddDevice(true);
+              setTemplates(prev => {
+                const tpl = prev.find(t => t.id === String(equipmentTypeId));
+                if (tpl) {
+                  setWizardPostInfo({ template: tpl, initialName: name, assetCode });
+                } else {
+                  addToast('success', `「${name}」已建立！`);
+                }
+                return prev;
+              });
+            } else {
+              addToast('success', `「${name}」已建立！`);
             }
           }}
         />
