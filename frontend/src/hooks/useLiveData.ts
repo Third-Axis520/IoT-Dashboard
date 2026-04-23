@@ -191,8 +191,8 @@ export function useLiveData(
             }
 
             const pValue = Number(sensor.value.toFixed(1));
-            const ucl = sensor.ucl || point.ucl;
-            const lcl = sensor.lcl || point.lcl;
+            const ucl = sensor.ucl > 0 ? sensor.ucl : point.ucl;
+            const lcl = sensor.lcl > 0 ? sensor.lcl : point.lcl;
 
             // 更新 history（rolling 60 筆）
             const newHistory = [

@@ -2,6 +2,7 @@ import React from 'react';
 import type { Point } from '../../types';
 import { getStatusColor } from '../../constants/templates';
 import { AnimatedValue } from './AnimatedValue';
+import { usePointDrag } from '../../hooks/usePointDrag';
 
 interface RingProgressProps {
   point: Point;
@@ -18,34 +19,14 @@ const RingProgress = React.memo(function RingProgress({ point, index, onPointSwa
   const radius = 48.5;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
+  const dragProps = onPointSwap && index !== undefined
+    ? usePointDrag({ index, onPointSwap, dragScope })
+    : { draggable: false as const };
 
   return (
     <div
       className="flex flex-col items-center justify-center w-full h-full min-h-[80px] gap-1"
-      draggable={!!onPointSwap}
-      onDragStart={(e) => {
-        if (onPointSwap && index !== undefined) {
-          e.dataTransfer.setData('text/plain', index.toString());
-          if (dragScope) e.dataTransfer.setData('dragScope', dragScope);
-          e.dataTransfer.effectAllowed = 'move';
-        }
-      }}
-      onDragOver={(e) => {
-        if (onPointSwap) {
-          e.preventDefault();
-          e.dataTransfer.dropEffect = 'move';
-        }
-      }}
-      onDrop={(e) => {
-        if (onPointSwap && index !== undefined) {
-          e.preventDefault();
-          if (dragScope && e.dataTransfer.getData('dragScope') !== dragScope) return;
-          const dragIndex = parseInt(e.dataTransfer.getData('text/plain'));
-          if (!isNaN(dragIndex) && dragIndex !== index) {
-            onPointSwap(dragIndex, index);
-          }
-        }
-      }}
+      {...dragProps}
     >
       <div className="relative flex-1 min-h-0 w-full flex items-center justify-center">
         <svg viewBox="0 0 100 100" className="transform -rotate-90 w-full h-full max-w-[200px] max-h-[200px]">

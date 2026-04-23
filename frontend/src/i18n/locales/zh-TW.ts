@@ -104,6 +104,11 @@ const zhTW = {
     unsetHint: 'ⓘ {{count}} 個點位尚未指定感測器，完成後可從卡片「感測器對應設定」修改。',
     finish: '完成新增',
   },
+  sensorMapModal: {
+    noDeviceId: '此設備未設定 AssetCode，感測器資料無法路由。請先在編輯模式中設定 Device ID，再來配置感測器對應。',
+    saved: '已套用，下一筆資料即生效',
+    apply: '套用對應',
+  },
   deviceConnections: {
     title: '連線管理',
     statusInfo: '輪詢服務: {{status}} | 啟用連線: {{count}}',
@@ -122,6 +127,9 @@ const zhTW = {
     connectFailed: '連線失敗',
     deleteTitle: '刪除連線',
     deleteConfirm: '確定要刪除連線「{{name}}」嗎？\n這將同時刪除關聯的設備類型。',
+    colActions: '操作',
+    impactWarning: '{{count}} 個連線發生錯誤，部分資料可能無法更新',
+    manageLink: '查看連線管理',
   },
   deviceManagement: {
     title: '設備管理',

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import {
   X, Plus, Trash2, Save, FileCode2, AlertCircle, CheckCircle,
   Loader, ChevronLeft, Edit2, Layers, Cpu,
@@ -34,6 +35,7 @@ interface Props {
 // ── Component ─────────────────────────────────────────────────────────────────
 export const PlcTemplateModal = ({ onClose }: Props) => {
   const { t } = useTranslation();
+  const trapRef = useFocusTrap<HTMLDivElement>(onClose);
   const [view, setView] = useState<View>('list');
   const [templates, setTemplates] = useState<PlcTemplateSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -213,6 +215,7 @@ export const PlcTemplateModal = ({ onClose }: Props) => {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div
+      ref={trapRef}
       className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-root)]/90 backdrop-blur-md p-4"
       role="dialog"
       aria-modal="true"

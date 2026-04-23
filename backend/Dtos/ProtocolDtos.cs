@@ -18,4 +18,5 @@ public record ConfigFieldDto(
     string? Placeholder,
     string[]? Options,
     double? Min,
-    double? Max);
+    double? Max,
+    string? HelpText);

@@ -4,6 +4,7 @@ import type { Point } from '../../types';
 import { cn } from '../../utils/cn';
 import { getStatusColor } from '../../constants/templates';
 import { AnimatedValue } from './AnimatedValue';
+import { usePointDrag } from '../../hooks/usePointDrag';
 
 interface MoldingMatrixProps {
   points: Point[];
@@ -18,33 +19,11 @@ export const MoldingMatrix = React.memo(function MoldingMatrix({ points, onPoint
   const renderBlock = (p: Point, index: number) => {
     const isDanger = p.status === 'danger';
     const isWarning = p.status === 'warning';
+    const dragProps = usePointDrag({ index, onPointSwap, dragScope });
 
     return (
       <div key={p.id}
-        draggable={!!onPointSwap}
-        onDragStart={(e) => {
-          if (onPointSwap) {
-            e.dataTransfer.setData('text/plain', index.toString());
-            if (dragScope) e.dataTransfer.setData('dragScope', dragScope);
-            e.dataTransfer.effectAllowed = 'move';
-          }
-        }}
-        onDragOver={(e) => {
-          if (onPointSwap) {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-          }
-        }}
-        onDrop={(e) => {
-          if (onPointSwap) {
-            e.preventDefault();
-            if (dragScope && e.dataTransfer.getData('dragScope') !== dragScope) return;
-            const dragIndex = parseInt(e.dataTransfer.getData('text/plain'));
-            if (!isNaN(dragIndex) && dragIndex !== index) {
-              onPointSwap(dragIndex, index);
-            }
-          }
-        }}
+        {...dragProps}
         className={cn(
           "flex flex-col items-center justify-center p-2 rounded-md relative overflow-hidden transition-colors duration-300 h-full",
           isDanger ? "bg-[var(--accent-red)]/20 border border-[var(--accent-red)]" :

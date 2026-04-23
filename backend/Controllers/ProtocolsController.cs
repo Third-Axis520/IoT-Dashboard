@@ -48,7 +48,8 @@ public class ProtocolsController(IEnumerable<IProtocolAdapter> adapters) : Contr
             Placeholder: f.Placeholder,
             Options: f.Options,
             Min: f.Min,
-            Max: f.Max
+            Max: f.Max,
+            HelpText: f.HelpText
         )).ToList()
     );
 }

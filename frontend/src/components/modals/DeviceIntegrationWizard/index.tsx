@@ -1,4 +1,6 @@
 import { useTranslation } from 'react-i18next';
+import { X } from 'lucide-react';
+import { useFocusTrap } from '../../../hooks/useFocusTrap';
 import { WizardProvider, useWizard } from './WizardContext';
 import WizardStepper from './WizardStepper';
 import Step1Protocol from './steps/Step1_Protocol';
@@ -17,6 +19,7 @@ interface DeviceIntegrationWizardProps {
 function WizardContent({ onClose, onSuccess }: DeviceIntegrationWizardProps) {
   const { state } = useWizard();
   const { t } = useTranslation();
+  const trapRef = useFocusTrap<HTMLDivElement>(onClose);
 
   const stepComponent = (() => {
     switch (state.step) {
@@ -32,16 +35,23 @@ function WizardContent({ onClose, onSuccess }: DeviceIntegrationWizardProps) {
   })();
 
   return (
-    <div className="fixed inset-0 z-[9997] flex items-center justify-center bg-[var(--bg-root)]/80 backdrop-blur-sm">
+    <div
+      ref={trapRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="wizard-title"
+      className="fixed inset-0 z-[9997] flex items-center justify-center bg-[var(--bg-root)]/80 backdrop-blur-sm"
+    >
       <div className="bg-[var(--bg-card)] border border-[var(--border-base)] rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col mx-4">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-base)]">
-          <h2 className="text-lg font-semibold text-[var(--text-main)]">{t('wizard.title')}</h2>
+          <h2 id="wizard-title" className="text-lg font-semibold text-[var(--text-main)]">{t('wizard.title')}</h2>
           <button
             onClick={onClose}
+            aria-label={t('common.close')}
             className="text-[var(--text-muted)] hover:text-[var(--text-main)] text-xl leading-none transition-colors"
           >
-            ×
+            <X size={20} />
           </button>
         </div>
 

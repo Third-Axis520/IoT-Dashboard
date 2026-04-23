@@ -106,6 +106,11 @@ const zhCN: Translation = {
     unsetHint: 'ⓘ {{count}} 个点位尚未指定传感器，完成后可从卡片「传感器映射设置」修改。',
     finish: '完成新增',
   },
+  sensorMapModal: {
+    noDeviceId: '此设备未设定 AssetCode，传感器数据无法路由。请先在编辑模式中设定 Device ID，再来配置传感器映射。',
+    saved: '已套用，下一笔数据即生效',
+    apply: '套用映射',
+  },
   deviceConnections: {
     title: '连线管理',
     statusInfo: '轮询服务: {{status}} | 启用连线: {{count}}',
@@ -124,6 +129,9 @@ const zhCN: Translation = {
     connectFailed: '连线失败',
     deleteTitle: '删除连线',
     deleteConfirm: '确定要删除连线「{{name}}」吗？\n这将同时删除关联的设备类型。',
+    colActions: '操作',
+    impactWarning: '{{count}} 个连线发生错误，部分数据可能无法更新',
+    manageLink: '查看连线管理',
   },
   deviceManagement: {
     title: '设备管理',

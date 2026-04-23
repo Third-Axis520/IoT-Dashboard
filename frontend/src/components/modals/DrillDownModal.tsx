@@ -7,6 +7,7 @@ import { cn } from '../../utils/cn';
 import { getStatusColor } from '../../constants/templates';
 import { savePointLimits } from '../../hooks/useSensorLimits';
 import { usePointHistory, type TimeRange } from '../../hooks/usePointHistory';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 const TIME_RANGES: TimeRange[] = ['1h', '4h', '24h'];
 
@@ -44,6 +45,7 @@ export const DrillDownModal = ({
   onStopAutoPlay
 }: DrillDownModalProps) => {
   const { t } = useTranslation();
+  const trapRef = useFocusTrap<HTMLDivElement>(onClose);
   const [localEq, setLocalEq] = useState<Equipment>(JSON.parse(JSON.stringify(equipment)));
   const [progress, setProgress] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -116,7 +118,7 @@ export const DrillDownModal = ({
   }, [localEq, assetCode, onSaveConfig]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-root)]/90 backdrop-blur-md p-4 md:p-6" role="dialog" aria-modal="true" aria-labelledby="drilldown-title">
+    <div ref={trapRef} className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-root)]/90 backdrop-blur-md p-4 md:p-6" role="dialog" aria-modal="true" aria-labelledby="drilldown-title">
       <div className="bg-[var(--bg-card)]/90 border border-[var(--border-base)] rounded-2xl w-[94vw] max-w-[1800px] h-[94vh] shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-300 relative">
         {isAutoPlaying && (
           <div className="absolute top-0 left-0 h-1 bg-[var(--accent-blue)] transition-all duration-75 ease-linear z-50" style={{ width: `${progress}%` }} />

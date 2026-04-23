@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { Equipment } from '../../types';
 import { fetchPointLimits, savePointLimits } from '../../hooks/useSensorLimits';
 import { cn } from '../../utils/cn';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 interface LimitsSettingsModalProps {
   assetCode: string;
@@ -25,6 +26,7 @@ interface LimitRow {
 
 export const LimitsSettingsModal = ({ assetCode, equipments, onClose, onSaved }: LimitsSettingsModalProps) => {
   const { t } = useTranslation();
+  const trapRef = useFocusTrap<HTMLDivElement>(onClose);
   const initialRows = useMemo<LimitRow[]>(() =>
     equipments
       .flatMap(eq => eq.points
@@ -106,6 +108,7 @@ export const LimitsSettingsModal = ({ assetCode, equipments, onClose, onSaved }:
 
   return (
     <div
+      ref={trapRef}
       className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-root)]/90 backdrop-blur-md p-4"
       role="dialog"
       aria-modal="true"

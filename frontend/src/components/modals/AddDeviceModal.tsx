@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import type { MachineTemplate } from '../../types';
 import type { DeviceDto } from '../../hooks/useDevices';
 import { cn } from '../../utils/cn';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
+import SensorMappingRows, { useSensorMappingState } from '../ui/SensorMappingRows';
 
 interface AddDeviceModalProps {
   templates: MachineTemplate[];
@@ -32,6 +34,7 @@ export const AddDeviceModal = ({
   initialAssetCode,
 }: AddDeviceModalProps) => {
   const { t } = useTranslation();
+  const trapRef = useFocusTrap<HTMLDivElement>(onClose);
 
   const STEPS = [
     { label: t('addDevice.stepBasic'), Icon: Cpu },
@@ -75,21 +78,13 @@ export const AddDeviceModal = ({
 
   const liveSensors = assetCode ? latestRawSensors.get(assetCode) : undefined;
 
-  const sensorIds = useMemo(() => {
-    if (liveSensors && liveSensors.size > 0) {
-      return Array.from(liveSensors.keys()).sort((a, b) => a - b);
-    }
-    return Array.from({ length: 12 }, (_, i) => i + 1);
-  }, [liveSensors]);
-
-  const usedSensorIds = Object.values(sensorMapping);
-  const duplicates = usedSensorIds.filter((id, idx) => usedSensorIds.indexOf(id) !== idx);
+  const { hasDuplicates } = useSensorMappingState(sensorMapping);
   const unsetCount = selectedTpl
     ? selectedTpl.points.filter((_, idx) => sensorMapping[idx] === undefined).length
     : 0;
 
   const canProceedToStep2 = deviceName.trim().length > 0 && !!selectedTpl;
-  const canFinish = duplicates.length === 0;
+  const canFinish = !hasDuplicates;
 
   const handleFinish = () => {
     if (!selectedTpl || !canFinish) return;
@@ -98,6 +93,7 @@ export const AddDeviceModal = ({
 
   return (
     <div
+      ref={trapRef}
       className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-root)]/80 backdrop-blur-sm p-4"
       role="dialog"
       aria-modal="true"
@@ -318,79 +314,14 @@ export const AddDeviceModal = ({
                 {t('addDevice.sensorDesc')}
               </p>
 
-              {duplicates.length > 0 && (
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-[var(--accent-yellow)]/10 border border-[var(--accent-yellow)]/40 text-xs text-[var(--accent-yellow)]">
-                  {t('addDevice.duplicateWarning')}
-                </div>
-              )}
-
-              <div className="space-y-2">
-                {selectedTpl.points.map((pt, idx) => {
-                  const currentSensorId = sensorMapping[idx];
-                  const liveVal = currentSensorId !== undefined && liveSensors
-                    ? liveSensors.get(currentSensorId)
-                    : undefined;
-                  const isDup = currentSensorId !== undefined &&
-                    usedSensorIds.filter(id => id === currentSensorId).length > 1;
-
-                  return (
-                    <div
-                      key={idx}
-                      className={cn(
-                        "flex items-center gap-2 p-2.5 rounded-lg border bg-[var(--bg-panel)]",
-                        isDup ? "border-[var(--accent-yellow)]/60" : "border-[var(--border-base)]"
-                      )}
-                    >
-                      {/* Editable point name */}
-                      <input
-                        type="text"
-                        value={pointNames[idx] ?? pt.name}
-                        onChange={e => {
-                          const n = [...pointNames];
-                          n[idx] = e.target.value;
-                          setPointNames(n);
-                        }}
-                        className="flex-1 min-w-0 bg-transparent border-b border-[var(--border-input)] focus:border-[var(--accent-green)] text-sm text-[var(--text-main)] outline-none pb-0.5 transition-colors"
-                      />
-
-                      {/* Sensor dropdown */}
-                      <select
-                        value={currentSensorId ?? ''}
-                        onChange={e => {
-                          const val = e.target.value;
-                          setSensorMapping(prev => {
-                            const next = { ...prev };
-                            if (val === '') delete next[idx];
-                            else next[idx] = Number(val);
-                            return next;
-                          });
-                        }}
-                        className={cn(
-                          "bg-[var(--bg-card)] border rounded-md px-2 py-1 text-xs font-mono outline-none focus:border-[var(--accent-green)] w-40 shrink-0",
-                          isDup ? "border-[var(--accent-yellow)]" : "border-[var(--border-input)]"
-                        )}
-                      >
-                        <option value="">{t('addDevice.unset')}</option>
-                        {sensorIds.map(id => {
-                          const val = liveSensors?.get(id);
-                          return (
-                            <option key={id} value={id}>
-                              #{id} {val !== undefined ? val.toFixed(1) : '—'}
-                            </option>
-                          );
-                        })}
-                      </select>
-
-                      {/* Live value badge */}
-                      {liveVal !== undefined && (
-                        <span className="text-[11px] font-mono text-[var(--accent-green)] bg-[var(--accent-green)]/10 border border-[var(--accent-green)]/30 rounded px-1.5 py-0.5 shrink-0">
-                          {liveVal.toFixed(1)}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+              <SensorMappingRows
+                points={selectedTpl.points}
+                liveSensors={liveSensors}
+                sensorMapping={sensorMapping}
+                onMappingChange={setSensorMapping}
+                pointNames={pointNames}
+                onPointNamesChange={setPointNames}
+              />
 
               {unsetCount > 0 && (
                 <p className="text-xs text-[var(--text-muted)]">

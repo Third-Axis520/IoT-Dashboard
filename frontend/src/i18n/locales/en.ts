@@ -106,6 +106,11 @@ const en: Translation = {
     unsetHint: 'ⓘ {{count}} points have no sensor assigned. You can set them later from the card.',
     finish: 'Finish',
   },
+  sensorMapModal: {
+    noDeviceId: 'This device has no AssetCode configured — sensor data cannot be routed. Please set the Device ID in edit mode first, then configure sensor mapping.',
+    saved: 'Applied — takes effect on next data point',
+    apply: 'Apply Mapping',
+  },
   deviceConnections: {
     title: 'Connection Management',
     statusInfo: 'Poll service: {{status}} | Active: {{count}}',
@@ -124,6 +129,9 @@ const en: Translation = {
     connectFailed: 'Connection failed',
     deleteTitle: 'Delete Connection',
     deleteConfirm: 'Delete connection "{{name}}"?\nThis will also delete the associated equipment type.',
+    colActions: 'Actions',
+    impactWarning: '{{count}} connection(s) have errors — some data may not update',
+    manageLink: 'Manage Connections',
   },
   deviceManagement: {
     title: 'Device Management',

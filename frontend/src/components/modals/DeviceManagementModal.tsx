@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DeviceDto } from '../../hooks/useDevices';
 import { cn } from '../../utils/cn';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 function relativeTime(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -400,12 +401,14 @@ export function DeviceManagementModal({
   validateAsset,
 }: DeviceManagementModalProps) {
   const { t } = useTranslation();
+  const trapRef = useFocusTrap<HTMLDivElement>(onClose);
   const [showRegisterForm, setShowRegisterForm] = useState(false);
   const unbound = devices.filter((d) => !d.isBound);
   const bound = devices.filter((d) => d.isBound);
 
   return (
     <div
+      ref={trapRef}
       className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-root)]/80 backdrop-blur-sm p-4"
       role="dialog"
       aria-modal="true"

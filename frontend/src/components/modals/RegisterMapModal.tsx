@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import {
   X, Save, Network, AlertCircle, CheckCircle, Loader,
   ChevronDown, AlertTriangle,
@@ -37,6 +38,7 @@ interface Props {
 // ── Component ─────────────────────────────────────────────────────────────────
 export const RegisterMapModal = ({ line, onClose }: Props) => {
   const { t } = useTranslation();
+  const trapRef = useFocusTrap<HTMLDivElement>(onClose);
   const [activeZone, setActiveZone] = useState(0);
   const [profileName, setProfileName] = useState('');
   const [entries, setEntries] = useState<EntryRow[]>([]);
@@ -209,6 +211,7 @@ export const RegisterMapModal = ({ line, onClose }: Props) => {
 
   return (
     <div
+      ref={trapRef}
       className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-root)]/90 backdrop-blur-md p-4"
       role="dialog"
       aria-modal="true"

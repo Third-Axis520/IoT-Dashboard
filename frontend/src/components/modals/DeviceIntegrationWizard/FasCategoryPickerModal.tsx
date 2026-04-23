@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { X } from 'lucide-react';
+import { useFocusTrap } from '../../../hooks/useFocusTrap';
 import { fetchFasCategories, type FasCategoryDto } from '../../../lib/apiFas';
 
 interface Props {
@@ -10,6 +12,7 @@ interface Props {
 
 export default function FasCategoryPickerModal({ open, onClose, onSelect }: Props) {
   const { t } = useTranslation();
+  const trapRef = useFocusTrap<HTMLDivElement>(onClose);
   const [categories, setCategories] = useState<FasCategoryDto[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
@@ -40,12 +43,6 @@ export default function FasCategoryPickerModal({ open, onClose, onSelect }: Prop
     if (open) setTimeout(() => searchRef.current?.focus(), 50);
   }, [open]);
 
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [open, onClose]);
 
   const filtered = categories.filter((c) => {
     const q = search.toLowerCase();
@@ -60,6 +57,10 @@ export default function FasCategoryPickerModal({ open, onClose, onSelect }: Prop
 
   return (
     <div
+      ref={trapRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="fas-picker-title"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       onClick={onClose}
     >
@@ -70,14 +71,15 @@ export default function FasCategoryPickerModal({ open, onClose, onSelect }: Prop
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-base)]">
-          <h2 className="text-base font-semibold text-[var(--text-main)]">
+          <h2 id="fas-picker-title" className="text-base font-semibold text-[var(--text-main)]">
             {t('wizard.equipment.fasModalTitle')}
           </h2>
           <button
             onClick={onClose}
+            aria-label={t('common.close')}
             className="text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors text-xl leading-none"
           >
-            ×
+            <X size={18} />
           </button>
         </div>
 

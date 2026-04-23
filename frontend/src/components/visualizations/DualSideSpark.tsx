@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Point } from '../../types';
 import { AnimatedValue } from './AnimatedValue';
+import { usePointDrag } from '../../hooks/usePointDrag';
 
 interface DualSideSparkProps {
   points: Point[];
@@ -9,33 +10,12 @@ interface DualSideSparkProps {
 }
 
 export const DualSideSpark = React.memo(function DualSideSpark({ points, onPointSwap, dragScope }: DualSideSparkProps) {
-  const renderPoint = (p: Point, index: number) => (
+  const renderPoint = (p: Point, index: number) => {
+    const dragProps = usePointDrag({ index, onPointSwap, dragScope });
+    return (
     <div key={p.id}
       className="bg-[var(--border-base)]/30 rounded p-2 flex justify-between items-start border border-[var(--border-base)]"
-      draggable={!!onPointSwap}
-      onDragStart={(e) => {
-        if (onPointSwap) {
-          e.dataTransfer.setData('text/plain', index.toString());
-          if (dragScope) e.dataTransfer.setData('dragScope', dragScope);
-          e.dataTransfer.effectAllowed = 'move';
-        }
-      }}
-      onDragOver={(e) => {
-        if (onPointSwap) {
-          e.preventDefault();
-          e.dataTransfer.dropEffect = 'move';
-        }
-      }}
-      onDrop={(e) => {
-        if (onPointSwap) {
-          e.preventDefault();
-          if (dragScope && e.dataTransfer.getData('dragScope') !== dragScope) return;
-          const dragIndex = parseInt(e.dataTransfer.getData('text/plain'));
-          if (!isNaN(dragIndex) && dragIndex !== index) {
-            onPointSwap(dragIndex, index);
-          }
-        }
-      }}
+      {...dragProps}
     >
       <span className="text-[10px] text-[var(--text-muted)]">{p.name}</span>
       <div className="flex flex-col items-end">
@@ -52,6 +32,7 @@ export const DualSideSpark = React.memo(function DualSideSpark({ points, onPoint
       </div>
     </div>
   );
+  };
 
   return (
     <div className="flex h-full w-full gap-4 p-2">

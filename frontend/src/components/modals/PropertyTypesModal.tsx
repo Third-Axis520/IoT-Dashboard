@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { X, Plus, Edit2, Trash2, ChevronLeft, AlertCircle, CheckCircle, Loader } from 'lucide-react';
 import {
   fetchPropertyTypes, createPropertyType, updatePropertyType, deletePropertyType,
@@ -14,6 +15,7 @@ const inp = 'bg-[var(--bg-base)] border border-[var(--border-base)] rounded-md p
 
 export const PropertyTypesModal = ({ onClose }: Props) => {
   const { t } = useTranslation();
+  const trapRef = useFocusTrap<HTMLDivElement>(onClose);
   const [view, setView]         = useState<View>('list');
   const [items, setItems]       = useState<PropertyTypeItem[]>([]);
   const [loading, setLoading]   = useState(true);
@@ -119,6 +121,7 @@ export const PropertyTypesModal = ({ onClose }: Props) => {
 
   return (
     <div
+      ref={trapRef}
       className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-base)]/90 backdrop-blur-md p-4"
       role="dialog" aria-modal="true" aria-labelledby="pt-modal-title"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
