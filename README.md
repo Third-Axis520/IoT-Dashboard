@@ -13,7 +13,7 @@ PLC → OvenDataReceive → POST /api/data/ingest
 
 **Frontend:** React 19, TypeScript, Tailwind CSS 4, Vite 6, Recharts  
 **Backend:** .NET 9, EF Core 9, SQL Server, SSE  
-**Key features:** Real-time monitoring, PLC template system, register map, UCL/LCL limits, shoe-material presence (reg 40013), LTTB downsampling, OpenTelemetry, Device Integration Wizard (auto-provision + production-line binding), FAS asset category integration, multi-language UI (zh-TW / zh-CN / EN), theme persistence
+**Key features:** Real-time monitoring, PLC template system, register map, UCL/LCL limits, shoe-material presence (reg 40013), sensor gating (per-sensor conditional sampling driven by a DI photo-eye, cross-AssetCode supported), Modbus FC02 (Discrete Input) support, LTTB downsampling, OpenTelemetry, Device Integration Wizard (auto-provision + production-line binding), FAS asset category integration, multi-language UI (zh-TW / zh-CN / EN), theme persistence
 
 ## Run Locally
 
@@ -71,6 +71,8 @@ Swagger UI at `http://localhost:5200/swagger` (development mode)
 | `GET /api/alerts` | Alert records (paginated) |
 | `POST /api/alerts/{id}/acknowledge` | Acknowledge an alert |
 | `GET/PUT /api/limits/{assetCode}` | UCL/LCL limit settings |
+| `GET/PUT /api/sensor-gating/{assetCode}` | Sensor gating rules (conditional sampling) |
+| `GET /api/sensor-gating/candidates` | List of sensors usable as gating sources |
 | `GET/POST/DELETE /api/register-map/{lineId}` | PLC register mapping |
 | `GET/POST/PUT/DELETE /api/plc-templates` | PLC model templates |
 | `GET/POST/PUT/DELETE /api/devices` | Device registration & binding |
