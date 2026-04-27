@@ -6,6 +6,7 @@ using IoT.CentralApi.Services;
 using IoT.CentralApi.Tests._Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using System.Text.Json;
 
 namespace IoT.CentralApi.Tests.Controllers;
 
@@ -16,6 +17,92 @@ public class SensorGatingControllerTests : IntegrationTestBase
 
     private DataIngestionService GetIngestionService()
         => Factory.Services.GetRequiredService<DataIngestionService>();
+
+    private ILatestReadingCache GetLatestCache()
+        => Factory.Services.GetRequiredService<ILatestReadingCache>();
+
+    /// <summary>在 DB 插入 PropertyType（若 behavior 不存在才建）+ EquipmentType + Sensor + LineEquipment</summary>
+    private async Task<string> SeedEquipmentWithSensorsAsync(
+        string assetCode,
+        string displayName,
+        (int sensorId, string label, string behavior)[] sensors)
+    {
+        await using var db = await CreateDbContextAsync();
+
+        // Reuse existing PropertyTypes by behavior (the built-in seed may have already added them).
+        // Only insert a new one if no PropertyType with that behavior exists.
+        var propTypesByBehavior = new Dictionary<string, PropertyType>();
+        foreach (var (_, _, behavior) in sensors)
+        {
+            if (propTypesByBehavior.ContainsKey(behavior)) continue;
+
+            var existing = await db.PropertyTypes.FirstOrDefaultAsync(p => p.Behavior == behavior);
+            if (existing != null)
+            {
+                propTypesByBehavior[behavior] = existing;
+            }
+            else
+            {
+                var pt = new PropertyType
+                {
+                    Key = $"test_{behavior}_{Guid.NewGuid():N}",
+                    Name = behavior,
+                    Icon = "icon",
+                    Behavior = behavior,
+                    CreatedAt = DateTime.UtcNow
+                };
+                db.PropertyTypes.Add(pt);
+                await db.SaveChangesAsync();
+                propTypesByBehavior[behavior] = pt;
+            }
+        }
+
+        var eqType = new EquipmentType
+        {
+            Name = $"Type_{assetCode}",
+            VisType = "single_kpi",
+            CreatedAt = DateTime.UtcNow
+        };
+        db.EquipmentTypes.Add(eqType);
+        await db.SaveChangesAsync();
+
+        int sort = 0;
+        foreach (var (sensorId, label, behavior) in sensors)
+        {
+            var propType = propTypesByBehavior[behavior];
+            db.EquipmentTypeSensors.Add(new EquipmentTypeSensor
+            {
+                EquipmentTypeId = eqType.Id,
+                SensorId = sensorId,
+                PointId = $"pt_{sensorId}",
+                Label = label,
+                PropertyTypeId = propType.Id,
+                SortOrder = sort++
+            });
+        }
+        await db.SaveChangesAsync();
+
+        var lineConfig = new LineConfig
+        {
+            LineId = $"line_{assetCode}_{Guid.NewGuid():N}",
+            Name = $"Line {assetCode}",
+            UpdatedAt = DateTime.UtcNow
+        };
+        db.LineConfigs.Add(lineConfig);
+        await db.SaveChangesAsync();
+
+        db.LineEquipments.Add(new LineEquipment
+        {
+            LineConfigId = lineConfig.Id,
+            EquipmentTypeId = eqType.Id,
+            AssetCode = assetCode,
+            DisplayName = displayName,
+            SortOrder = 0
+        });
+        await db.SaveChangesAsync();
+
+        return assetCode;
+    }
 
     // ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -196,5 +283,120 @@ public class SensorGatingControllerTests : IntegrationTestBase
         // The controller should have called InvalidateGatingRulesCache — the
         // service is a singleton and exposes the method; if the call threw it
         // would surface as a 500.  Response was 200 ⇒ cache invalidation ran.
+    }
+
+    // ── GET /candidates tests ────────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetCandidates_ReturnsAllSensorsExcludingAssetCodeAndCounter()
+    {
+        // Seed equipment with normal, asset_code, and counter sensors
+        await SeedEquipmentWithSensorsAsync("EQUIP_1", "Equipment One",
+        [
+            (3001, "Temperature", "normal"),
+            (3002, "Asset Code Sensor", "asset_code"),
+            (3003, "Counter", "counter"),
+            (3004, "Material Detect", "material_detect")
+        ]);
+
+        var response = await Client.GetAsync("/api/sensor-gating/candidates");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var list = await response.Content.ReadFromJsonAsync<List<GatingCandidateDto>>(
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        list.Should().NotBeNull();
+
+        // Only normal and material_detect sensors should be included (not asset_code or counter)
+        list!.Should().HaveCount(2);
+        list.Should().Contain(c => c.SensorId == 3001 && c.SensorLabel == "Temperature");
+        list.Should().Contain(c => c.SensorId == 3004 && c.SensorLabel == "Material Detect");
+        list.Should().NotContain(c => c.SensorId == 3002);
+        list.Should().NotContain(c => c.SensorId == 3003);
+    }
+
+    [Fact]
+    public async Task GetCandidates_IncludesCurrentValueFromCache_WhenAvailable()
+    {
+        await SeedEquipmentWithSensorsAsync("EQUIP_2", "Equipment Two",
+        [
+            (4001, "Pressure", "normal")
+        ]);
+
+        // Seed a value in the LatestReadingCache
+        var cache = GetLatestCache();
+        var ts = new DateTime(2026, 4, 27, 10, 0, 0, DateTimeKind.Utc);
+        cache.Update("EQUIP_2", 4001, 42.5, ts);
+
+        var response = await Client.GetAsync("/api/sensor-gating/candidates");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var list = await response.Content.ReadFromJsonAsync<List<GatingCandidateDto>>(
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        list.Should().NotBeNull();
+
+        var candidate = list!.Single(c => c.SensorId == 4001);
+        candidate.AssetCode.Should().Be("EQUIP_2");
+        candidate.AssetName.Should().Be("Equipment Two");
+        candidate.CurrentValue.Should().Be(42.5);
+        candidate.LastUpdate.Should().Be(ts);
+    }
+
+    [Fact]
+    public async Task GetCandidates_AssetWithoutAssetCode_NotIncluded()
+    {
+        // Seed a LineEquipment with null AssetCode
+        await using var db = await CreateDbContextAsync();
+
+        // Reuse existing "normal" PropertyType (seeded at startup)
+        var pt = await db.PropertyTypes.FirstAsync(p => p.Behavior == "normal");
+
+        var eqType = new EquipmentType
+        {
+            Name = "TypeNoAsset",
+            VisType = "single_kpi",
+            CreatedAt = DateTime.UtcNow
+        };
+        db.EquipmentTypes.Add(eqType);
+        await db.SaveChangesAsync();
+
+        db.EquipmentTypeSensors.Add(new EquipmentTypeSensor
+        {
+            EquipmentTypeId = eqType.Id,
+            SensorId = 5001,
+            PointId = "pt_5001",
+            Label = "Orphan Sensor",
+            PropertyTypeId = pt.Id,
+            SortOrder = 0
+        });
+
+        var lineConfig = new LineConfig
+        {
+            LineId = $"line_noasset_{Guid.NewGuid():N}",
+            Name = "No Asset Line",
+            UpdatedAt = DateTime.UtcNow
+        };
+        db.LineConfigs.Add(lineConfig);
+        await db.SaveChangesAsync();
+
+        // LineEquipment with AssetCode = null
+        db.LineEquipments.Add(new LineEquipment
+        {
+            LineConfigId = lineConfig.Id,
+            EquipmentTypeId = eqType.Id,
+            AssetCode = null,
+            DisplayName = "Unbound Equipment",
+            SortOrder = 0
+        });
+        await db.SaveChangesAsync();
+
+        var response = await Client.GetAsync("/api/sensor-gating/candidates");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var list = await response.Content.ReadFromJsonAsync<List<GatingCandidateDto>>(
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        list.Should().NotBeNull();
+
+        // Sensor 5001 should not appear — its equipment has no AssetCode
+        list!.Should().NotContain(c => c.SensorId == 5001);
     }
 }

@@ -11,8 +11,48 @@ namespace IoT.CentralApi.Controllers;
 [Route("api/sensor-gating")]
 public class SensorGatingController(
     IDbContextFactory<IoTDbContext> dbFactory,
-    DataIngestionService ingestionService) : ControllerBase
+    DataIngestionService ingestionService,
+    ILatestReadingCache latestCache) : ControllerBase
 {
+    [HttpGet("candidates")]
+    public async Task<IActionResult> GetCandidates()
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+
+        var lineEquipments = await db.LineEquipments
+            .Where(le => le.AssetCode != null)
+            .Include(le => le.EquipmentType)
+                .ThenInclude(et => et.Sensors)
+                    .ThenInclude(s => s.PropertyType)
+            .AsNoTracking()
+            .ToListAsync();
+
+        var candidates = new List<GatingCandidateDto>();
+        foreach (var le in lineEquipments)
+        {
+            if (le.EquipmentType?.Sensors == null) continue;
+            foreach (var s in le.EquipmentType.Sensors)
+            {
+                if (s.PropertyType?.Behavior == "asset_code") continue;
+                if (s.PropertyType?.Behavior == "counter") continue;
+
+                var latest = latestCache.Get(le.AssetCode!, s.SensorId);
+
+                candidates.Add(new GatingCandidateDto(
+                    AssetCode: le.AssetCode!,
+                    AssetName: le.DisplayName ?? le.AssetCode!,
+                    SensorId: s.SensorId,
+                    SensorLabel: s.Label,
+                    CurrentValue: latest?.Value,
+                    LastUpdate: latest?.Timestamp
+                ));
+            }
+        }
+
+        return Ok(candidates.OrderBy(c => c.AssetCode).ThenBy(c => c.SensorId));
+    }
+
+
     [HttpGet("{assetCode}")]
     public async Task<IActionResult> Get(string assetCode)
     {
