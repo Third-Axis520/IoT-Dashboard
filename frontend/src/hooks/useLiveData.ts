@@ -36,11 +36,13 @@ export function useLiveData(
   error: string | null;
   assetCode: string | null;
   latestRawSensors: Map<string, Map<number, number>>;
+  latestRawTimestamps: Map<string, string>;
 } {
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
   const [error, setError] = useState<string | null>(null);
   const [assetCode, setAssetCode] = useState<string | null>(null);
   const [latestRawSensors, setLatestRawSensors] = useState<Map<string, Map<number, number>>>(new Map());
+  const [latestRawTimestamps, setLatestRawTimestamps] = useState<Map<string, string>>(new Map());
 
   const dataRef = useRef(data);
   dataRef.current = data;
@@ -112,9 +114,15 @@ export function useLiveData(
           payload.sensors.forEach(s => {
             if (!s.error) sensorValueMap.set(s.id, s.value);
           });
+          const isoTimestamp = new Date(payload.timestamp).toISOString();
           setLatestRawSensors(prev => {
             const next = new Map(prev);
             next.set(payload.assetCode, sensorValueMap);
+            return next;
+          });
+          setLatestRawTimestamps(prev => {
+            const next = new Map(prev);
+            next.set(payload.assetCode, isoTimestamp);
             return next;
           });
 
@@ -251,5 +259,5 @@ export function useLiveData(
     }
   }
 
-  return { status, error, assetCode, latestRawSensors };
+  return { status, error, assetCode, latestRawSensors, latestRawTimestamps };
 }

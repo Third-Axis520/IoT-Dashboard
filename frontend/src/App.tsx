@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Activity, Plus, Search } from 'lucide-react';
 
 import type { AlertRecord, Equipment, MachineTemplate, ProductionLine } from './types';
+import type { SensorGatingRule } from './types/gating';
 import { cn } from './utils/cn';
 import { createEquipmentFromTemplate } from './utils/simulation';
 import { getGridStyle } from './utils/grid';
@@ -18,6 +19,7 @@ import type { ApiLineConfig } from './types';
 import { useLiveData } from './hooks/useLiveData';
 import { useToast } from './hooks/useToast';
 import { useDevices } from './hooks/useDevices';
+import { fetchGatingRules } from './lib/apiSensorGating';
 import { TempTrendsView } from './components/panels/TempTrendsView';
 
 import { AppToolbar } from './components/layout/AppToolbar';
@@ -104,8 +106,12 @@ export default function App() {
     } catch (err) { console.error('Config reload failed:', err); }
   }, []);
 
-  const { status: connStatus, error: connError, assetCode, latestRawSensors } = useLiveData(data, setData, setAlerts, reloadConfig);
+  const { status: connStatus, error: connError, assetCode, latestRawSensors, latestRawTimestamps } = useLiveData(data, setData, setAlerts, reloadConfig);
   const { devices, bindDevice, unbindDevice, validateAsset, registerDevice, unboundCount } = useDevices();
+
+  // ── Gating rules ───────────────────────────────────────────────────────────
+  // keyed by gatedSensorId for quick lookup during render
+  const [gatingRulesBySensorId, setGatingRulesBySensorId] = useState<Map<number, SensorGatingRule>>(new Map());
 
   useEffect(() => { try { localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(alerts.slice(-200))); } catch {} }, [alerts]);
   useEffect(() => {
@@ -128,6 +134,22 @@ export default function App() {
       } catch (err) { console.error('Failed to load config:', err); addToast('error', t('app.loadFailed')); }
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reload gating rules whenever the active line's assetCodes change
+  const activeLineAssetCodesKey = useMemo(() => {
+    const line = data.find(l => l.id === activeLineId) || data[0];
+    return line ? line.equipments.map(e => e.deviceId).filter(Boolean).sort().join(',') : '';
+  }, [data, activeLineId]);
+
+  useEffect(() => {
+    if (!activeLineAssetCodesKey) return;
+    const assetCodes = activeLineAssetCodesKey.split(',').filter(Boolean);
+    Promise.all(assetCodes.map(ac => fetchGatingRules(ac).catch(() => [] as SensorGatingRule[]))).then(results => {
+      const map = new Map<number, SensorGatingRule>();
+      results.flat().forEach(rule => map.set(rule.gatedSensorId, rule));
+      setGatingRulesBySensorId(map);
+    });
+  }, [activeLineAssetCodesKey]);
 
   // ── Derived state ──────────────────────────────────────────────────────────
   const activeLine = useMemo(() => data.find(l => l.id === activeLineId) || data[0] || { id: '', name: '', equipments: [] }, [data, activeLineId]);
@@ -314,7 +336,14 @@ export default function App() {
             </div>
           )
         ) : viewMode === 'temp_trends' ? (
-          <TempTrendsView displayedEquipments={displayedEquipments} alerts={alerts} onUpdateLimits={handleUpdateLimits} />
+          <TempTrendsView
+            displayedEquipments={displayedEquipments}
+            alerts={alerts}
+            onUpdateLimits={handleUpdateLimits}
+            gatingRulesBySensorId={gatingRulesBySensorId}
+            latestRawSensors={latestRawSensors}
+            latestRawTimestamps={latestRawTimestamps}
+          />
         ) : (
           <div className="grid gap-4 md:gap-6 w-full h-full animate-in fade-in duration-500" style={getGridStyle(displayedEquipments.length)}>
             {displayedEquipments.map(({ lineId, eq }, index) => (
@@ -328,6 +357,7 @@ export default function App() {
                 onDragStart={handleDragStart} onDragOver={handleDragOver} onDrop={handleDrop} onDragEnd={handleDragEnd}
                 onDrillDown={setDrillDownEq} onSensorMapping={setSensorMappingEq}
                 onDelete={handleDeleteEquipment} onPointSwap={handlePointSwap}
+                gatingRulesBySensorId={gatingRulesBySensorId}
               />
             ))}
           </div>

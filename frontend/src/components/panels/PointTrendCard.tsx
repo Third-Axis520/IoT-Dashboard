@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
 import { LineChart, Line, ResponsiveContainer, YAxis, XAxis, Tooltip, ReferenceLine, AreaChart, Area, ReferenceArea } from 'recharts';
+import { Shield } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { Equipment, Point } from '../../types';
+import type { SensorGatingRule } from '../../types/gating';
 import { cn } from '../../utils/cn';
+import { GatingBadge } from '../sensors/GatingBadge';
+import { useGatingState } from '../../hooks/useGatingState';
 
 interface PointTrendCardProps {
   lineId: string;
@@ -9,11 +14,17 @@ interface PointTrendCardProps {
   point: Point;
   compact?: boolean;
   onUpdateLimits: (lineId: string, eqId: string, pointId: string, ucl: number, lcl: number) => void;
+  /** Optional gating rule for this specific point */
+  gatingRule?: SensorGatingRule | null;
+  /** Latest DI reading from the gating source asset (value + ISO timestamp) */
+  latestDiReading?: { value: number; timestamp: string } | null;
 }
 
 export const PointTrendCard = React.memo(function PointTrendCard({
-  lineId, eq, point, compact = false, onUpdateLimits
+  lineId, eq, point, compact = false, onUpdateLimits,
+  gatingRule = null, latestDiReading = null,
 }: PointTrendCardProps) {
+  const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [editUcl, setEditUcl] = useState(point.ucl.toString());
   const [editLcl, setEditLcl] = useState(point.lcl.toString());
@@ -26,6 +37,9 @@ export const PointTrendCard = React.memo(function PointTrendCard({
     }
     setIsEditing(false);
   };
+
+  const gatingState = useGatingState(gatingRule, latestDiReading);
+  const isOnStandby = gatingState === 'standby';
 
   const isWarning = point.status === 'warning';
   const isDanger = point.status === 'danger';
@@ -121,14 +135,45 @@ export const PointTrendCard = React.memo(function PointTrendCard({
             <div className={cn("w-2 h-2 rounded-full shadow-[0_0_5px_currentColor]", dotColor)} />
             <span className={cn("font-bold text-[var(--text-main)] tracking-wide", compact ? "text-xs drop-shadow-md" : "text-sm")}>{eq.name}</span>
             {!compact && <span className="text-[10px] text-[var(--text-muted)] font-mono ml-1 border border-[var(--border-base)] px-1 rounded bg-[var(--border-base)]/50">{eq.deviceId}</span>}
+            {gatingRule && (
+              <Shield
+                className={cn(
+                  "w-3 h-3 shrink-0",
+                  gatingState === 'sampling'  ? "text-[var(--accent-green)]" :
+                  gatingState === 'standby'   ? "text-[var(--text-muted)]" :
+                  gatingState === 'unhealthy' ? "text-amber-500" :
+                  "text-blue-400"
+                )}
+                title={`${t('sensor.gating.advanced')}: ${gatingRule.gatingAssetCode}/#${gatingRule.gatingSensorId}`}
+              />
+            )}
           </div>
           {!compact && <span className="text-[10px] text-[var(--text-muted)] tracking-widest uppercase ml-4">{point.type === 'temperature' ? 'MOLD TEMP' : point.type === 'pressure' ? 'CURRENT' : point.type}</span>}
-          <div className={cn("flex items-baseline gap-1 ml-4", compact ? "mt-0" : "mt-1")}>
-            <span className={cn("font-bold font-mono tracking-tighter text-glow", textColor, compact ? "text-2xl drop-shadow-md" : "text-4xl")}>
-              {point.value.toFixed(1)}
-            </span>
-            {!compact && <span className="text-xs text-[var(--text-muted)]">{point.unit}</span>}
+          <div className={cn("flex items-baseline gap-1 ml-4", compact ? "mt-0" : "mt-1", isOnStandby && "opacity-60")}>
+            {isOnStandby ? (
+              <>
+                <span className={cn("font-bold font-mono tracking-tighter text-[var(--text-muted)]", compact ? "text-2xl drop-shadow-md" : "text-4xl")}>
+                  ──.─
+                </span>
+                {!compact && <span className="text-xs text-[var(--text-muted)]">{point.unit}</span>}
+              </>
+            ) : (
+              <>
+                <span className={cn("font-bold font-mono tracking-tighter text-glow", textColor, compact ? "text-2xl drop-shadow-md" : "text-4xl")}>
+                  {point.value.toFixed(1)}
+                </span>
+                {!compact && <span className="text-xs text-[var(--text-muted)]">{point.unit}</span>}
+              </>
+            )}
           </div>
+          {!compact && gatingRule && (
+            <div className="ml-4 mt-0.5 flex items-center gap-1.5">
+              <GatingBadge state={gatingState} />
+              {isOnStandby && (
+                <span className="text-xs text-[var(--text-muted)]">{t('sensor.gating.waiting')}</span>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col items-end">

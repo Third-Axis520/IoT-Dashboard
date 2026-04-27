@@ -401,6 +401,10 @@ const zhCN: Translation = {
       source: '闸控来源传感器',
       delay_label: '延迟 (ms)',
       maxage_label: '最大有效期 (ms)',
+      sampling: '采样中',
+      standby: '待机',
+      unhealthy: '闸控异常',
+      waiting: '等待触发',
     },
   },
   errorBoundary: {

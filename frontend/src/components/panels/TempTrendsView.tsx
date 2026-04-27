@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useMemo } from 'react';
 import type { AlertRecord, Equipment, Point } from '../../types';
+import type { SensorGatingRule } from '../../types/gating';
 import { cn } from '../../utils/cn';
 import { PointTrendCard } from './PointTrendCard';
 import { AlertPanel } from './AlertPanel';
@@ -8,10 +9,17 @@ interface TempTrendsViewProps {
   displayedEquipments: { lineId: string; eq: Equipment }[];
   alerts: AlertRecord[];
   onUpdateLimits: (lineId: string, eqId: string, pointId: string, ucl: number, lcl: number) => void;
+  /** Gating rules keyed by gatedSensorId */
+  gatingRulesBySensorId?: Map<number, SensorGatingRule>;
+  /** Latest sensor values keyed by assetCode → sensorId (for cross-asset DI reading) */
+  latestRawSensors?: Map<string, Map<number, number>>;
+  /** Latest SSE update timestamps keyed by assetCode */
+  latestRawTimestamps?: Map<string, string>;
 }
 
 export const TempTrendsView = React.memo(function TempTrendsView({
-  displayedEquipments, alerts, onUpdateLimits
+  displayedEquipments, alerts, onUpdateLimits,
+  gatingRulesBySensorId, latestRawSensors, latestRawTimestamps,
 }: TempTrendsViewProps) {
   const [alertHeight, setAlertHeight] = useState(48);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -70,21 +78,37 @@ export const TempTrendsView = React.memo(function TempTrendsView({
       <div
         className={cn("flex-1 min-h-0 flex flex-wrap content-stretch items-stretch animate-in fade-in duration-500 overflow-y-auto", allPoints.length > 8 ? "gap-1 p-1" : "gap-4 md:gap-6 p-4")}
       >
-        {allPoints.map(({ lineId, eq, point }) => (
-          <div
-            key={`${eq.id}-${point.id}`}
-            className="flex-auto flex min-w-[150px]"
-            style={{ flexBasis: getFlexBasis(allPoints.length) }}
-          >
-            <PointTrendCard
-              lineId={lineId}
-              eq={eq}
-              point={point}
-              compact={allPoints.length > 8}
-              onUpdateLimits={onUpdateLimits}
-            />
-          </div>
-        ))}
+        {allPoints.map(({ lineId, eq, point }) => {
+          const rule = point.sensorId !== undefined
+            ? gatingRulesBySensorId?.get(point.sensorId) ?? null
+            : null;
+          const latestDiReading = rule
+            ? (() => {
+                const val = latestRawSensors?.get(rule.gatingAssetCode)?.get(rule.gatingSensorId);
+                const ts = latestRawTimestamps?.get(rule.gatingAssetCode);
+                return val !== undefined && ts !== undefined
+                  ? { value: val, timestamp: ts }
+                  : null;
+              })()
+            : null;
+          return (
+            <div
+              key={`${eq.id}-${point.id}`}
+              className="flex-auto flex min-w-[150px]"
+              style={{ flexBasis: getFlexBasis(allPoints.length) }}
+            >
+              <PointTrendCard
+                lineId={lineId}
+                eq={eq}
+                point={point}
+                compact={allPoints.length > 8}
+                onUpdateLimits={onUpdateLimits}
+                gatingRule={rule}
+                latestDiReading={latestDiReading}
+              />
+            </div>
+          );
+        })}
       </div>
 
       <div

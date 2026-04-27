@@ -399,6 +399,10 @@ const zhTW = {
       source: '閘控來源感測器',
       delay_label: '延遲 (ms)',
       maxage_label: '最大有效期 (ms)',
+      sampling: '採樣中',
+      standby: '待機',
+      unhealthy: '閘控異常',
+      waiting: '等待觸發',
     },
   },
   errorBoundary: {

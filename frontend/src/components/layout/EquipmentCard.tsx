@@ -1,8 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Check, X, Settings, Trash2 } from 'lucide-react';
+import { Check, X, Settings, Trash2, Shield } from 'lucide-react';
 
 import type { Equipment } from '../../types';
+import type { SensorGatingRule } from '../../types/gating';
 import { cn } from '../../utils/cn';
 import { MoldingMatrix } from '../visualizations/MoldingMatrix';
 import { FourRings } from '../visualizations/FourRings';
@@ -41,6 +42,9 @@ export interface EquipmentCardProps {
   onSensorMapping: (eq: Equipment) => void;
   onDelete: (lineId: string, eqId: string, name: string) => void;
   onPointSwap: (lineId: string, eqId: string, drag: number, drop: number) => void;
+
+  /** Gating rules keyed by gatedSensorId — used to show gating indicator in header */
+  gatingRulesBySensorId?: Map<number, SensorGatingRule>;
 }
 
 const EquipmentCard = React.memo(function EquipmentCard({
@@ -67,6 +71,7 @@ const EquipmentCard = React.memo(function EquipmentCard({
   onSensorMapping,
   onDelete,
   onPointSwap,
+  gatingRulesBySensorId,
 }: EquipmentCardProps) {
   const { t } = useTranslation();
 
@@ -78,6 +83,9 @@ const EquipmentCard = React.memo(function EquipmentCard({
     ? latestRawSensors.get(eq.deviceId)?.get(eq.materialDetectSensorId)
     : undefined;
   const shoeStatus = shoeRaw === 1 ? 'present' : shoeRaw === 0 ? 'absent' : null;
+
+  const hasGatedSensors = gatingRulesBySensorId !== undefined
+    && eq.points.some(p => p.sensorId !== undefined && gatingRulesBySensorId.has(p.sensorId));
 
   return (
     <div
@@ -134,6 +142,12 @@ const EquipmentCard = React.memo(function EquipmentCard({
               >
                 {eq.deviceId || t('app.notBound')}
               </span>
+              {hasGatedSensors && (
+                <Shield
+                  className="w-3 h-3 text-blue-400 opacity-70 shrink-0"
+                  title={t('sensor.gating.advanced')}
+                />
+              )}
             </>
           )}
         </div>

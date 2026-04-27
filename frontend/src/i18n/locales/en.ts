@@ -401,6 +401,10 @@ const en: Translation = {
       source: 'Gating source sensor',
       delay_label: 'Delay (ms)',
       maxage_label: 'Max age (ms)',
+      sampling: 'Sampling',
+      standby: 'Standby',
+      unhealthy: 'Unhealthy',
+      waiting: 'Waiting for trigger',
     },
   },
   errorBoundary: {
