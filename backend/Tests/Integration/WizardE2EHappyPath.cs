@@ -76,16 +76,28 @@ public class WizardE2EHappyPath : IntegrationTestBase
         detail.EquipmentType!.Sensors.Should().HaveCount(3);
         var connectionId = detail.Id;
 
-        // ── 5. Pre-create Device for DataIngestionService ─────────────────────
+        // ── 5. Bind Device for DataIngestionService ───────────────────────────
+        // Upsert: PollingBackgroundService may race ahead and create the Device
+        // (with null AssetCode) before this runs; in that case, just bind it.
         await using (var db = await CreateDbContextAsync())
         {
-            db.Devices.Add(new Device
+            var serialNumber = $"poll_{connectionId}";
+            var device = await db.Devices.FirstOrDefaultAsync(d => d.SerialNumber == serialNumber);
+            if (device == null)
             {
-                SerialNumber = $"poll_{connectionId}",
-                AssetCode = "E2E_OVEN_001",
-                FirstSeen = DateTime.UtcNow,
-                LastSeen = DateTime.UtcNow,
-            });
+                db.Devices.Add(new Device
+                {
+                    SerialNumber = serialNumber,
+                    AssetCode = "E2E_OVEN_001",
+                    FirstSeen = DateTime.UtcNow,
+                    LastSeen = DateTime.UtcNow,
+                });
+            }
+            else
+            {
+                device.AssetCode = "E2E_OVEN_001";
+                device.LastSeen = DateTime.UtcNow;
+            }
             await db.SaveChangesAsync();
         }
 
