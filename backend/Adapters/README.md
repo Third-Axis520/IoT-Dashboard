@@ -30,6 +30,26 @@
 - `Services/DataIngestionService.cs` — Polling 後資料送進這裡處理
 - `Services/PollingBackgroundService.cs` — 呼叫 PollAsync 的呼叫者
 
+## ModbusTcpAdapter — FC02 離散輸入 (Discrete Input)
+
+`ModbusTcpAdapter` 除了預設的 FC03 (Holding Register) 之外，支援 FC02 讀取離散輸入 (1-bit DI，例如光電感應器)。
+
+在 `DeviceConnection.ConfigJson` 加入 `"function": "discrete"` 即可：
+
+```json
+{
+  "host": "192.168.1.10",
+  "port": 502,
+  "slaveId": 1,
+  "function": "discrete"
+}
+```
+
+- 省略 `function` 或設為 `"holding"` → FC03 (預設)
+- `"discrete"` → FC02，回傳值為 `0` 或`1`
+
+離散輸入感測器通常作為「條件採樣」閘門來源；見下方 "Configure sensor gating"。
+
 ## 不要改動
 - `Contracts/IProtocolAdapter.cs` — 改介面會影響所有 adapter，需要全部更新
 - `Contracts/Result.cs` — 共用錯誤協定
