@@ -393,6 +393,7 @@ const en: Translation = {
   },
   sensor: {
     gating: {
+      section_title: 'Advanced: Conditional Sampling (Gating)',
       advanced: 'Advanced Gating',
       enabled: 'Enabled',
       disabled: 'Disabled',
@@ -400,7 +401,9 @@ const en: Translation = {
       enable_hint: 'Only sample this sensor when the gating sensor is active',
       source: 'Gating source sensor',
       delay_label: 'Delay (ms)',
+      delay_hint: 'Wait time after DI rises (false→true). Recommended 0–500ms.',
       maxage_label: 'Max age (ms)',
+      maxage_hint: 'How long DI can be silent before treated as offline.',
       sampling: 'Sampling',
       standby: 'Standby',
       unhealthy: 'Unhealthy',

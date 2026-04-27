@@ -391,6 +391,7 @@ const zhTW = {
   },
   sensor: {
     gating: {
+      section_title: '進階：條件式採樣（Gating）',
       advanced: '進階觸發閘控',
       enabled: '已啟用',
       disabled: '未啟用',
@@ -398,7 +399,9 @@ const zhTW = {
       enable_hint: '僅在指定感測器有效時才採樣此感測器',
       source: '閘控來源感測器',
       delay_label: '延遲 (ms)',
+      delay_hint: 'DI 從 false→true 後等待的時間，建議 0–500ms',
       maxage_label: '最大有效期 (ms)',
+      maxage_hint: 'DI 多久沒更新就視為斷線',
       sampling: '採樣中',
       standby: '待機',
       unhealthy: '閘控異常',

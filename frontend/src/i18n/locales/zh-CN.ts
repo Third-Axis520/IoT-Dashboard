@@ -393,6 +393,7 @@ const zhCN: Translation = {
   },
   sensor: {
     gating: {
+      section_title: '进阶：条件式采样（Gating）',
       advanced: '高级触发闸控',
       enabled: '已启用',
       disabled: '未启用',
@@ -400,7 +401,9 @@ const zhCN: Translation = {
       enable_hint: '仅在指定传感器有效时才采样此传感器',
       source: '闸控来源传感器',
       delay_label: '延迟 (ms)',
+      delay_hint: 'DI 从 false→true 后等待的时间，建议 0–500ms',
       maxage_label: '最大有效期 (ms)',
+      maxage_hint: 'DI 多久没更新就视为断线',
       sampling: '采样中',
       standby: '待机',
       unhealthy: '闸控异常',
