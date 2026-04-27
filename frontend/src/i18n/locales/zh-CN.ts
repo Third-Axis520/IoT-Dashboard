@@ -391,6 +391,18 @@ const zhCN: Translation = {
     noAssetCodeHint: '提交后设备将无即时数据，可日后从仪表盘卡片补绑资产码',
     submit: '加入仪表盘',
   },
+  sensor: {
+    gating: {
+      advanced: '高级触发闸控',
+      enabled: '已启用',
+      disabled: '未启用',
+      enable: '启用传感器闸控',
+      enable_hint: '仅在指定传感器有效时才采样此传感器',
+      source: '闸控来源传感器',
+      delay_label: '延迟 (ms)',
+      maxage_label: '最大有效期 (ms)',
+    },
+  },
   errorBoundary: {
     title: 'Something went wrong',
     tryAgain: 'Try Again',

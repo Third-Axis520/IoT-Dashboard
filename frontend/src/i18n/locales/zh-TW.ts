@@ -389,6 +389,18 @@ const zhTW = {
     noAssetCodeHint: '提交後設備將無即時數據，可日後從儀表板卡片補綁資產碼',
     submit: '加入儀表板',
   },
+  sensor: {
+    gating: {
+      advanced: '進階觸發閘控',
+      enabled: '已啟用',
+      disabled: '未啟用',
+      enable: '啟用感測器閘控',
+      enable_hint: '僅在指定感測器有效時才採樣此感測器',
+      source: '閘控來源感測器',
+      delay_label: '延遲 (ms)',
+      maxage_label: '最大有效期 (ms)',
+    },
+  },
   errorBoundary: {
     title: 'Something went wrong',
     tryAgain: 'Try Again',

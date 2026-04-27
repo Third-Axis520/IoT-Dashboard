@@ -391,6 +391,18 @@ const en: Translation = {
     noAssetCodeHint: 'No asset code — this card will have no live data until you link one from the dashboard',
     submit: 'Add to Dashboard',
   },
+  sensor: {
+    gating: {
+      advanced: 'Advanced Gating',
+      enabled: 'Enabled',
+      disabled: 'Disabled',
+      enable: 'Enable sensor gating',
+      enable_hint: 'Only sample this sensor when the gating sensor is active',
+      source: 'Gating source sensor',
+      delay_label: 'Delay (ms)',
+      maxage_label: 'Max age (ms)',
+    },
+  },
   errorBoundary: {
     title: 'Something went wrong',
     tryAgain: 'Try Again',

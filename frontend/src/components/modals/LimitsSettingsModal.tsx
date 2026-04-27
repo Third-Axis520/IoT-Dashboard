@@ -1,8 +1,11 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
 import { X, Save, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Equipment } from '../../types';
 import { fetchPointLimits, savePointLimits } from '../../hooks/useSensorLimits';
+import { fetchGatingRules, saveGatingRules } from '../../lib/apiSensorGating';
+import type { SaveGatingRuleItem } from '../../types/gating';
+import { GatingRow } from '../sensors/GatingRow';
 import { cn } from '../../utils/cn';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 
@@ -48,6 +51,26 @@ export const LimitsSettingsModal = ({ assetCode, equipments, onClose, onSaved }:
   const [saving, setSaving] = useState(false);
   const [saveResult, setSaveResult] = useState<'success' | 'error' | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
+  const [gatingRules, setGatingRules] = useState<Record<number, SaveGatingRuleItem | null>>({});
+
+  // 載入 DB 現有閘控規則
+  useEffect(() => {
+    fetchGatingRules(assetCode)
+      .then(rules => {
+        const map: Record<number, SaveGatingRuleItem> = {};
+        rules.forEach(r => {
+          map[r.gatedSensorId] = {
+            gatedSensorId: r.gatedSensorId,
+            gatingAssetCode: r.gatingAssetCode,
+            gatingSensorId: r.gatingSensorId,
+            delayMs: r.delayMs,
+            maxAgeMs: r.maxAgeMs,
+          };
+        });
+        setGatingRules(map);
+      })
+      .catch(() => { /* 靜默失敗，退回無閘控狀態 */ });
+  }, [assetCode]);
 
   // 載入 DB 現有限值
   useEffect(() => {
@@ -78,6 +101,7 @@ export const LimitsSettingsModal = ({ assetCode, equipments, onClose, onSaved }:
     setSaving(true);
     setSaveResult(null);
     try {
+      // 1. Save UCL/LCL limits first
       await savePointLimits(assetCode, rows.map(r => ({
         sensorId: r.sensorId,
         label: r.label,
@@ -85,6 +109,12 @@ export const LimitsSettingsModal = ({ assetCode, equipments, onClose, onSaved }:
         ucl: r.ucl,
         lcl: r.lcl,
       })));
+
+      // 2. Save gating rules (PUT with empty list = delete all rules)
+      const ruleList: SaveGatingRuleItem[] = Object.values(gatingRules)
+        .filter((r): r is SaveGatingRuleItem => r !== null && r.gatingAssetCode !== '');
+      await saveGatingRules(assetCode, ruleList);
+
       setSaveResult('success');
       const limitMap: Record<number, { ucl: number; lcl: number }> = {};
       rows.forEach(r => { limitMap[r.sensorId] = { ucl: r.ucl, lcl: r.lcl }; });
@@ -95,7 +125,7 @@ export const LimitsSettingsModal = ({ assetCode, equipments, onClose, onSaved }:
     } finally {
       setSaving(false);
     }
-  }, [assetCode, rows, onSaved]);
+  }, [assetCode, rows, gatingRules, onSaved]);
 
   // 依設備分組
   const groups = rows.reduce<Record<string, LimitRow[]>>((acc, row) => {
@@ -171,39 +201,58 @@ export const LimitsSettingsModal = ({ assetCode, equipments, onClose, onSaved }:
                     </thead>
                     <tbody>
                       {groupRows.map((row, i) => (
-                        <tr
-                          key={row.sensorId}
-                          className={cn(
+                        <Fragment key={row.sensorId}>
+                          <tr className={cn(
                             "transition-colors hover:bg-[var(--border-base)]/30",
+                            !gatingRules[row.sensorId] && i < groupRows.length - 1 && "border-b border-[var(--border-base)]/40"
+                          )}>
+                            <td className="px-4 py-3 text-sm text-[var(--text-main)] font-medium">
+                              {row.label}
+                              <span className="ml-1.5 text-[11px] text-[var(--text-muted)] font-normal">{row.unit}</span>
+                              <span className="ml-2 text-[10px] text-[var(--text-muted)] font-mono opacity-60">#{row.sensorId}</span>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <input
+                                type="number"
+                                step="0.5"
+                                value={row.ucl}
+                                onChange={e => handleChange(row.sensorId, 'ucl', e.target.value)}
+                                className="w-24 bg-[var(--bg-card)] border border-[var(--border-input)] rounded-md px-2 py-1.5 text-right text-[var(--accent-red)] font-mono text-sm outline-none focus:border-[var(--accent-red)]/70 transition-colors"
+                                aria-label={`${row.label} UCL`}
+                              />
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <input
+                                type="number"
+                                step="0.5"
+                                value={row.lcl}
+                                onChange={e => handleChange(row.sensorId, 'lcl', e.target.value)}
+                                className="w-24 bg-[var(--bg-card)] border border-[var(--border-input)] rounded-md px-2 py-1.5 text-right text-[var(--accent-blue)] font-mono text-sm outline-none focus:border-[var(--accent-blue)]/70 transition-colors"
+                                aria-label={`${row.label} LCL`}
+                              />
+                            </td>
+                          </tr>
+                          <tr className={cn(
                             i < groupRows.length - 1 && "border-b border-[var(--border-base)]/40"
-                          )}
-                        >
-                          <td className="px-4 py-3 text-sm text-[var(--text-main)] font-medium">
-                            {row.label}
-                            <span className="ml-1.5 text-[11px] text-[var(--text-muted)] font-normal">{row.unit}</span>
-                            <span className="ml-2 text-[10px] text-[var(--text-muted)] font-mono opacity-60">#{row.sensorId}</span>
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <input
-                              type="number"
-                              step="0.5"
-                              value={row.ucl}
-                              onChange={e => handleChange(row.sensorId, 'ucl', e.target.value)}
-                              className="w-24 bg-[var(--bg-card)] border border-[var(--border-input)] rounded-md px-2 py-1.5 text-right text-[var(--accent-red)] font-mono text-sm outline-none focus:border-[var(--accent-red)]/70 transition-colors"
-                              aria-label={`${row.label} UCL`}
-                            />
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <input
-                              type="number"
-                              step="0.5"
-                              value={row.lcl}
-                              onChange={e => handleChange(row.sensorId, 'lcl', e.target.value)}
-                              className="w-24 bg-[var(--bg-card)] border border-[var(--border-input)] rounded-md px-2 py-1.5 text-right text-[var(--accent-blue)] font-mono text-sm outline-none focus:border-[var(--accent-blue)]/70 transition-colors"
-                              aria-label={`${row.label} LCL`}
-                            />
-                          </td>
-                        </tr>
+                          )}>
+                            <td colSpan={3} className="px-4 pb-2">
+                              <details className="mt-1">
+                                <summary className="cursor-pointer text-xs text-[var(--text-muted)] select-none">
+                                  ⚙ {t('sensor.gating.advanced')}: {gatingRules[row.sensorId] ? t('sensor.gating.enabled') : t('sensor.gating.disabled')}
+                                </summary>
+                                <GatingRow
+                                  assetCode={assetCode}
+                                  sensorId={row.sensorId}
+                                  rule={gatingRules[row.sensorId] ?? null}
+                                  onChange={rule => {
+                                    setGatingRules(prev => ({ ...prev, [row.sensorId]: rule }));
+                                    setSaveResult(null);
+                                  }}
+                                />
+                              </details>
+                            </td>
+                          </tr>
+                        </Fragment>
                       ))}
                     </tbody>
                   </table>
