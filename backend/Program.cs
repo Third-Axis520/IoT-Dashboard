@@ -97,6 +97,7 @@ builder.Services.AddSingleton<IProtocolAdapter, WebApiAdapter>();
 
 // ── Polling Infrastructure ───────────────────────────────────────────────
 builder.Services.AddSingleton<ConnectionStateRegistry>();
+builder.Services.AddSingleton<ILatestReadingCache, LatestReadingCache>();
 builder.Services.AddHostedService<PollingBackgroundService>();
 builder.Services.AddScoped<ImpactAnalyzer>();
 
