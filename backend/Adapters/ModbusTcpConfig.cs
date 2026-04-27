@@ -8,4 +8,5 @@ internal record ModbusTcpConfig(
     int Count,
     string DataType,
     bool ByteSwap = false,
-    double Scale = 1.0);
+    double Scale = 1.0,
+    string Function = "holding");

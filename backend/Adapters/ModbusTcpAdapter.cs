@@ -1,8 +1,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // ModbusTcpAdapter — Modbus TCP 協議適配器
 // ─────────────────────────────────────────────────────────────────────────────
-// 使用 FluentModbus 讀取 Holding Registers (FC03)
-// 支援 uint16 / int16 / uint32 / int32 / float32 資料型別
+// 使用 FluentModbus 讀取 Holding Registers (FC03) 或 Discrete Inputs (FC02)
+// FC03 支援 uint16 / int16 / uint32 / int32 / float32 資料型別
+// FC02 固定回傳 0.0 / 1.0（光電開關、限位、到位訊號）
 // ─────────────────────────────────────────────────────────────────────────────
 
 using System.Net;
@@ -87,7 +88,15 @@ public class ModbusTcpAdapter : IProtocolAdapter
                 DefaultValue: "1",
                 Min: -1000000,
                 Max: 1000000,
-                HelpText: "讀到的原始整數值乘以此係數後才是實際工程單位數值。PLC 通常以整數傳輸以節省頻寬，再由應用端換算。\n\n範例：\n• 原始值 481 × 0.1 = 48.1 °C\n• 原始值 1013 × 0.1 = 101.3 kPa\n• 不需縮放時填 1（預設）")
+                HelpText: "讀到的原始整數值乘以此係數後才是實際工程單位數值。PLC 通常以整數傳輸以節省頻寬，再由應用端換算。\n\n範例：\n• 原始值 481 × 0.1 = 48.1 °C\n• 原始值 1013 × 0.1 = 101.3 kPa\n• 不需縮放時填 1（預設）"),
+            new ConfigField(
+                Name: "function",
+                Type: "enum",
+                Label: "Modbus 功能碼",
+                Required: false,
+                DefaultValue: "holding",
+                Options: ["holding", "discrete"],
+                HelpText: "讀取的暫存器類型。\n• holding：FC03 Holding Register（溫度等類比值）\n• discrete：FC02 Discrete Input（光電開關、限位、到位訊號）\n\n選 discrete 時 dataType / scale / byteSwap 會被忽略，回值固定 0.0 或 1.0。")
         }
     };
 
@@ -110,15 +119,26 @@ public class ModbusTcpAdapter : IProtocolAdapter
             if (config.UnitId < 0 || config.UnitId > 255)
                 return ValidationResult.Invalid($"unitId 必須介於 0-255，目前值: {config.UnitId}");
 
-            if (config.Count < 1 || config.Count > 125)
-                return ValidationResult.Invalid($"count 必須介於 1-125，目前值: {config.Count}");
+            if (config.Function != "holding" && config.Function != "discrete")
+                return ValidationResult.Invalid($"function 必須是 'holding' 或 'discrete'，目前: {config.Function}");
 
-            if (!ValidDataTypes.Contains(config.DataType?.ToLower()))
-                return ValidationResult.Invalid(
-                    $"dataType 無效: '{config.DataType}'。有效值: {string.Join(", ", ValidDataTypes)}");
+            if (config.Function == "discrete")
+            {
+                if (config.Count < 1 || config.Count > 2000)
+                    return ValidationResult.Invalid($"Discrete Input 一次最多讀 2000 個 bit，目前值: {config.Count}");
+            }
+            else
+            {
+                if (config.Count < 1 || config.Count > 125)
+                    return ValidationResult.Invalid($"count 必須介於 1-125，目前值: {config.Count}");
 
-            if (config.Scale == 0)
-                return ValidationResult.Invalid("scale 不能為 0（所有讀值會變成 0）");
+                if (!ValidDataTypes.Contains(config.DataType?.ToLower()))
+                    return ValidationResult.Invalid(
+                        $"dataType 無效: '{config.DataType}'。有效值: {string.Join(", ", ValidDataTypes)}");
+
+                if (config.Scale == 0)
+                    return ValidationResult.Invalid("scale 不能為 0（所有讀值會變成 0）");
+            }
 
             return ValidationResult.Valid();
         }
@@ -177,46 +197,9 @@ public class ModbusTcpAdapter : IProtocolAdapter
                 var ip = IPAddress.Parse(config.Host);
                 client.Connect(new IPEndPoint(ip, config.Port));
 
-                var offset = config.StartAddress >= 40001
-                    ? config.StartAddress - 40001
-                    : config.StartAddress;
-
-                var dataType = config.DataType.ToLower();
-                var registersPerValue = (dataType == "uint32" || dataType == "int32" || dataType == "float32")
-                    ? 2 : 1;
-                var registerCount = config.Count * registersPerValue;
-
-                var raw = client.ReadHoldingRegisters<short>(
-                    (byte)config.UnitId, offset, registerCount);
-
-                var values = new Dictionary<string, double>();
-
-                for (int i = 0; i < config.Count; i++)
-                {
-                    var rawAddress = (offset + i * registersPerValue).ToString();
-
-                    // Apply byte swap to each 16-bit register before combining
-                    var r0 = config.ByteSwap ? SwapBytes16(raw[i * registersPerValue])
-                                             : (ushort)raw[i * registersPerValue];
-                    var r1 = registersPerValue > 1
-                        ? (config.ByteSwap ? SwapBytes16(raw[i * registersPerValue + 1])
-                                           : (ushort)raw[i * registersPerValue + 1])
-                        : (ushort)0;
-
-                    double value = dataType switch
-                    {
-                        "uint16"  => r0,
-                        "int16"   => (short)r0,
-                        "uint32"  => (uint)((r0 << 16) | r1),
-                        "int32"   => (int)((r0 << 16) | r1),
-                        "float32" => BitConverter.Int32BitsToSingle((int)((r0 << 16) | r1)),
-                        _ => throw new FormatException($"Unknown dataType: {dataType}")
-                    };
-
-                    values[rawAddress] = Math.Round(value * config.Scale, ScaleDecimals(config.Scale));
-                }
-
-                return Result<Dictionary<string, double>>.Ok(values);
+                return config.Function == "discrete"
+                    ? ReadDiscreteInputsImpl(client, config)
+                    : ReadHoldingRegistersImpl(client, config);
             }
             catch (SocketException ex)
             {
@@ -260,6 +243,87 @@ public class ModbusTcpAdapter : IProtocolAdapter
                 try { client.Disconnect(); } catch { }
             }
         }, ct);
+    }
+
+    // ── FC03 Holding Registers implementation ─────────────────────────────────
+
+    private static Result<Dictionary<string, double>> ReadHoldingRegistersImpl(
+        ModbusTcpClient client, ModbusTcpConfig config)
+    {
+        var offset = config.StartAddress >= 40001
+            ? config.StartAddress - 40001
+            : config.StartAddress;
+
+        var dataType = config.DataType.ToLower();
+        var registersPerValue = (dataType == "uint32" || dataType == "int32" || dataType == "float32")
+            ? 2 : 1;
+        var registerCount = config.Count * registersPerValue;
+
+        var raw = client.ReadHoldingRegisters<short>(
+            (byte)config.UnitId, offset, registerCount);
+
+        var values = new Dictionary<string, double>();
+
+        for (int i = 0; i < config.Count; i++)
+        {
+            var rawAddress = (offset + i * registersPerValue).ToString();
+
+            // Apply byte swap to each 16-bit register before combining
+            var r0 = config.ByteSwap ? SwapBytes16(raw[i * registersPerValue])
+                                     : (ushort)raw[i * registersPerValue];
+            var r1 = registersPerValue > 1
+                ? (config.ByteSwap ? SwapBytes16(raw[i * registersPerValue + 1])
+                                   : (ushort)raw[i * registersPerValue + 1])
+                : (ushort)0;
+
+            double value = dataType switch
+            {
+                "uint16"  => r0,
+                "int16"   => (short)r0,
+                "uint32"  => (uint)((r0 << 16) | r1),
+                "int32"   => (int)((r0 << 16) | r1),
+                "float32" => BitConverter.Int32BitsToSingle((int)((r0 << 16) | r1)),
+                _ => throw new FormatException($"Unknown dataType: {dataType}")
+            };
+
+            values[rawAddress] = Math.Round(value * config.Scale, ScaleDecimals(config.Scale));
+        }
+
+        return Result<Dictionary<string, double>>.Ok(values);
+    }
+
+    // ── FC02 Discrete Inputs implementation ───────────────────────────────────
+
+    private static Result<Dictionary<string, double>> ReadDiscreteInputsImpl(
+        ModbusTcpClient client, ModbusTcpConfig config)
+    {
+        var offset = config.StartAddress >= 10001
+            ? config.StartAddress - 10001
+            : config.StartAddress;
+
+        // ReadDiscreteInputs returns Span<byte> — must call ToArray() before leaving this scope
+        var raw = client.ReadDiscreteInputs(config.UnitId, offset, config.Count).ToArray();
+        var bits = ExpandBits(raw, config.Count);
+
+        var values = new Dictionary<string, double>();
+        for (int i = 0; i < config.Count; i++)
+            values[(offset + i).ToString()] = bits[i] ? 1.0 : 0.0;
+
+        return Result<Dictionary<string, double>>.Ok(values);
+    }
+
+    // ── Bit expansion helper (FC02) ────────────────────────────────────────────
+
+    /// <summary>
+    /// Expands packed bit bytes (little-endian bit order, as returned by FC02) into
+    /// a bool array. Bit 0 of byte 0 = index 0; bit 1 of byte 0 = index 1; etc.
+    /// </summary>
+    internal static bool[] ExpandBits(byte[] bytes, int count)
+    {
+        var result = new bool[count];
+        for (int i = 0; i < count; i++)
+            result[i] = (bytes[i / 8] & (1 << (i % 8))) != 0;
+        return result;
     }
 
     // ── Exception classification helper ───────────────────────────────────────

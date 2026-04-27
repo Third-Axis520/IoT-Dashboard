@@ -7,6 +7,12 @@
     <UserSecretsId>4f27ce1b-45ef-451b-aa67-0a7e970cdf47</UserSecretsId>
   </PropertyGroup>
 
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>IoT.CentralApi.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
   <!-- Exclude test project files from main compilation -->
   <ItemGroup>
     <Compile Remove="Tests\**" />
