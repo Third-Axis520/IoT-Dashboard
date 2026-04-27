@@ -422,7 +422,7 @@ public class ModbusTcpAdapterTests
     {
         // 0xA5 = 10100101b
         // Little-endian bit order: bit0=1, bit1=0, bit2=1, bit3=0, bit4=0, bit5=1, bit6=0, bit7=1
-        var bits = ModbusTcpAdapter.ExpandBits(new byte[] { 0xA5 }, 8);
+        var bits = ModbusTcpAdapterHelpers.ExpandBits(new byte[] { 0xA5 }, 8);
 
         bits.Should().Equal(true, false, true, false, false, true, false, true);
     }
