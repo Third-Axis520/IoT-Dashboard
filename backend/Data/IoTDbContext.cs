@@ -21,6 +21,7 @@ public class IoTDbContext(DbContextOptions<IoTDbContext> options) : DbContext(op
     public DbSet<LineEquipment>       LineEquipments       => Set<LineEquipment>();
     public DbSet<PropertyType>        PropertyTypes        => Set<PropertyType>();
     public DbSet<DeviceConnection>    DeviceConnections    => Set<DeviceConnection>();
+    public DbSet<SensorGatingRule>    SensorGatingRules    => Set<SensorGatingRule>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -114,5 +115,12 @@ public class IoTDbContext(DbContextOptions<IoTDbContext> options) : DbContext(op
             .WithMany()
             .HasForeignKey(s => s.PropertyTypeId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // ── SensorGatingRule ──────────────────────────────────────────────────
+        modelBuilder.Entity<SensorGatingRule>(entity =>
+        {
+            entity.HasIndex(r => new { r.GatedAssetCode, r.GatedSensorId }).IsUnique();
+            entity.HasIndex(r => new { r.GatingAssetCode, r.GatingSensorId });
+        });
     }
 }
