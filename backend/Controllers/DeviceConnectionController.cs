@@ -52,6 +52,28 @@ public class DeviceConnectionController(
         if (!validation.IsValid)
             return BadRequest(new ErrorResponse("invalid_config", validation.Error!));
 
+        // Validate sensor PropertyTypeIds exist before EF tries to insert and crashes
+        // with an FK violation (returned as opaque 500). Surface a clean 400 instead.
+        if (req.EquipmentType?.Sensors is { Count: > 0 } sensors)
+        {
+            await using var checkDb = await dbFactory.CreateDbContextAsync();
+            var requestedIds = sensors.Select(s => s.PropertyTypeId).Where(id => id > 0).Distinct().ToList();
+            var validIds = await checkDb.PropertyTypes
+                .Where(p => requestedIds.Contains(p.Id))
+                .Select(p => p.Id)
+                .ToListAsync();
+            var invalid = sensors
+                .Select((s, i) => (s, i))
+                .Where(t => t.s.PropertyTypeId <= 0 || !validIds.Contains(t.s.PropertyTypeId))
+                .ToList();
+            if (invalid.Count > 0)
+            {
+                var details = string.Join(", ", invalid.Select(t => $"sensor#{t.i + 1} ({t.s.Label}) propertyTypeId={t.s.PropertyTypeId}"));
+                return BadRequest(new ErrorResponse("invalid_property_type",
+                    $"以下 sensor 沒有設定屬性類型，請回 Step 5 為每一筆選擇對應的「屬性類型」: {details}"));
+            }
+        }
+
         await using var db = await dbFactory.CreateDbContextAsync();
 
         var dc = new DeviceConnection

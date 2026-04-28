@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWizard } from '../WizardContext';
 import PropertyTypePicker from '../PropertyTypePicker';
+import { fetchPropertyTypes } from '../../../../lib/apiPropertyTypes';
 
 export default function Step5Labels() {
   const { state, dispatch } = useWizard();
@@ -8,6 +10,39 @@ export default function Step5Labels() {
   const selectedPoints = state.discoveryPoints
     .map((pt, i) => ({ pt, i }))
     .filter(({ i }) => state.selectedPointIndices.has(i));
+
+  // Auto-default propertyTypeId based on the protocol's function code so users
+  // don't have to pick "在位" for every one of 32 DI bits manually:
+  //   discrete (FC02) → material_detect (在位)
+  //   else            → temperature
+  // Only fills in slots the user hasn't touched (label.propertyTypeId === 0).
+  useEffect(() => {
+    const isDiscrete = state.config?.function === 'discrete';
+    const targetKey = isDiscrete ? 'material_detect' : 'temperature';
+    fetchPropertyTypes().then((items) => {
+      const target = items.find((t) => t.key === targetKey);
+      if (!target) return;
+      selectedPoints.forEach(({ i }) => {
+        const existing = state.labels.get(i);
+        if (existing && existing.propertyTypeId > 0) return;
+        const fallback = existing ?? { name: state.discoveryPoints[i]?.suggestedLabel ?? '', propertyTypeId: 0, unit: '' };
+        dispatch({
+          type: 'SET_LABEL',
+          index: i,
+          label: { ...fallback, propertyTypeId: target.id, unit: fallback.unit || target.defaultUnit || '' },
+        });
+      });
+    });
+    // selectedPoints / state.labels intentionally not in deps: we only auto-fill once on entry
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.config?.function]);
+
+  // Block Next when any selected point is missing its propertyTypeId
+  const missingCount = selectedPoints.filter(({ i }) => {
+    const lbl = state.labels.get(i);
+    return !lbl || !lbl.propertyTypeId || lbl.propertyTypeId <= 0;
+  }).length;
+  const canProceed = missingCount === 0;
 
   return (
     <div className="p-6">
@@ -71,6 +106,12 @@ export default function Step5Labels() {
         })}
       </div>
 
+      {!canProceed && (
+        <p className="text-xs text-[var(--accent-yellow)] mt-3">
+          ⚠ 還有 {missingCount} 個點位未指定屬性類型，無法繼續。
+        </p>
+      )}
+
       <div className="flex justify-between mt-6">
         <button
           onClick={() => dispatch({ type: 'PREV_STEP' })}
@@ -80,7 +121,8 @@ export default function Step5Labels() {
         </button>
         <button
           onClick={() => dispatch({ type: 'NEXT_STEP' })}
-          className="px-5 py-2 rounded-lg bg-[var(--accent-green)] text-[var(--bg-panel)] text-sm font-medium hover:bg-[var(--accent-green-hover)] transition-colors"
+          disabled={!canProceed}
+          className="px-5 py-2 rounded-lg bg-[var(--accent-green)] text-[var(--bg-panel)] text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[var(--accent-green-hover)] transition-colors"
         >
           {t('common.next')}
         </button>
