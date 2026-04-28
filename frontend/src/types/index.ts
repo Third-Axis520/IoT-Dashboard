@@ -52,6 +52,8 @@ export interface Equipment {
   points: Point[];
   /** SensorId for "material present" detection; undefined = always treat as has-material */
   materialDetectSensorId?: number;
+  /** True = backend-only entity (e.g., DI 集中器), don't render on dashboard but keep available for sensor gating */
+  isHidden?: boolean;
 }
 
 export interface ProductionLine {
@@ -90,6 +92,7 @@ export interface ApiLineEquipment {
   assetCode: string | null;
   displayName: string | null;
   sortOrder: number;
+  isHidden: boolean;
 }
 
 export interface ApiLineConfig {

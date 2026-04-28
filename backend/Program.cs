@@ -371,6 +371,18 @@ using (var scope = app.Services.CreateScope())
         END
         """);
 
+    // Idempotent: add IsHidden column to LineEquipments if upgrading
+    // (true = backend-only entity used as gating source, won't render on dashboard)
+    await ctx.Database.ExecuteSqlRawAsync("""
+        IF EXISTS (SELECT 1 FROM sys.tables WHERE name = 'LineEquipments' AND schema_id = SCHEMA_ID('dbo'))
+           AND NOT EXISTS (
+               SELECT 1 FROM sys.columns
+               WHERE object_id = OBJECT_ID('dbo.LineEquipments') AND name = 'IsHidden'
+           )
+            ALTER TABLE [dbo].[LineEquipments]
+                ADD [IsHidden] BIT NOT NULL CONSTRAINT DF_LineEquipments_IsHidden DEFAULT 0;
+        """);
+
     // ── PropertyTypes (Device Integration Wizard 用) ─────────────────────────
     await ctx.Database.ExecuteSqlRawAsync("""
         IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'PropertyTypes' AND schema_id = SCHEMA_ID('dbo'))

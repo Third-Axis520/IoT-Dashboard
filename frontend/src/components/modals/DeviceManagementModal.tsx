@@ -130,10 +130,11 @@ function RegisterForm({ onRegister, onCancel }: RegisterFormProps) {
 interface UnboundCardProps {
   device: DeviceDto;
   onBind: (serialNumber: string, assetCode: string, friendlyName?: string) => Promise<void>;
+  onDelete: (serialNumber: string) => Promise<void>;
   validateAsset: (assetCode: string) => Promise<AssetValidation | null>;
 }
 
-function UnboundCard({ device, onBind, validateAsset }: UnboundCardProps) {
+function UnboundCard({ device, onBind, onDelete, validateAsset }: UnboundCardProps) {
   const { t } = useTranslation();
   const [assetCodeInput, setAssetCodeInput] = useState('');
   const [friendlyNameInput, setFriendlyNameInput] = useState('');
@@ -143,6 +144,14 @@ function UnboundCard({ device, onBind, validateAsset }: UnboundCardProps) {
   const [binding, setBinding] = useState(false);
   const [bindSuccess, setBindSuccess] = useState(false);
   const [skipFas, setSkipFas] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  const handleConfirmDelete = async () => {
+    setDeleting(true);
+    try { await onDelete(device.serialNumber); }
+    finally { setDeleting(false); setConfirmingDelete(false); }
+  };
 
   const handleValidate = async () => {
     if (!assetCodeInput.trim()) return;
@@ -284,7 +293,7 @@ function UnboundCard({ device, onBind, validateAsset }: UnboundCardProps) {
       )}
 
       {/* Buttons */}
-      <div className="flex items-center justify-between pt-1">
+      <div className="flex items-center justify-between pt-1 gap-2">
         {!skipFas ? (
           <button
             onClick={handleValidate}
@@ -297,14 +306,44 @@ function UnboundCard({ device, onBind, validateAsset }: UnboundCardProps) {
         ) : (
           <span className="text-xs text-[var(--accent-blue)] opacity-70">{t('deviceManagement.skipFasHint')}</span>
         )}
-        <button
-          onClick={handleBind}
-          disabled={!canBind || binding}
-          className="bg-[var(--accent-green)] text-[var(--bg-panel)] font-bold rounded-lg text-sm px-4 py-2 hover:bg-[var(--accent-green-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
-        >
-          {binding && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-          {t('deviceManagement.bindConfirm')}
-        </button>
+        <div className="flex items-center gap-2 ml-auto">
+          {/* Permanently delete this Device record (only valid for unbound devices) */}
+          {confirmingDelete ? (
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-[var(--accent-red)]">{t('deviceManagement.deleteConfirm')}</span>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={deleting}
+                className="text-xs px-2 py-1 rounded bg-[var(--accent-red)] text-white hover:bg-[var(--accent-red)]/80 disabled:opacity-50 flex items-center gap-1"
+              >
+                {deleting && <Loader2 className="w-3 h-3 animate-spin" />}
+                {t('common.confirm')}
+              </button>
+              <button
+                onClick={() => setConfirmingDelete(false)}
+                className="text-xs px-2 py-1 rounded text-[var(--text-muted)] hover:text-[var(--text-main)]"
+              >
+                {t('common.cancel')}
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmingDelete(true)}
+              title={t('deviceManagement.deleteHint')}
+              className="text-xs px-2 py-1.5 rounded-lg border border-[var(--accent-red)]/30 text-[var(--accent-red)] hover:bg-[var(--accent-red)]/10 transition-colors"
+            >
+              {t('common.delete')}
+            </button>
+          )}
+          <button
+            onClick={handleBind}
+            disabled={!canBind || binding}
+            className="bg-[var(--accent-green)] text-[var(--bg-panel)] font-bold rounded-lg text-sm px-4 py-2 hover:bg-[var(--accent-green-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+          >
+            {binding && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            {t('deviceManagement.bindConfirm')}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -388,6 +427,7 @@ interface DeviceManagementModalProps {
   devices: DeviceDto[];
   onBind: (serialNumber: string, assetCode: string, friendlyName?: string) => Promise<void>;
   onUnbind: (serialNumber: string) => Promise<void>;
+  onDelete: (serialNumber: string) => Promise<void>;
   onRegister: (serialNumber: string, friendlyName?: string) => Promise<void>;
   validateAsset: (assetCode: string) => Promise<AssetValidation | null>;
 }
@@ -397,6 +437,7 @@ export function DeviceManagementModal({
   devices,
   onBind,
   onUnbind,
+  onDelete,
   onRegister,
   validateAsset,
 }: DeviceManagementModalProps) {
@@ -480,6 +521,7 @@ export function DeviceManagementModal({
                       key={d.serialNumber}
                       device={d}
                       onBind={onBind}
+                      onDelete={onDelete}
                       validateAsset={validateAsset}
                     />
                   ))}

@@ -11,7 +11,7 @@ namespace IoT.CentralApi.Controllers;
 
 public record LineEquipmentDto(
     int Id, int EquipmentTypeId, EquipmentTypeDto EquipmentType,
-    string? AssetCode, string? DisplayName, int SortOrder);
+    string? AssetCode, string? DisplayName, int SortOrder, bool IsHidden);
 
 public record LineConfigDto(
     int Id, string LineId, string Name,
@@ -21,7 +21,8 @@ public record SaveLineEquipmentRequest(
     [Range(1, int.MaxValue)] int EquipmentTypeId,
     [MaxLength(50)] string? AssetCode,
     [MaxLength(200)] string? DisplayName,
-    int SortOrder = 0);
+    int SortOrder = 0,
+    bool IsHidden = false);
 
 public record SaveLineConfigRequest(
     [Required, MaxLength(200)] string Name,
@@ -86,6 +87,7 @@ public class LineConfigController(
                 AssetCode = e.AssetCode,
                 DisplayName = e.DisplayName,
                 SortOrder = e.SortOrder == 0 ? i : e.SortOrder,
+                IsHidden = e.IsHidden,
             }).ToList(),
         };
         db.LineConfigs.Add(lc);
@@ -120,6 +122,7 @@ public class LineConfigController(
             AssetCode = e.AssetCode,
             DisplayName = e.DisplayName,
             SortOrder = e.SortOrder == 0 ? i : e.SortOrder,
+            IsHidden = e.IsHidden,
         }).ToList();
 
         await db.SaveChangesAsync();
@@ -155,6 +158,6 @@ public class LineConfigController(
         lc.Equipments.Select(le => new LineEquipmentDto(
             le.Id, le.EquipmentTypeId,
             EquipmentTypeController.MapToDtoPublic(le.EquipmentType),
-            le.AssetCode, le.DisplayName, le.SortOrder
+            le.AssetCode, le.DisplayName, le.SortOrder, le.IsHidden
         )).ToList());
 }

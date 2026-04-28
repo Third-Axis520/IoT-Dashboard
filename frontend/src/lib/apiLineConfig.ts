@@ -57,6 +57,7 @@ function apiLineEquipmentToEquipment(
     visType: le.equipmentType.visType as VisType,
     points,
     materialDetectSensorId: matDetect?.sensorId,
+    isHidden: le.isHidden,
   };
 }
 
@@ -93,6 +94,7 @@ export async function saveLineConfig(
     assetCode?: string | null;
     displayName?: string | null;
     sortOrder: number;
+    isHidden?: boolean;
   }>
 ): Promise<ApiLineConfig> {
   const res = await fetch(`/api/line-configs/${lineId}`, {

@@ -6,16 +6,26 @@ const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select:n
  * Traps keyboard focus inside a modal and handles ESC to close.
  * Usage: const ref = useFocusTrap<HTMLDivElement>(onClose);
  *        <div ref={ref} ...>
+ *
+ * The effect must run exactly once per modal mount: callers pass `onClose`
+ * as an inline arrow which is recreated every render, so depending on it
+ * would re-run the effect on every parent re-render and re-grab focus —
+ * this stole the user's typing focus and jumped them back to the close
+ * button on every SSE tick. We stash onClose in a ref so the effect deps
+ * stay empty.
  */
 export function useFocusTrap<T extends HTMLElement>(onClose: () => void) {
   const ref = useRef<T>(null);
   const previousFocusRef = useRef<Element | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
 
-    // Remember and move focus
+    // Remember and move focus to the first interactive element (typically
+    // the close button) — only on initial mount, not on every re-render
     previousFocusRef.current = document.activeElement;
     const first = el.querySelector<HTMLElement>(FOCUSABLE);
     first?.focus();
@@ -23,7 +33,7 @@ export function useFocusTrap<T extends HTMLElement>(onClose: () => void) {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        onClose();
+        onCloseRef.current();
         return;
       }
 
@@ -51,12 +61,15 @@ export function useFocusTrap<T extends HTMLElement>(onClose: () => void) {
     el.addEventListener('keydown', handleKeyDown);
     return () => {
       el.removeEventListener('keydown', handleKeyDown);
-      // Restore focus
+      // Restore focus to whatever was focused when the modal opened
       if (previousFocusRef.current instanceof HTMLElement) {
         previousFocusRef.current.focus();
       }
     };
-  }, [onClose]);
+    // Intentionally empty deps: onClose accessed via ref so updates don't
+    // re-fire the focus-grab effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return ref;
 }

@@ -108,6 +108,8 @@ const en: Translation = {
     unset: '— Not set —',
     unsetHint: 'ⓘ {{count}} points have no sensor assigned. You can set them later from the card.',
     finish: 'Finish',
+    hiddenLabel: 'Hide from dashboard (backend-only signal)',
+    hiddenHint: 'When checked, this equipment is not rendered as a card but is still available as a sensor gating source (use for: DI concentrators, internal-only signals)',
   },
   sensorMapModal: {
     noDeviceId: 'This device has no AssetCode configured — sensor data cannot be routed. Please set the Device ID in edit mode first, then configure sensor mapping.',
@@ -169,6 +171,8 @@ const en: Translation = {
     bindSuccess: 'Bound',
     unbindConfirm: 'Confirm unbind?',
     unbind: 'Unbind',
+    deleteConfirm: 'Confirm permanent delete?',
+    deleteHint: 'Permanently remove this device record from the database (must be unbound first)',
   },
   drillDown: {
     subtitle: 'Unified Trend Matrix (Drill-down)',

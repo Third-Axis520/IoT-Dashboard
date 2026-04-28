@@ -58,6 +58,17 @@ export function useDevices() {
     [refresh],
   );
 
+  const deleteDevice = useCallback(
+    async (serialNumber: string) => {
+      const res = await fetch(`/api/devices/${encodeURIComponent(serialNumber)}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error(await res.text());
+      await refresh();
+    },
+    [refresh],
+  );
+
   const validateAsset = useCallback(async (assetCode: string) => {
     const res = await fetch(`/api/fas/validate/${encodeURIComponent(assetCode)}`);
     if (!res.ok) return null;
@@ -80,5 +91,5 @@ export function useDevices() {
 
   const unboundCount = devices.filter((d) => !d.isBound).length;
 
-  return { devices, loading, refresh, bindDevice, unbindDevice, validateAsset, registerDevice, unboundCount };
+  return { devices, loading, refresh, bindDevice, unbindDevice, deleteDevice, validateAsset, registerDevice, unboundCount };
 }

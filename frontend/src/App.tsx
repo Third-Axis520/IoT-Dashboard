@@ -107,7 +107,7 @@ export default function App() {
   }, []);
 
   const { status: connStatus, error: connError, assetCode, latestRawSensors, latestRawTimestamps } = useLiveData(data, setData, setAlerts, reloadConfig);
-  const { devices, bindDevice, unbindDevice, validateAsset, registerDevice, unboundCount } = useDevices();
+  const { devices, bindDevice, unbindDevice, deleteDevice, validateAsset, registerDevice, unboundCount } = useDevices();
 
   // ── Gating rules ───────────────────────────────────────────────────────────
   // keyed by gatedSensorId for quick lookup during render
@@ -155,11 +155,13 @@ export default function App() {
   const activeLine = useMemo(() => data.find(l => l.id === activeLineId) || data[0] || { id: '', name: '', equipments: [] }, [data, activeLineId]);
 
   const displayedEquipments = useMemo(() => {
+    // isHidden = backend-only entity (e.g. DI 集中器), not rendered on dashboard
+    // but still loaded into `data` so it's available as a sensor gating source.
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      return data.flatMap(line => line.equipments.filter(eq => eq.deviceId.toLowerCase().includes(q) || eq.name.toLowerCase().includes(q)).map(eq => ({ lineId: line.id, eq })));
+      return data.flatMap(line => line.equipments.filter(eq => !eq.isHidden && (eq.deviceId.toLowerCase().includes(q) || eq.name.toLowerCase().includes(q))).map(eq => ({ lineId: line.id, eq })));
     }
-    return activeLine?.equipments.map(eq => ({ lineId: activeLine.id, eq })) || [];
+    return activeLine?.equipments.filter(eq => !eq.isHidden).map(eq => ({ lineId: activeLine.id, eq })) || [];
   }, [data, activeLine, searchQuery]);
 
   const liveDrillDownEq = useMemo(() => {
@@ -200,10 +202,28 @@ export default function App() {
   }, [activeLineId]);
   const handleDragEnd = useCallback(() => setDraggedEqIndex(null), []);
 
-  const handleSaveEqEdit = useCallback((lineId: string, eqId: string) => {
+  const handleSaveEqEdit = useCallback(async (lineId: string, eqId: string) => {
+    const snap = data;
     setData(prev => prev.map(l => l.id === lineId ? { ...l, equipments: l.equipments.map(eq => eq.id === eqId ? { ...eq, name: editEqName, deviceId: editEqDeviceId } : eq) } : l));
     setEditingEqId(null);
-  }, [editEqName, editEqDeviceId]);
+    // Persist DisplayName + AssetCode change to backend so it survives refresh
+    const lc = apiLineConfigs.find(c => c.lineId === lineId);
+    if (!lc) return;
+    const numericLeId = Number(eqId.replace(/^le_/, ''));
+    const equipments = lc.equipments.map((le, i) => {
+      if (le.id === numericLeId) {
+        return { equipmentTypeId: le.equipmentTypeId, assetCode: editEqDeviceId || null, displayName: editEqName !== le.equipmentType.name ? editEqName : null, sortOrder: i, isHidden: le.isHidden };
+      }
+      return { equipmentTypeId: le.equipmentTypeId, assetCode: le.assetCode, displayName: le.displayName, sortOrder: i, isHidden: le.isHidden };
+    });
+    try {
+      const updated = await saveLineConfig(lineId, lc.name, equipments);
+      setApiLineConfigs(prev => prev.map(c => c.lineId === lineId ? updated : c));
+    } catch (err) {
+      setData(snap);
+      addToast('error', `儲存設備修改失敗：${err instanceof Error ? err.message : '未知錯誤'}`);
+    }
+  }, [editEqName, editEqDeviceId, data, apiLineConfigs, addToast]);
 
   const handlePointSwap = useCallback((lineId: string, eqId: string, drag: number, drop: number) => {
     setData(prev => prev.map(l => l.id === lineId ? { ...l, equipments: l.equipments.map(eq => {
@@ -240,7 +260,33 @@ export default function App() {
     setAutoPlayEqIndex(next); setDrillDownEq(displayedEquipments[next].eq);
   }, [isAutoPlaying, autoPlayEqIndex, displayedEquipments]);
 
-  const executeDeleteEquipment = useCallback((lineId: string, eqId: string) => { setData(prev => prev.map(l => l.id === lineId ? { ...l, equipments: l.equipments.filter(e => e.id !== eqId) } : l)); }, []);
+  const executeDeleteEquipment = useCallback(async (lineId: string, eqId: string) => {
+    // Optimistic UI: remove the card immediately
+    const snap = data;
+    setData(prev => prev.map(l => l.id === lineId ? { ...l, equipments: l.equipments.filter(e => e.id !== eqId) } : l));
+    // Persist to backend so the deletion survives a refresh
+    const lc = apiLineConfigs.find(c => c.lineId === lineId);
+    if (!lc) return;
+    // Map LineEquipment id `le_<id>` → numeric to filter the persisted list
+    const numericLeId = Number(eqId.replace(/^le_/, ''));
+    const remaining = lc.equipments
+      .filter(le => le.id !== numericLeId)
+      .map((le, i) => ({
+        equipmentTypeId: le.equipmentTypeId,
+        assetCode: le.assetCode,
+        displayName: le.displayName,
+        sortOrder: i,
+        isHidden: le.isHidden,
+      }));
+    try {
+      const updated = await saveLineConfig(lineId, lc.name, remaining);
+      setApiLineConfigs(prev => prev.map(c => c.lineId === lineId ? updated : c));
+    } catch (err) {
+      // Roll back optimistic UI on failure
+      setData(snap);
+      addToast('error', `刪除設備失敗：${err instanceof Error ? err.message : '未知錯誤'}`);
+    }
+  }, [data, apiLineConfigs, addToast]);
   const handleDeleteEquipment = useCallback((lineId: string, eqId: string, eqName: string) => {
     setConfirmDialog({ title: t('app.deleteDevice'), message: t('app.deleteDeviceConfirm', { name: eqName }), confirmText: t('common.delete'), variant: 'danger', onConfirm: () => { setConfirmDialog(null); executeDeleteEquipment(lineId, eqId); } });
   }, [executeDeleteEquipment, t]);
@@ -267,14 +313,20 @@ export default function App() {
     setConfirmDialog({ title: t('app.deleteLine'), message: t('app.deleteLineConfirm', { name }), confirmText: t('common.delete'), variant: 'danger', onConfirm: () => { setConfirmDialog(null); executeDeleteLine(lineId); } });
   }, [data, executeDeleteLine, t]);
 
-  const handleAddDevice = useCallback(async (tpl: MachineTemplate, name: string, deviceId: string, sensorMapping: Record<number, number>, pointNames: string[], targetLineId?: string) => {
+  const handleAddDevice = useCallback(async (tpl: MachineTemplate, name: string, deviceId: string, sensorMapping: Record<number, number>, pointNames: string[], isHidden: boolean, targetLineId?: string) => {
     const lineId = targetLineId ?? activeLineId;
     const newEq = createEquipmentFromTemplate(tpl, name, deviceId, sensorMapping, pointNames);
-    setData(prev => prev.map(l => l.id === lineId ? { ...l, equipments: [...l.equipments, newEq] } : l)); setShowAddDevice(false);
+    if (!isHidden) {
+      setData(prev => prev.map(l => l.id === lineId ? { ...l, equipments: [...l.equipments, { ...newEq, isHidden }] } : l));
+    }
+    setShowAddDevice(false);
     const lc = apiLineConfigs.find(c => c.lineId === lineId);
     if (lc && tpl.id) {
       try {
-        const updated = await saveLineConfig(lineId, lc.name, [...lc.equipments.map((le, i) => ({ equipmentTypeId: le.equipmentTypeId, assetCode: le.assetCode, displayName: le.displayName, sortOrder: i })), { equipmentTypeId: Number(tpl.id), assetCode: deviceId || null, displayName: name !== tpl.name ? name : null, sortOrder: lc.equipments.length }]);
+        const updated = await saveLineConfig(lineId, lc.name, [
+          ...lc.equipments.map((le, i) => ({ equipmentTypeId: le.equipmentTypeId, assetCode: le.assetCode, displayName: le.displayName, sortOrder: i, isHidden: le.isHidden })),
+          { equipmentTypeId: Number(tpl.id), assetCode: deviceId || null, displayName: name !== tpl.name ? name : null, sortOrder: lc.equipments.length, isHidden },
+        ]);
         setApiLineConfigs(prev => prev.map(c => c.lineId === lineId ? updated : c));
       } catch (err) { console.error('Failed to persist equipment:', err); }
     }
@@ -366,7 +418,7 @@ export default function App() {
 
       <ModalContainer
         templates={templates} data={data} latestRawSensors={latestRawSensors} assetCode={assetCode}
-        devices={devices} bindDevice={bindDevice} unbindDevice={unbindDevice} validateAsset={validateAsset} registerDevice={registerDevice}
+        devices={devices} bindDevice={bindDevice} unbindDevice={unbindDevice} deleteDevice={deleteDevice} validateAsset={validateAsset} registerDevice={registerDevice}
         activeLine={activeLine} boundEquipments={boundEquipments}
         showAddDevice={showAddDevice} onCloseAddDevice={() => setShowAddDevice(false)}
         wizardPostInfo={wizardPostInfo} onCloseWizardPost={() => setWizardPostInfo(null)}
@@ -382,7 +434,7 @@ export default function App() {
         confirmDialog={confirmDialog} onCloseConfirm={() => setConfirmDialog(null)}
         toasts={toasts} onRemoveToast={removeToast}
         onAddDevice={handleAddDevice}
-        onWizardPostAdd={(lineId, name, ac, mapping, names) => { if (!wizardPostInfo) return; handleAddDevice(wizardPostInfo.template, name, ac, mapping, names, lineId); setWizardPostInfo(null); addToast('success', `「${name}」已加入儀表板`); }}
+        onWizardPostAdd={(lineId, name, ac, mapping, names) => { if (!wizardPostInfo) return; handleAddDevice(wizardPostInfo.template, name, ac, mapping, names, false, lineId); setWizardPostInfo(null); addToast('success', `「${name}」已加入儀表板`); }}
         onSaveConfig={handleSaveConfig} onSaveSensorMapping={handleSaveSensorMapping}
         onLimitsSaved={handleLimitsSaved} onWizardSuccess={handleWizardSuccess}
         isAutoPlaying={isAutoPlaying} autoPlaySpeed={autoPlaySpeed}

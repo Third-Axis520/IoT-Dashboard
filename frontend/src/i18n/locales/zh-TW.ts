@@ -106,6 +106,8 @@ const zhTW = {
     unset: '— 未設定 —',
     unsetHint: 'ⓘ {{count}} 個點位尚未指定感測器，完成後可從卡片「感測器對應設定」修改。',
     finish: '完成新增',
+    hiddenLabel: '不顯示在儀表板（後端訊號專用）',
+    hiddenHint: '勾選後此設備不會出現在儀表板卡片，但仍可作為 sensor gating 的訊號來源（適用：DI 集中器、純後端訊號）',
   },
   sensorMapModal: {
     noDeviceId: '此設備未設定 AssetCode，感測器資料無法路由。請先在編輯模式中設定 Device ID，再來配置感測器對應。',
@@ -167,6 +169,8 @@ const zhTW = {
     bindSuccess: '綁定成功',
     unbindConfirm: '確認解除？',
     unbind: '解除綁定',
+    deleteConfirm: '確認永久刪除？',
+    deleteHint: '從資料庫永久移除此設備記錄（必須先解除綁定）',
   },
   drillDown: {
     subtitle: 'Unified Trend Matrix (Drill-down)',

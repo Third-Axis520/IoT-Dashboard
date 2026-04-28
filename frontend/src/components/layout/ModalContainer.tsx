@@ -27,6 +27,7 @@ export interface ModalContainerProps {
   devices: ReturnType<typeof useDevices>['devices'];
   bindDevice: ReturnType<typeof useDevices>['bindDevice'];
   unbindDevice: ReturnType<typeof useDevices>['unbindDevice'];
+  deleteDevice: ReturnType<typeof useDevices>['deleteDevice'];
   validateAsset: ReturnType<typeof useDevices>['validateAsset'];
   registerDevice: ReturnType<typeof useDevices>['registerDevice'];
 
@@ -90,7 +91,7 @@ export interface ModalContainerProps {
 export default function ModalContainer(props: ModalContainerProps) {
   const {
     templates, data, latestRawSensors, assetCode,
-    devices, bindDevice, unbindDevice, validateAsset, registerDevice,
+    devices, bindDevice, unbindDevice, deleteDevice, validateAsset, registerDevice,
     activeLine, boundEquipments,
     showAddDevice, onCloseAddDevice,
     wizardPostInfo, onCloseWizardPost,
@@ -140,6 +141,7 @@ export default function ModalContainer(props: ModalContainerProps) {
           devices={devices}
           onBind={bindDevice}
           onUnbind={unbindDevice}
+          onDelete={deleteDevice}
           onRegister={registerDevice}
           validateAsset={validateAsset}
         />

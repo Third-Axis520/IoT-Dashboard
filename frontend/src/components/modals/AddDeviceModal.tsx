@@ -17,7 +17,8 @@ interface AddDeviceModalProps {
     name: string,
     assetCode: string,
     sensorMapping: Record<number, number>,
-    pointNames: string[]
+    pointNames: string[],
+    isHidden: boolean
   ) => void;
   /** 從精靈完成後帶入：預選模板 + 預填 AssetCode */
   initialTemplateId?: string;
@@ -47,6 +48,7 @@ export const AddDeviceModal = ({
   // Step 1
   const [deviceName, setDeviceName] = useState('');
   const [selectedTplId, setSelectedTplId] = useState(initialTemplateId ?? templates[0]?.id ?? '');
+  const [isHidden, setIsHidden] = useState(false);
 
   // Step 2
   const [assetCodeMode, setAssetCodeMode] = useState<'list' | 'manual'>(initialAssetCode ? 'manual' : 'list');
@@ -88,7 +90,7 @@ export const AddDeviceModal = ({
 
   const handleFinish = () => {
     if (!selectedTpl || !canFinish) return;
-    onAdd(selectedTpl, deviceName.trim(), assetCode, sensorMapping, pointNames);
+    onAdd(selectedTpl, deviceName.trim(), assetCode, sensorMapping, pointNames, isHidden);
   };
 
   return (
@@ -204,6 +206,21 @@ export const AddDeviceModal = ({
                     </label>
                   ))}
                 </div>
+              </div>
+              {/* Hidden flag — backend-only equipment (DI 集中器), not rendered on dashboard */}
+              <div>
+                <label className="flex items-start gap-2 cursor-pointer p-2 rounded-lg hover:bg-[var(--border-base)]/30 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={isHidden}
+                    onChange={e => setIsHidden(e.target.checked)}
+                    className="mt-0.5 rounded"
+                  />
+                  <div className="flex-1">
+                    <div className="text-sm text-[var(--text-main)]">{t('addDevice.hiddenLabel')}</div>
+                    <div className="text-xs text-[var(--text-muted)] mt-0.5">{t('addDevice.hiddenHint')}</div>
+                  </div>
+                </label>
               </div>
             </>
           )}

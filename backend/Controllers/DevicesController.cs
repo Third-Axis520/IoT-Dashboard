@@ -115,6 +115,27 @@ public class DevicesController(
         return NoContent();
     }
 
+    /// <summary>完整刪除設備記錄（必須先解除綁定）</summary>
+    [HttpDelete("{serialNumber}")]
+    public async Task<IActionResult> Delete(string serialNumber)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var device = await db.Devices
+            .FirstOrDefaultAsync(d => d.SerialNumber == serialNumber);
+
+        if (device == null)
+            return NotFound($"Device '{serialNumber}' not found.");
+
+        if (device.AssetCode != null)
+            return BadRequest(new { error = "Device is still bound to an AssetCode. Unbind first before deleting." });
+
+        db.Devices.Remove(device);
+        await db.SaveChangesAsync();
+
+        _cachedList = null;
+        return NoContent();
+    }
+
     private static DeviceDto MapToDto(Device d, AssetInfoDto? assetInfo) => new()
     {
         Id = d.Id,

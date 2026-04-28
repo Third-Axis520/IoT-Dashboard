@@ -108,6 +108,8 @@ const zhCN: Translation = {
     unset: '— 未设置 —',
     unsetHint: 'ⓘ {{count}} 个点位尚未指定传感器，完成后可从卡片「传感器映射设置」修改。',
     finish: '完成新增',
+    hiddenLabel: '不显示在仪表板（后端信号专用）',
+    hiddenHint: '勾选后此设备不会出现在仪表板卡片，但仍可作为 sensor gating 的信号源（适用：DI 集中器、纯后端信号）',
   },
   sensorMapModal: {
     noDeviceId: '此设备未设定 AssetCode，传感器数据无法路由。请先在编辑模式中设定 Device ID，再来配置传感器映射。',
@@ -169,6 +171,8 @@ const zhCN: Translation = {
     bindSuccess: '绑定成功',
     unbindConfirm: '确认解除？',
     unbind: '解除绑定',
+    deleteConfirm: '确认永久删除？',
+    deleteHint: '从数据库永久移除此设备记录（必须先解除绑定）',
   },
   drillDown: {
     subtitle: 'Unified Trend Matrix (Drill-down)',

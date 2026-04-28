@@ -264,6 +264,8 @@ public class LineEquipment
     [MaxLength(50)] public string? AssetCode { get; set; }
     [MaxLength(200)] public string? DisplayName { get; set; }
     public int SortOrder { get; set; }
+    /// <summary>True = 不顯示在儀表板，但仍可作為 sensor gating 來源（DI 集中器專用）</summary>
+    public bool IsHidden { get; set; }
     public LineConfig LineConfig { get; set; } = null!;
     public EquipmentType EquipmentType { get; set; } = null!;
 }
