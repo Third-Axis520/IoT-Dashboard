@@ -413,6 +413,10 @@ const zhTW = {
       standby: '待機',
       unhealthy: '閘控異常',
       waiting: '等待觸發',
+      bound: 'DI 已綁',
+      bind: '綁 DI',
+      gotoEnabled: '此感測器已綁定 DI gating，點擊聚焦設定',
+      gotoDisabled: '尚未綁定 DI，點擊跳到設定區',
     },
   },
   errorBoundary: {

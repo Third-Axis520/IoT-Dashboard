@@ -415,6 +415,10 @@ const en: Translation = {
       standby: 'Standby',
       unhealthy: 'Unhealthy',
       waiting: 'Waiting for trigger',
+      bound: 'DI bound',
+      bind: 'Bind DI',
+      gotoEnabled: 'DI gating is bound — click to focus the settings',
+      gotoDisabled: 'No DI bound yet — click to jump to gating settings',
     },
   },
   errorBoundary: {

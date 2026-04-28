@@ -259,10 +259,14 @@ JSON 路徑：data.value（點號路徑）
 
 ### 步驟 4：把 7 條設備加入產線
 
+> ⚠️ **DI 集中器一定要加入產線並綁 AssetCode！** 否則步驟 6 的 gating 來源下拉**找不到那些 DI bit**（後端 `/api/sensor-gating/candidates` 只列已加入 LineConfig 且有 AssetCode 的 sensor）。
+
 1. 切到「烤箱生產線」Tab
 2. 右上角 → **＋ 新增設備** → **加入既有類型**
 3. 選剛建好的設備類型 → 加入產線
-4. 設備綁定 AssetCode：`OVEN-LINE-01`
+4. 設備綁定 AssetCode：
+   - 6 個溫度設備：`OVEN-LINE-01`
+   - 1 個 DI 集中器：`OVEN-LINE-01-DI`（建議獨立 AssetCode 方便辨識）
 5. 重複到 7 個設備（6 溫度 + 1 DI）全部加完
 
 ---

@@ -223,9 +223,35 @@ export const LimitsSettingsModal = ({ assetCode, equipments, onClose, onSaved }:
                             !gatingRules[row.sensorId] && i < groupRows.length - 1 && "border-b border-[var(--border-base)]/40"
                           )}>
                             <td className="px-4 py-3 text-sm text-[var(--text-main)] font-medium">
-                              {row.label}
-                              <span className="ml-1.5 text-[11px] text-[var(--text-muted)] font-normal">{row.unit}</span>
-                              <span className="ml-2 text-[10px] text-[var(--text-muted)] font-mono opacity-60">#{row.sensorId}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="truncate">{row.label}</span>
+                                <span className="text-[11px] text-[var(--text-muted)] font-normal shrink-0">{row.unit}</span>
+                                <span className="text-[10px] text-[var(--text-muted)] font-mono opacity-60 shrink-0">#{row.sensorId}</span>
+                                {/* Gating status pill — quick visual indicator of whether DI gating is bound */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const el = document.getElementById(`gating-row-${row.sensorId}`);
+                                    if (el) {
+                                      (el as HTMLDetailsElement).open = true;
+                                      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                      // Focus the source dropdown so user can immediately pick
+                                      setTimeout(() => {
+                                        el.querySelector<HTMLSelectElement>('select')?.focus();
+                                      }, 200);
+                                    }
+                                  }}
+                                  title={gatingRules[row.sensorId] ? t('sensor.gating.gotoEnabled') : t('sensor.gating.gotoDisabled')}
+                                  className={cn(
+                                    'shrink-0 ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors',
+                                    gatingRules[row.sensorId]
+                                      ? 'bg-[var(--accent-green)]/15 text-[var(--accent-green)] hover:bg-[var(--accent-green)]/25'
+                                      : 'bg-[var(--border-base)]/40 text-[var(--text-muted)] hover:bg-[var(--border-base)] hover:text-[var(--text-main)]'
+                                  )}
+                                >
+                                  ⚡ {gatingRules[row.sensorId] ? t('sensor.gating.bound') : t('sensor.gating.bind')}
+                                </button>
+                              </div>
                             </td>
                             <td className="px-4 py-3 text-right">
                               <input
@@ -252,7 +278,9 @@ export const LimitsSettingsModal = ({ assetCode, equipments, onClose, onSaved }:
                             i < groupRows.length - 1 && "border-b border-[var(--border-base)]/40"
                           )}>
                             <td colSpan={3} className="px-4 pb-2">
-                              <details className="mt-1">
+                              {/* Default open: gating is the primary reason users open this modal,
+                                  hiding it behind a fold made it un-discoverable */}
+                              <details id={`gating-row-${row.sensorId}`} className="mt-1" open>
                                 <summary className="cursor-pointer text-xs text-[var(--text-muted)] select-none">
                                   ⚙ {t('sensor.gating.advanced')}: {gatingRules[row.sensorId] ? t('sensor.gating.enabled') : t('sensor.gating.disabled')}
                                 </summary>
