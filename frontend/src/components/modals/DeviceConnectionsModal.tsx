@@ -12,6 +12,8 @@ import {
   type DeviceConnectionItem,
 } from '../../lib/apiDeviceConnections';
 import ConfirmModal from '../ui/ConfirmModal';
+import EditDeviceConnectionModal from './EditDeviceConnectionModal';
+import InlineErrorBanner from '../ui/InlineErrorBanner';
 
 interface DeviceConnectionsModalProps {
   onClose: () => void;
@@ -29,14 +31,17 @@ export default function DeviceConnectionsModal({ onClose }: DeviceConnectionsMod
 
   const [diag, setDiag] = useState<PollingDiagnostics | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [testingId, setTestingId] = useState<number | null>(null);
   const [testResult, setTestResult] = useState<{ id: number; ok: boolean; msg: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
+  const [editTarget, setEditTarget] = useState<DeviceConnectionItem | null>(null);
   const [fullConns, setFullConns] = useState<DeviceConnectionItem[]>([]);
   const [editingInterval, setEditingInterval] = useState<{ id: number; value: string } | null>(null);
 
   async function load() {
     setLoading(true);
+    setLoadError(null);
     try {
       const [diagData, fullData] = await Promise.all([
         fetchPollingDiagnostics(),
@@ -44,6 +49,8 @@ export default function DeviceConnectionsModal({ onClose }: DeviceConnectionsMod
       ]);
       setDiag(diagData);
       setFullConns(fullData);
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : 'Network error');
     } finally {
       setLoading(false);
     }
@@ -132,9 +139,15 @@ export default function DeviceConnectionsModal({ onClose }: DeviceConnectionsMod
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
-          {loading ? (
-            <div className="text-center py-8 text-[var(--text-muted)]">{t('common.loading')}</div>
+        <div className="flex-1 overflow-y-auto p-6" aria-busy={loading}>
+          {loadError ? (
+            <InlineErrorBanner
+              message={t('common.loadFailed')}
+              hint={`${loadError} — ${t('common.loadFailedHint')}`}
+              onRetry={load}
+            />
+          ) : loading ? (
+            <div className="text-center py-8 text-[var(--text-muted)]" role="status" aria-live="polite">{t('common.loading')}</div>
           ) : !diag || diag.connections.length === 0 ? (
             <div className="text-center py-8 text-[var(--text-muted)]">{t('deviceConnections.noConnections')}</div>
           ) : (
@@ -210,6 +223,15 @@ export default function DeviceConnectionsModal({ onClose }: DeviceConnectionsMod
                       <td className="py-2 px-2 text-right">
                         <div className="flex justify-end gap-1">
                           <button
+                            onClick={() => {
+                              const full = fullConns.find((c) => c.id === conn.id);
+                              if (full) setEditTarget(full);
+                            }}
+                            className="px-2 py-1 text-xs rounded border border-[var(--border-base)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--border-base)] transition-colors"
+                          >
+                            {t('common.edit')}
+                          </button>
+                          <button
                             onClick={() => handleToggle(conn.id, isEnabled)}
                             className="px-2 py-1 text-xs rounded border border-[var(--border-base)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--border-base)] transition-colors"
                           >
@@ -243,6 +265,14 @@ export default function DeviceConnectionsModal({ onClose }: DeviceConnectionsMod
           )}
         </div>
       </div>
+
+      {editTarget && (
+        <EditDeviceConnectionModal
+          conn={editTarget}
+          onClose={() => setEditTarget(null)}
+          onSaved={async () => { setEditTarget(null); await load(); }}
+        />
+      )}
 
       {deleteTarget && (
         <ConfirmModal

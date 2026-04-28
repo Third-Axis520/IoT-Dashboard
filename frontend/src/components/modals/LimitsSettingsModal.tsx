@@ -8,6 +8,7 @@ import type { SaveGatingRuleItem } from '../../types/gating';
 import { GatingRow } from '../sensors/GatingRow';
 import { cn } from '../../utils/cn';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import InlineErrorBanner from '../ui/InlineErrorBanner';
 
 interface LimitsSettingsModalProps {
   assetCode: string;
@@ -51,44 +52,45 @@ export const LimitsSettingsModal = ({ assetCode, equipments, onClose, onSaved }:
   const [saving, setSaving] = useState(false);
   const [saveResult, setSaveResult] = useState<'success' | 'error' | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [gatingRules, setGatingRules] = useState<Record<number, SaveGatingRuleItem | null>>({});
 
-  // 載入 DB 現有閘控規則
-  useEffect(() => {
-    fetchGatingRules(assetCode)
-      .then(rules => {
-        const map: Record<number, SaveGatingRuleItem> = {};
-        rules.forEach(r => {
-          map[r.gatedSensorId] = {
-            gatedSensorId: r.gatedSensorId,
-            gatingAssetCode: r.gatingAssetCode,
-            gatingSensorId: r.gatingSensorId,
-            delayMs: r.delayMs,
-            maxAgeMs: r.maxAgeMs,
-          };
-        });
-        setGatingRules(map);
-      })
-      .catch(() => { /* 靜默失敗，退回無閘控狀態 */ });
-  }, [assetCode]);
-
-  // 載入 DB 現有限值
-  useEffect(() => {
-    setRows(initialRows);
+  // Combined loader: limits + gating rules — surfaces failures so user can retry
+  const loadAll = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     setSaveResult(null);
-    fetchPointLimits(assetCode)
-      .then(limits => {
-        if (Object.keys(limits).length > 0) {
-          setRows(prev => prev.map(row => {
-            const lim = limits[row.sensorId];
-            return lim ? { ...row, ucl: lim.ucl, lcl: lim.lcl } : row;
-          }));
-        }
-      })
-      .catch(() => { /* 靜默失敗，使用設備預設值 */ })
-      .finally(() => setLoading(false));
+    setRows(initialRows);
+    try {
+      const [limits, rules] = await Promise.all([
+        fetchPointLimits(assetCode),
+        fetchGatingRules(assetCode),
+      ]);
+      if (Object.keys(limits).length > 0) {
+        setRows(prev => prev.map(row => {
+          const lim = limits[row.sensorId];
+          return lim ? { ...row, ucl: lim.ucl, lcl: lim.lcl } : row;
+        }));
+      }
+      const map: Record<number, SaveGatingRuleItem> = {};
+      rules.forEach(r => {
+        map[r.gatedSensorId] = {
+          gatedSensorId: r.gatedSensorId,
+          gatingAssetCode: r.gatingAssetCode,
+          gatingSensorId: r.gatingSensorId,
+          delayMs: r.delayMs,
+          maxAgeMs: r.maxAgeMs,
+        };
+      });
+      setGatingRules(map);
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : 'Network error');
+    } finally {
+      setLoading(false);
+    }
   }, [assetCode, initialRows]);
+
+  useEffect(() => { loadAll(); }, [loadAll]);
 
   const handleChange = useCallback((sensorId: number, field: 'ucl' | 'lcl', value: string) => {
     const num = parseFloat(value);
@@ -168,9 +170,15 @@ export const LimitsSettingsModal = ({ assetCode, equipments, onClose, onSaved }:
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-5">
-          {loading ? (
-            <div className="flex items-center justify-center py-16 text-[var(--text-muted)]">
+        <div className="flex-1 overflow-y-auto p-5 space-y-5" aria-busy={loading}>
+          {loadError ? (
+            <InlineErrorBanner
+              message={t('common.loadFailed')}
+              hint={`${loadError} — ${t('common.loadFailedHint')}`}
+              onRetry={loadAll}
+            />
+          ) : loading ? (
+            <div className="flex items-center justify-center py-16 text-[var(--text-muted)]" role="status" aria-live="polite">
               <RefreshCw className="w-5 h-5 animate-spin mr-2" />
               {t('limitsSettings.loading')}
             </div>
@@ -264,7 +272,7 @@ export const LimitsSettingsModal = ({ assetCode, equipments, onClose, onSaved }:
 
         {/* Footer */}
         <div className="flex items-center justify-between p-5 border-t border-[var(--border-base)] shrink-0">
-          <div className="flex items-center gap-2 text-sm min-h-[1.5rem]">
+          <div className="flex items-center gap-2 text-sm min-h-[1.5rem]" role="status" aria-live="polite">
             {saveResult === 'success' && (
               <span className="flex items-center gap-1.5 text-[var(--accent-green)] animate-in fade-in duration-300">
                 <CheckCircle className="w-4 h-4" />

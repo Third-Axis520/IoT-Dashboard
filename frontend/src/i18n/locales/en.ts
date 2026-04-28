@@ -16,6 +16,9 @@ const en: Translation = {
     saving: 'Saving...',
     test: 'Test',
     retry: 'Retry',
+    loadFailed: 'Failed to load data',
+    loadFailedHint: 'Please verify the backend is running, then retry',
+    refreshing: 'Refreshing...',
     enable: 'Enable',
     disable: 'Disable',
     register: 'Register',
@@ -132,6 +135,7 @@ const en: Translation = {
     colActions: 'Actions',
     impactWarning: '{{count}} connection(s) have errors — some data may not update',
     manageLink: 'Manage Connections',
+    editTitle: 'Edit Connection Settings',
   },
   deviceManagement: {
     title: 'Device Management',

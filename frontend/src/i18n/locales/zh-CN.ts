@@ -16,6 +16,9 @@ const zhCN: Translation = {
     saving: '保存中...',
     test: '测试',
     retry: '重试',
+    loadFailed: '加载数据失败',
+    loadFailedHint: '请确认后端服务是否正常运行，然后点击重试',
+    refreshing: '刷新中...',
     enable: '启用',
     disable: '停用',
     register: '登记',
@@ -132,6 +135,7 @@ const zhCN: Translation = {
     colActions: '操作',
     impactWarning: '{{count}} 个连线发生错误，部分数据可能无法更新',
     manageLink: '查看连线管理',
+    editTitle: '编辑连线设置',
   },
   deviceManagement: {
     title: '设备管理',

@@ -245,6 +245,27 @@ describe('LimitsSettingsModal', () => {
     expect(defaultProps.onSaved).not.toHaveBeenCalled();
   });
 
+  it('shows error banner with retry when load fails (no longer silent)', async () => {
+    vi.mocked(fetchPointLimits).mockRejectedValueOnce(new Error('500 Internal'));
+    vi.mocked(fetchGatingRules).mockRejectedValueOnce(new Error('500 Internal'));
+
+    render(<LimitsSettingsModal {...defaultProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('500 Internal');
+    });
+
+    // Retry path — now both calls succeed
+    vi.mocked(fetchPointLimits).mockResolvedValueOnce({});
+    vi.mocked(fetchGatingRules).mockResolvedValueOnce([]);
+    fireEvent.click(screen.getByRole('button', { name: /common\.retry/ }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.getByText('Temperature')).toBeInTheDocument();
+    });
+  });
+
   it('shows gating details summary per sensor row', async () => {
     render(<LimitsSettingsModal {...defaultProps} />);
 

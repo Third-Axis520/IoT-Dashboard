@@ -14,6 +14,9 @@ const zhTW = {
     saving: '儲存中...',
     test: '測試',
     retry: '重試',
+    loadFailed: '載入資料失敗',
+    loadFailedHint: '請確認後端服務是否正常運行，然後點擊重試',
+    refreshing: '重新整理中...',
     enable: '啟用',
     disable: '停用',
     register: '登記',
@@ -130,6 +133,7 @@ const zhTW = {
     colActions: '操作',
     impactWarning: '{{count}} 個連線發生錯誤，部分資料可能無法更新',
     manageLink: '查看連線管理',
+    editTitle: '編輯連線設定',
   },
   deviceManagement: {
     title: '設備管理',
