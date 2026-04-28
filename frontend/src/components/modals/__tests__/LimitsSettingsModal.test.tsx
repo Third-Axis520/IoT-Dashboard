@@ -54,7 +54,7 @@ import { fetchGatingRules, saveGatingRules } from '../../../lib/apiSensorGating'
 const mockEquipment: Equipment[] = [
   {
     id: 'eq1',
-    deviceId: 'dev1',
+    deviceId: 'ASSET01',
     templateId: 'tmpl1',
     name: 'Oven A',
     visType: 'singleKpi',
@@ -78,7 +78,7 @@ const mockGatingRules: SensorGatingRule[] = [
 ];
 
 const defaultProps = {
-  assetCode: 'ASSET01',
+  scopeLabel: 'Test Line',
   equipments: mockEquipment,
   onClose: vi.fn(),
   onSaved: vi.fn(),

@@ -160,10 +160,10 @@ export default function ModalContainer(props: ModalContainerProps) {
         />
       )}
 
-      {showLimits && assetCode && (
+      {showLimits && (
         <LimitsSettingsModal
-          assetCode={assetCode}
-          equipments={boundEquipments}
+          scopeLabel={activeLine.name}
+          equipments={activeLine.equipments.filter(eq => eq.deviceId)}
           onClose={onCloseLimits}
           onSaved={onLimitsSaved}
         />

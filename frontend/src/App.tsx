@@ -131,6 +131,38 @@ export default function App() {
         const pls = lines.map(apiLineConfigToProductionLine);
         setData(pls);
         if (pls.length > 0) setActiveLineId(prev => prev || pls[0].id);
+
+        // Eagerly fetch UCL/LCL for every assetCode at startup. Previously
+        // limits only loaded on the first SSE data tick — if the PLC was
+        // offline or polling failed, the dashboard would show UCL/LCL = 0
+        // even though the values existed in the database.
+        const assetCodes = Array.from(new Set(
+          pls.flatMap(l => l.equipments.map(e => e.deviceId).filter(Boolean))
+        ));
+        const allLimits = await Promise.all(assetCodes.map(async ac => {
+          try {
+            const res = await fetch(`/api/limits/${encodeURIComponent(ac)}`);
+            if (!res.ok) return [ac, []] as const;
+            const limits: Array<{ sensorId: number; ucl: number; lcl: number }> = await res.json();
+            return [ac, limits] as const;
+          } catch { return [ac, []] as const; }
+        }));
+        const limitsByAsset = new Map(allLimits);
+        setData(prev => prev.map(line => ({
+          ...line,
+          equipments: line.equipments.map(eq => {
+            const limits = limitsByAsset.get(eq.deviceId) ?? [];
+            if (limits.length === 0) return eq;
+            return {
+              ...eq,
+              points: eq.points.map(p => {
+                if (p.sensorId === undefined) return p;
+                const lim = limits.find(l => l.sensorId === p.sensorId);
+                return lim ? { ...p, ucl: lim.ucl, lcl: lim.lcl } : p;
+              }),
+            };
+          }),
+        })));
       } catch (err) { console.error('Failed to load config:', err); addToast('error', t('app.loadFailed')); }
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

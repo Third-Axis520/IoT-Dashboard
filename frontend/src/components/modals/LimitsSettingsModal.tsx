@@ -11,8 +11,9 @@ import { useFocusTrap } from '../../hooks/useFocusTrap';
 import InlineErrorBanner from '../ui/InlineErrorBanner';
 
 interface LimitsSettingsModalProps {
-  assetCode: string;
-  /** 綁定此 assetCode 的所有設備（用於建構點位列表） */
+  /** Modal scope label (e.g. production line name) — informational only */
+  scopeLabel?: string;
+  /** All equipments to manage UCL/LCL + gating for. Each must have its own deviceId (=AssetCode). */
   equipments: Equipment[];
   onClose: () => void;
   /** 儲存成功後，通知 App 更新所有 point 的 ucl/lcl（keyed by sensorId） */
@@ -24,11 +25,14 @@ interface LimitRow {
   label: string;
   unit: string;
   equipmentName: string;
+  /** AssetCode this sensor belongs to — needed because one modal now spans
+   *  multiple equipments, each potentially under a different AssetCode. */
+  assetCode: string;
   ucl: number;
   lcl: number;
 }
 
-export const LimitsSettingsModal = ({ assetCode, equipments, onClose, onSaved }: LimitsSettingsModalProps) => {
+export const LimitsSettingsModal = ({ scopeLabel, equipments, onClose, onSaved }: LimitsSettingsModalProps) => {
   const { t } = useTranslation();
   const trapRef = useFocusTrap<HTMLDivElement>(onClose);
   const initialRows = useMemo<LimitRow[]>(() =>
@@ -40,12 +44,19 @@ export const LimitsSettingsModal = ({ assetCode, equipments, onClose, onSaved }:
           label: p.name,
           unit: p.unit,
           equipmentName: eq.name,
+          assetCode: eq.deviceId,
           ucl: p.ucl,
           lcl: p.lcl,
         }))
       )
       .sort((a, b) => a.sensorId - b.sensorId)
   , [equipments]);
+
+  // Distinct asset codes covered by this modal — used to fetch limits/gating per-asset
+  const assetCodes = useMemo(
+    () => Array.from(new Set(equipments.map(e => e.deviceId).filter(Boolean))),
+    [equipments]
+  );
 
   const [rows, setRows] = useState<LimitRow[]>(initialRows);
   const [loading, setLoading] = useState(true);
@@ -63,32 +74,45 @@ export const LimitsSettingsModal = ({ assetCode, equipments, onClose, onSaved }:
   const initialRowsRef = useRef(initialRows);
   initialRowsRef.current = initialRows;
 
-  // Combined loader: limits + gating rules — surfaces failures so user can retry
+  // Stable signature so loadAll's deps don't include the array reference
+  const assetCodesKey = assetCodes.join(',');
+
+  // Combined loader: limits + gating rules across ALL asset codes covered by
+  // this modal. Surfaces failures so user can retry.
   const loadAll = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
     setSaveResult(null);
     setRows(initialRowsRef.current);
+    const codes = assetCodesKey ? assetCodesKey.split(',') : [];
     try {
-      const [limits, rules] = await Promise.all([
-        fetchPointLimits(assetCode),
-        fetchGatingRules(assetCode),
+      // Fetch limits and gating rules for ALL asset codes concurrently
+      const fetches = await Promise.all([
+        ...codes.map(ac => fetchPointLimits(ac).then(lim => ({ kind: 'limits' as const, ac, data: lim }))),
+        ...codes.map(ac => fetchGatingRules(ac).then(rules => ({ kind: 'rules' as const, ac, data: rules }))),
       ]);
-      if (Object.keys(limits).length > 0) {
-        setRows(prev => prev.map(row => {
-          const lim = limits[row.sensorId];
-          return lim ? { ...row, ucl: lim.ucl, lcl: lim.lcl } : row;
-        }));
-      }
+      const limitsPerAsset = fetches.filter(f => f.kind === 'limits').map(f => [f.ac, f.data] as const);
+      const rulesPerAsset = fetches.filter(f => f.kind === 'rules').map(f => [f.ac, f.data] as const);
+
+      // Merge limits — keyed by (assetCode, sensorId), but our row already
+      // carries assetCode so we just look up by sensorId scoped to its asset
+      setRows(prev => prev.map(row => {
+        const entry = limitsPerAsset.find(([ac]) => ac === row.assetCode);
+        const lim = entry?.[1]?.[row.sensorId];
+        return lim ? { ...row, ucl: lim.ucl, lcl: lim.lcl } : row;
+      }));
+
       const map: Record<number, SaveGatingRuleItem> = {};
-      rules.forEach(r => {
-        map[r.gatedSensorId] = {
-          gatedSensorId: r.gatedSensorId,
-          gatingAssetCode: r.gatingAssetCode,
-          gatingSensorId: r.gatingSensorId,
-          delayMs: r.delayMs,
-          maxAgeMs: r.maxAgeMs,
-        };
+      rulesPerAsset.forEach(([, rules]) => {
+        rules.forEach(r => {
+          map[r.gatedSensorId] = {
+            gatedSensorId: r.gatedSensorId,
+            gatingAssetCode: r.gatingAssetCode,
+            gatingSensorId: r.gatingSensorId,
+            delayMs: r.delayMs,
+            maxAgeMs: r.maxAgeMs,
+          };
+        });
       });
       setGatingRules(map);
     } catch (e) {
@@ -96,7 +120,7 @@ export const LimitsSettingsModal = ({ assetCode, equipments, onClose, onSaved }:
     } finally {
       setLoading(false);
     }
-  }, [assetCode]);
+  }, [assetCodesKey]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
@@ -111,19 +135,38 @@ export const LimitsSettingsModal = ({ assetCode, equipments, onClose, onSaved }:
     setSaving(true);
     setSaveResult(null);
     try {
-      // 1. Save UCL/LCL limits first
-      await savePointLimits(assetCode, rows.map(r => ({
-        sensorId: r.sensorId,
-        label: r.label,
-        unit: r.unit,
-        ucl: r.ucl,
-        lcl: r.lcl,
-      })));
+      // Group rows by their AssetCode so we can save each asset's limits independently
+      const rowsByAsset = new Map<string, LimitRow[]>();
+      for (const r of rows) {
+        if (!rowsByAsset.has(r.assetCode)) rowsByAsset.set(r.assetCode, []);
+        rowsByAsset.get(r.assetCode)!.push(r);
+      }
+      // Group gating rules by their gated AssetCode (where the sensor lives)
+      const sensorAssetMap = new Map(rows.map(r => [r.sensorId, r.assetCode]));
+      const rulesByAsset = new Map<string, SaveGatingRuleItem[]>();
+      for (const ac of rowsByAsset.keys()) rulesByAsset.set(ac, []);
+      Object.values(gatingRules).forEach(rule => {
+        if (rule === null || rule.gatingAssetCode === '') return;
+        const ac = sensorAssetMap.get(rule.gatedSensorId);
+        if (!ac) return;
+        rulesByAsset.get(ac)?.push(rule);
+      });
 
-      // 2. Save gating rules (PUT with empty list = delete all rules)
-      const ruleList: SaveGatingRuleItem[] = Object.values(gatingRules)
-        .filter((r): r is SaveGatingRuleItem => r !== null && r.gatingAssetCode !== '');
-      await saveGatingRules(assetCode, ruleList);
+      // 1. Save UCL/LCL per AssetCode
+      await Promise.all(Array.from(rowsByAsset.entries()).map(([ac, assetRows]) =>
+        savePointLimits(ac, assetRows.map(r => ({
+          sensorId: r.sensorId,
+          label: r.label,
+          unit: r.unit,
+          ucl: r.ucl,
+          lcl: r.lcl,
+        })))
+      ));
+
+      // 2. Save gating rules per AssetCode (PUT with empty list = delete all)
+      await Promise.all(Array.from(rulesByAsset.entries()).map(([ac, ruleList]) =>
+        saveGatingRules(ac, ruleList)
+      ));
 
       setSaveResult('success');
       const limitMap: Record<number, { ucl: number; lcl: number }> = {};
@@ -135,7 +178,7 @@ export const LimitsSettingsModal = ({ assetCode, equipments, onClose, onSaved }:
     } finally {
       setSaving(false);
     }
-  }, [assetCode, rows, gatingRules, onSaved]);
+  }, [rows, gatingRules, onSaved]);
 
   // 依設備分組
   const groups = rows.reduce<Record<string, LimitRow[]>>((acc, row) => {
@@ -164,7 +207,8 @@ export const LimitsSettingsModal = ({ assetCode, equipments, onClose, onSaved }:
               {t('limitsSettings.title')}
             </h2>
             <p className="text-xs text-[var(--text-muted)] mt-0.5">
-              {t('limitsSettings.assetCode', { code: assetCode })}
+              {scopeLabel ? `${scopeLabel}　·　` : ''}
+              {assetCodes.length > 0 && t('limitsSettings.assetCode', { code: assetCodes.join(', ') })}
               　·　{t('limitsSettings.infoHint')}
             </p>
           </div>
@@ -285,7 +329,7 @@ export const LimitsSettingsModal = ({ assetCode, equipments, onClose, onSaved }:
                                   ⚙ {t('sensor.gating.advanced')}: {gatingRules[row.sensorId] ? t('sensor.gating.enabled') : t('sensor.gating.disabled')}
                                 </summary>
                                 <GatingRow
-                                  assetCode={assetCode}
+                                  assetCode={row.assetCode}
                                   sensorId={row.sensorId}
                                   rule={gatingRules[row.sensorId] ?? null}
                                   onChange={rule => {
