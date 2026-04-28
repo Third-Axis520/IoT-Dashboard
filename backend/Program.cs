@@ -10,7 +10,14 @@ using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 
-var builder = WebApplication.CreateBuilder(args);
+// Serve the built frontend (frontend/dist) as the WebRoot so the same Kestrel
+// instance hosts both API and SPA — keeps relative /api/* paths working without CORS.
+var distPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "frontend", "dist"));
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    WebRootPath = Directory.Exists(distPath) ? distPath : null,
+});
 
 // ── CORS（允許 React Dashboard 跨域）──────────────────────────────────────
 var corsOrigins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>()
@@ -412,23 +419,35 @@ using (var scope = app.Services.CreateScope())
         END
         """);
 
-    // Add FK constraint + NOT NULL + index; drop old Role column
+    // Add FK constraint + NOT NULL + index — each statement idempotent so a
+    // fresh DB (EnsureCreatedAsync already made the index from the EF model)
+    // and an upgraded older DB both converge to the same shape.
     await ctx.Database.ExecuteSqlRawAsync("""
         IF EXISTS (
             SELECT 1 FROM sys.columns
             WHERE object_id = OBJECT_ID('dbo.EquipmentTypeSensors') AND name = 'PropertyTypeId'
         )
-        AND NOT EXISTS (
-            SELECT 1 FROM sys.foreign_keys
-            WHERE name = 'FK_EquipmentTypeSensors_PropertyTypes'
-        )
         BEGIN
-            ALTER TABLE [dbo].[EquipmentTypeSensors] ALTER COLUMN [PropertyTypeId] INT NOT NULL;
-            ALTER TABLE [dbo].[EquipmentTypeSensors]
-                ADD CONSTRAINT FK_EquipmentTypeSensors_PropertyTypes
-                FOREIGN KEY (PropertyTypeId) REFERENCES [dbo].[PropertyTypes](Id);
-            CREATE INDEX IX_EquipmentTypeSensors_PropertyTypeId
-                ON [dbo].[EquipmentTypeSensors] (PropertyTypeId);
+            IF EXISTS (
+                SELECT 1 FROM sys.columns
+                WHERE object_id = OBJECT_ID('dbo.EquipmentTypeSensors') AND name = 'PropertyTypeId' AND is_nullable = 1
+            )
+                ALTER TABLE [dbo].[EquipmentTypeSensors] ALTER COLUMN [PropertyTypeId] INT NOT NULL;
+
+            IF NOT EXISTS (
+                SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_EquipmentTypeSensors_PropertyTypes'
+            )
+                ALTER TABLE [dbo].[EquipmentTypeSensors]
+                    ADD CONSTRAINT FK_EquipmentTypeSensors_PropertyTypes
+                    FOREIGN KEY (PropertyTypeId) REFERENCES [dbo].[PropertyTypes](Id);
+
+            IF NOT EXISTS (
+                SELECT 1 FROM sys.indexes
+                WHERE name = 'IX_EquipmentTypeSensors_PropertyTypeId'
+                  AND object_id = OBJECT_ID('dbo.EquipmentTypeSensors')
+            )
+                CREATE INDEX IX_EquipmentTypeSensors_PropertyTypeId
+                    ON [dbo].[EquipmentTypeSensors] (PropertyTypeId);
         END
         """);
 
@@ -521,8 +540,13 @@ app.UseMiddleware<ApiKeyMiddleware>();
 
 app.UseCors("IoTDashboard");
 app.UseRateLimiter();
-app.UseHttpsRedirection();
+
+// Serve SPA — order matters: defaults before static, fallback after MapControllers
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.MapControllers();
+app.MapFallbackToFile("index.html");
 
 app.Logger.LogInformation("IoT Central API started on http://0.0.0.0:5200");
 
