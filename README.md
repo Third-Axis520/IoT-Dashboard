@@ -13,7 +13,7 @@ PLC → OvenDataReceive → POST /api/data/ingest
 
 **Frontend:** React 19, TypeScript, Tailwind CSS 4, Vite 6, Recharts  
 **Backend:** .NET 9, EF Core 9, SQL Server, SSE  
-**Key features:** Real-time monitoring, PLC template system, register map, UCL/LCL limits, shoe-material presence (reg 40013), sensor gating (per-sensor conditional sampling driven by a DI photo-eye, cross-AssetCode supported), Modbus FC02 (Discrete Input) support, LTTB downsampling, OpenTelemetry, Device Integration Wizard (auto-provision + production-line binding), FAS asset category integration, multi-language UI (zh-TW / zh-CN / EN), theme persistence
+**Key features:** Real-time monitoring, PLC template system, register map, UCL/LCL limits, shoe-material presence (reg 40013), sensor gating (per-sensor conditional sampling driven by a DI photo-eye, cross-AssetCode supported), Modbus FC02 (Discrete Input) support, LTTB downsampling, OpenTelemetry, Device Integration Wizard (auto-provision + production-line binding), in-place connection editing (edit name / host / port / poll interval without delete-recreate), FAS asset category integration, multi-language UI (zh-TW / zh-CN / EN), theme persistence
 
 ## Run Locally
 
@@ -83,3 +83,15 @@ Swagger UI at `http://localhost:5200/swagger` (development mode)
 | `GET /api/maintenance/stats` | DB row counts |
 | `DELETE /api/maintenance/sensor-readings` | Purge old readings (keepDays≥7) |
 | `DELETE /api/maintenance/alerts` | Purge acknowledged alerts (keepDays≥30) |
+
+## Production Deployment (single-port self-hosted)
+
+Kestrel serves both the API and the built SPA on the same port (default 5200), so there is no CORS or reverse proxy to configure. `dotnet publish -c Release` runs an MSBuild target that copies `frontend/dist/` into the publish output as `wwwroot/`, producing a self-contained ~20 MB folder you can copy to any Windows / Linux box with the .NET 9 runtime.
+
+```bash
+cd frontend && npm ci && npm run build
+cd ../backend && dotnet publish -c Release -o ./publish
+# copy publish/ to the target host, then run IoT.CentralApi.exe
+```
+
+End-to-end Windows Server steps (firewall rule, SQL Server bootstrap, scheduled task auto-start, troubleshooting): see [`docs/deployment/windows-server-self-hosted.md`](docs/deployment/windows-server-self-hosted.md).
