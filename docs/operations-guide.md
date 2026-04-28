@@ -126,9 +126,10 @@ JSON 路徑：data.value（點號路徑）
 |------|---|------------|
 | 主機位址 | `192.168.62.74` | Step 2 主機位址 |
 | Port | `502` | Step 2 Port |
-| 溫度感測器 Unit ID | `1` | Step 2 單元 ID |
-| DI 感測器 Unit ID | `1` | Step 2 DI Unit ID |
-| 連線名稱 | `烤箱生產線` | Step 2 連線名稱 |
+| 溫度感測器 Unit ID | `1` | Step 2 單元 ID（溫度連線） |
+| DI 感測器 Unit ID | `1` | Step 2 單元 ID（DI 連線） |
+| 連線名稱（溫度） | `烤箱-溫度` | Step 2 連線名稱 |
+| 連線名稱（DI） | `烤箱-DI` | Step 2 連線名稱（另開一條） |
 | 資產編號 (AssetCode) | `OVEN-LINE-01` | 加入產線時設備綁定 |
 | 序號 (SerialNumber) | `SHX32rDtIQc4ahtc` | 設備管理登錄 |
 
@@ -252,29 +253,85 @@ JSON 路徑：data.value（點號路徑）
 
 ### 鞋子在位偵測（DI 數位輸入）
 
-原系統使用 **32 個 DI 數位輸入**（Function Code 02，從 address 0 開始讀 32 個 bit）偵測在位狀態，並非 register 40013。
+原系統使用 **32 個 DI 數位輸入**（Modbus FC02 Discrete Input，從 address `0` 開始讀 32 個 bit）偵測各工位的鞋子在位狀態，並**非** register 40013。對應 `OvenDataReceive/Services/ModbusDataService.cs` 的 `ReadDiscreteInputs(unitId=1, startAddress=0, count=32)`。
 
-在精靈中設定方式：
-- 協議選 Modbus TCP，掃描後選取對應的 DI channel
-- Step 5 屬性類型選「**在位**」
-- 系統自動識別為鞋子在位偵測，無需手動指定 SensorId
+> **重點：** DI 與溫度共用同一台 PLC（同 IP / Port / UnitID），但因為 Modbus 功能碼不同，必須**建兩條獨立的 DeviceConnection**（精靈跑兩次）。
+
+---
+
+#### Modbus 功能碼是什麼？該怎麼選？
+
+精靈 Step 2 有「**Modbus 功能碼**」下拉，這個系統支援兩個值：
+
+| 選項 | Modbus FC | 訊號類型 | 數值 | 用途 |
+|------|-----------|---------|------|------|
+| `holding` | **FC03** Holding Register | 類比 / 數字 | 16-bit 整數 | 溫度、壓力、濕度、流量、轉速 |
+| `discrete` | **FC02** Discrete Input | 數位 ON/OFF | 1-bit (0/1) | 光電開關、限位、**鞋子到位偵測**、急停 |
+
+選 `discrete` 時 `dataType` / `scale` / `byteSwap` 會被忽略，回值固定 `0.0` 或 `1.0`。
+
+---
+
+#### 步驟 — 建立 DI 連線（精靈跑第二次）
+
+跑完上面 6 條溫度設備之後，再跑一次精靈專門建 DI：
+
+| 精靈步驟 | 填入值 |
+|---------|--------|
+| Step 1 協議 | **Modbus TCP** |
+| Step 2 主機位址 | `192.168.62.74`（與溫度同 IP）|
+| Step 2 Port | `502` |
+| Step 2 Unit ID | `1` |
+| Step 2 起始位址 | `0`（DI 從 0 開始，不是 40001） |
+| Step 2 讀取數量 | `32`（共 32 路 DI，FC02 最大 2000） |
+| Step 2 **Modbus 功能碼** | **`discrete`** ← 重點 |
+| Step 2 連線名稱 | `烤箱-DI` |
+| Step 3 掃描 | 掃描後出現 32 個 bit 點位（DI01 ~ DI32） |
+| Step 4 選取 | 勾選實際接到光電 / 到位開關的那幾個 bit |
+| Step 5 屬性類型 | **「在位」**（material_detect） |
+| Step 6 設備類型 | 例如 `烤箱DI集中器`，顯示類型 `single_kpi` |
+| Step 7 建立 | 完成 |
+
+---
+
+#### Sensor Gating — 用 DI 控制溫度採樣
+
+當你希望「**只有鞋子在工位上時才記錄溫度**」（避免空轉時段污染統計），用 sensor gating：
+
+1. 上面兩個連線都建好
+2. 開**溫度設備**那條 AssetCode 的 **🎚 限值設定**（LimitsSettingsModal）
+3. 對要 gating 的溫度感測器（例如 `40003 鞋面溫度`）展開「**條件採樣**」
+4. **gating 來源** 下拉 → 選 `烤箱-DI` 連線下對應的 DI bit（**支援跨 AssetCode**）
+5. 設定 `DelayMs`（預設 0，gating 升起後多久開始採樣）和 `MaxAgeMs`（預設 1000，DI 訊號過期視為未到位）
+6. 儲存 → 下一個 polling tick 立刻生效
+
+效果：
+- DI=1 → 溫度照常記錄（dashboard 綠色「採樣中」）
+- DI=0 → 溫度**完全不寫 DB**（dashboard 灰色「待機」）
+- DI 訊號超過 `MaxAgeMs` 沒更新 → **fail-safe 視為未到位**（dashboard 紅色「異常」）
+
+詳細設計：`docs/superpowers/specs/2026-04-27-sensor-gating-design.md`
 
 ---
 
 ### 操作流程
 
 1. 左上角產線下拉 → ＋ → 輸入「烤箱生產線」→ Enter
-2. 右上角下拉 → **整合新設備** → 跑精靈（共 6 次，每台一次）
+2. 右上角下拉 → **整合新設備** → 跑精靈（共 6 次，每台一次）— **溫度連線**
    - Step 1：Modbus TCP
-   - Step 2：主機 `192.168.62.74`、Port `502`、Unit ID `1`
+   - Step 2：主機 `192.168.62.74`、Port `502`、Unit ID `1`、**Modbus 功能碼 `holding`**
    - Step 3：掃描後依上表選取對應 register（40001-40012）
    - Step 5：依上表設定屬性類型 + 顯示名稱
    - Step 6：填設備類型名稱 + 顯示類型（依上表）
    - Step 7：建立
-3. 精靈完成後 → **加入既有類型** → 選剛建的設備 → 加入烤箱生產線
-4. 加入時設備綁定 AssetCode：`OVEN-LINE-01`
-5. 重複步驟 2-4，直到 6 台設備全部加入
-6. 右上角 🎚 → **限值設定** → 依各設備表格填入 UCL / LCL → 儲存
+3. 再跑一次精靈 — **DI 連線（鞋子在位偵測）**
+   - Step 1：Modbus TCP
+   - Step 2：主機 `192.168.62.74`、Port `502`、Unit ID `1`、起始位址 `0`、讀取數量 `32`、**Modbus 功能碼 `discrete`**
+   - Step 3 ~ 7：依「鞋子在位偵測」段落
+4. 精靈完成後 → **加入既有類型** → 選剛建的設備 → 加入烤箱生產線
+5. 加入時設備綁定 AssetCode：`OVEN-LINE-01`
+6. 重複步驟 2-5，直到 6 台溫度設備 + 1 條 DI 全部加入
+7. 右上角 🎚 → **限值設定** → 依各設備表格填入 UCL / LCL → 視需要展開「條件採樣」綁定 DI gating 來源 → 儲存
 
 ---
 
@@ -349,6 +406,8 @@ GET /api/diagnostics/polling
 | 接一台新 PLC | 右上角下拉 → 整合新設備（精靈） |
 | 把設備加入產線 | 右上角下拉 → 加入既有類型 |
 | 調整 UCL / LCL | 右上角 🎚 限值設定 |
+| 接 DI（鞋子在位偵測） | 跑精靈，Step 2「Modbus 功能碼」選 `discrete`，起始位址 `0`、讀取數量 `32` |
+| 用 DI 控制溫度採樣（gating） | 🎚 限值設定 → 對溫度 sensor 展開「條件採樣」→ 來源選 DI bit |
 | 新增感測器屬性 | 右上角 ⚙️ 系統設定 → 屬性管理 → 新增 |
 | 查看 Poll 是否正常 | 右上角 ⚙️ 系統設定 → 連線管理 / GET /api/diagnostics/polling |
 | 停用某台設備 Poll | 右上角 ⚙️ 系統設定 → 連線管理 → 切換開關 |
