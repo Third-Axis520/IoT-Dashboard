@@ -245,6 +245,32 @@ describe('LimitsSettingsModal', () => {
     expect(defaultProps.onSaved).not.toHaveBeenCalled();
   });
 
+  it('does not re-fetch when parent re-renders with a new equipments array (same content)', async () => {
+    // Regression: SSE pushes a sensor reading every poll tick → parent's
+    // boundEquipments useMemo produces a new array reference → caused
+    // loadAll to re-fire and stomp the user's in-flight edits.
+    const { rerender } = render(<LimitsSettingsModal {...defaultProps} />);
+
+    await waitFor(() => {
+      expect(fetchPointLimits).toHaveBeenCalledTimes(1);
+      expect(fetchGatingRules).toHaveBeenCalledTimes(1);
+    });
+
+    // Simulate parent re-render with structurally identical but new-reference array
+    const cloned: Equipment[] = mockEquipment.map(eq => ({
+      ...eq,
+      points: eq.points.map(p => ({ ...p })),
+    }));
+    rerender(<LimitsSettingsModal {...defaultProps} equipments={cloned} />);
+
+    // Give any stale effect a chance to fire
+    await new Promise(r => setTimeout(r, 50));
+
+    // No additional fetch should have happened — assetCode didn't change
+    expect(fetchPointLimits).toHaveBeenCalledTimes(1);
+    expect(fetchGatingRules).toHaveBeenCalledTimes(1);
+  });
+
   it('shows error banner with retry when load fails (no longer silent)', async () => {
     vi.mocked(fetchPointLimits).mockRejectedValueOnce(new Error('500 Internal'));
     vi.mocked(fetchGatingRules).mockRejectedValueOnce(new Error('500 Internal'));

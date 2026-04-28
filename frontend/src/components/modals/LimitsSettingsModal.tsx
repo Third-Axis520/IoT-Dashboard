@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from 'react';
 import { X, Save, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Equipment } from '../../types';
@@ -55,12 +55,20 @@ export const LimitsSettingsModal = ({ assetCode, equipments, onClose, onSaved }:
   const [loadError, setLoadError] = useState<string | null>(null);
   const [gatingRules, setGatingRules] = useState<Record<number, SaveGatingRuleItem | null>>({});
 
+  // initialRows changes reference whenever the parent's `data` state ticks
+  // (every SSE sensor reading), so we cannot put it in loadAll's deps —
+  // doing so re-fired loadAll every poll tick and stomped in-flight edits.
+  // Stash it in a ref so loadAll always sees the latest schema list without
+  // being re-created.
+  const initialRowsRef = useRef(initialRows);
+  initialRowsRef.current = initialRows;
+
   // Combined loader: limits + gating rules — surfaces failures so user can retry
   const loadAll = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
     setSaveResult(null);
-    setRows(initialRows);
+    setRows(initialRowsRef.current);
     try {
       const [limits, rules] = await Promise.all([
         fetchPointLimits(assetCode),
@@ -88,7 +96,7 @@ export const LimitsSettingsModal = ({ assetCode, equipments, onClose, onSaved }:
     } finally {
       setLoading(false);
     }
-  }, [assetCode, initialRows]);
+  }, [assetCode]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
