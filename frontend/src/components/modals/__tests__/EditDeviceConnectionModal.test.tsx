@@ -111,7 +111,8 @@ describe('EditDeviceConnectionModal', () => {
         isEnabled: true,
       }));
     });
-    expect(onSaved).toHaveBeenCalled();
+    // onSaved fires after a 1s delay so the success badge stays visible briefly
+    await waitFor(() => expect(onSaved).toHaveBeenCalled(), { timeout: 1500 });
   });
 
   it('saves edited host config via updateDeviceConnection', async () => {

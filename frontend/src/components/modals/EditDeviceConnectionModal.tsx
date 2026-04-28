@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import DynamicForm from './DeviceIntegrationWizard/DynamicForm';
 import InlineErrorBanner from '../ui/InlineErrorBanner';
 import { fetchProtocol, type ProtocolItem } from '../../lib/apiProtocols';
+import { POLL_INTERVAL_SECONDS } from '../../constants/pollIntervals';
 import {
   updateDeviceConnection,
   testDeviceConnection,
@@ -25,10 +26,19 @@ export default function EditDeviceConnectionModal({ conn, onClose, onSaved }: Pr
   const [protocolError, setProtocolError] = useState<string | null>(null);
   const [name, setName] = useState(conn.name);
   const [pollIntervalMs, setPollIntervalMs] = useState(conn.pollIntervalMs ?? 5000);
-  const [config, setConfig] = useState<Record<string, string>>(() => {
+  const initialConfig = useMemo<Record<string, string>>(() => {
     try { return JSON.parse(conn.configJson) as Record<string, string>; }
     catch { return {}; }
-  });
+  }, [conn.configJson]);
+  const [config, setConfig] = useState<Record<string, string>>(initialConfig);
+
+  // Detect unsaved edits — Test button hits the backend with the *stored*
+  // (not currently edited) config, so we warn the user when there are
+  // pending edits that won't be reflected in the test.
+  const isDirty =
+    name !== conn.name ||
+    pollIntervalMs !== (conn.pollIntervalMs ?? 5000) ||
+    JSON.stringify(config) !== JSON.stringify(initialConfig);
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -58,7 +68,8 @@ export default function EditDeviceConnectionModal({ conn, onClose, onSaved }: Pr
         isEnabled: conn.isEnabled,
       });
       setSaveSuccess(true);
-      onSaved();
+      // Hold the green confirmation visible for ~1s before parent unmounts us
+      setTimeout(() => onSaved(), 1000);
     } catch (e) {
       // Surface real backend message (e.g. 400 invalid_config) instead of generic
       setSaveError(e instanceof Error ? e.message : t('deviceConnections.connectFailed'));
@@ -137,7 +148,7 @@ export default function EditDeviceConnectionModal({ conn, onClose, onSaved }: Pr
                 onChange={(e) => setPollIntervalMs(Number(e.target.value) * 1000)}
                 className="w-full px-3 py-2 rounded-lg border border-[var(--border-input)] bg-[var(--bg-panel)] text-[var(--text-main)] text-sm outline-none focus:border-[var(--accent-green)]"
               >
-                {[1, 2, 5, 10, 30, 60].map((s) => (
+                {POLL_INTERVAL_SECONDS.map((s) => (
                   <option key={s} value={s}>{t('wizard.config.intervalOption', { seconds: s })}</option>
                 ))}
               </select>
@@ -173,10 +184,16 @@ export default function EditDeviceConnectionModal({ conn, onClose, onSaved }: Pr
             <button
               onClick={handleTest}
               disabled={testing}
+              title={isDirty ? t('deviceConnections.testDirtyHint') : t('deviceConnections.testHint')}
               className="px-3 py-2 text-sm rounded-lg border border-[var(--border-base)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--border-base)] disabled:opacity-50 transition-colors"
             >
               {testing ? t('deviceConnections.testing') : t('common.test')}
             </button>
+            {isDirty && !testMsg && (
+              <span className="text-xs text-[var(--accent-yellow)]" aria-live="polite">
+                {t('deviceConnections.testDirtyWarning')}
+              </span>
+            )}
             {testMsg && (
               <span className={`text-xs ${testMsg.ok ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'}`}>
                 {testMsg.text}

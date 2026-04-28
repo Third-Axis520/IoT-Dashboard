@@ -136,6 +136,9 @@ const en: Translation = {
     impactWarning: '{{count}} connection(s) have errors — some data may not update',
     manageLink: 'Manage Connections',
     editTitle: 'Edit Connection Settings',
+    testHint: 'Tests the connection using the saved configuration',
+    testDirtyHint: 'Pending edits are not tested — the test uses the backend\u2019s currently saved config',
+    testDirtyWarning: '\u26A0 Pending edits — test uses saved settings',
   },
   deviceManagement: {
     title: 'Device Management',

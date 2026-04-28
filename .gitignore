@@ -10,6 +10,7 @@ coverage/
 # .NET
 [Bb]in/
 [Oo]bj/
+[Pp]ublish/
 *.user
 *.suo
 .vs/

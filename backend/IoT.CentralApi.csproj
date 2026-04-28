@@ -34,4 +34,19 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.1.7" />
   </ItemGroup>
 
+  <!-- On `dotnet publish`, inject the frontend SPA build output as
+       wwwroot/* in the published payload so the app is self-contained.
+       Skips silently if frontend/dist doesn't exist (developer hasn't run
+       `npm run build` yet) — Program.cs falls back to the dev path. -->
+  <Target Name="IncludeFrontendDistInPublish" AfterTargets="ComputeFilesToPublish">
+    <ItemGroup Condition="Exists('..\frontend\dist\index.html')">
+      <_FrontendFiles Include="..\frontend\dist\**\*.*" />
+      <ResolvedFileToPublish Include="@(_FrontendFiles)">
+        <RelativePath>wwwroot\%(RecursiveDir)%(Filename)%(Extension)</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+    <Message Importance="high" Text="Included @(_FrontendFiles->Count()) frontend files at wwwroot/" Condition="'@(_FrontendFiles)' != ''" />
+  </Target>
+
 </Project>

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useWizard } from '../WizardContext';
 import DynamicForm from '../DynamicForm';
 import { fetchProtocol, type ProtocolItem } from '../../../../lib/apiProtocols';
+import { POLL_INTERVAL_SECONDS } from '../../../../constants/pollIntervals';
 
 export default function Step2Config() {
   const { state, dispatch } = useWizard();
@@ -71,7 +72,7 @@ export default function Step2Config() {
             }
             className="w-full px-3 py-2 rounded-lg border border-[var(--border-input)] bg-[var(--bg-panel)] text-[var(--text-main)] text-sm outline-none focus:border-[var(--accent-green)]"
           >
-            {[1, 2, 5, 10, 30, 60].map((s) => (
+            {POLL_INTERVAL_SECONDS.map((s) => (
               <option key={s} value={s}>
                 {t('wizard.config.intervalOption', { seconds: s })}
               </option>

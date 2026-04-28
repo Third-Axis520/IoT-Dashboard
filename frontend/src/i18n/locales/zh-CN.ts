@@ -136,6 +136,9 @@ const zhCN: Translation = {
     impactWarning: '{{count}} 个连线发生错误，部分数据可能无法更新',
     manageLink: '查看连线管理',
     editTitle: '编辑连线设置',
+    testHint: '使用当前已保存的设置测试连线',
+    testDirtyHint: '尚未保存的变更不会被测试 — 测试的是后端目前保存的设置',
+    testDirtyWarning: '⚠ 有未保存的变更，测试使用旧设置',
   },
   deviceManagement: {
     title: '设备管理',

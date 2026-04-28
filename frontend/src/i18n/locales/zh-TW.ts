@@ -134,6 +134,9 @@ const zhTW = {
     impactWarning: '{{count}} 個連線發生錯誤，部分資料可能無法更新',
     manageLink: '查看連線管理',
     editTitle: '編輯連線設定',
+    testHint: '使用目前已儲存的設定測試連線',
+    testDirtyHint: '尚未儲存的變更不會被測試 — 測試的是後端目前儲存的設定',
+    testDirtyWarning: '⚠ 有未儲存的變更，測試使用舊設定',
   },
   deviceManagement: {
     title: '設備管理',

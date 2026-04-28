@@ -10,14 +10,39 @@ using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 
-// Serve the built frontend (frontend/dist) as the WebRoot so the same Kestrel
-// instance hosts both API and SPA — keeps relative /api/* paths working without CORS.
-var distPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "frontend", "dist"));
+// Serve the built frontend (SPA) as WebRoot so the same Kestrel hosts both
+// API and frontend — keeps relative /api/* paths working without CORS.
+//
+// Two layouts are supported:
+//  1. dotnet build / dotnet run  → bin/<cfg>/<tfm>/, sibling 4 levels up to
+//     repo root: ../../../../frontend/dist
+//  2. dotnet publish              → publish output ships its own wwwroot/ that
+//     the .csproj copy target populates from frontend/dist
+// We pick the first existing one with index.html.
+static string? ResolveWebRoot()
+{
+    var candidates = new[]
+    {
+        Path.Combine(AppContext.BaseDirectory, "wwwroot"),
+        Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "frontend", "dist")),
+    };
+    foreach (var c in candidates)
+    {
+        if (Directory.Exists(c) && File.Exists(Path.Combine(c, "index.html"))) return c;
+    }
+    return null;
+}
+
+var webRoot = ResolveWebRoot();
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
     Args = args,
-    WebRootPath = Directory.Exists(distPath) ? distPath : null,
+    WebRootPath = webRoot,
 });
+if (webRoot is null)
+{
+    Console.Error.WriteLine("[startup] WARNING: no frontend/dist or wwwroot found — SPA will 404. Did you run `npm run build`?");
+}
 
 // ── CORS（允許 React Dashboard 跨域）──────────────────────────────────────
 var corsOrigins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>()
