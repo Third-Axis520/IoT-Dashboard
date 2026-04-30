@@ -238,6 +238,61 @@ public class SensorGatingControllerTests : IntegrationTestBase
     }
 
     [Fact]
+    public async Task Update_MaxAgeBelowSourcePollInterval_Returns400()
+    {
+        // Seed AssetB as a gating source whose DeviceConnection polls every 5000ms
+        await using (var db = await CreateDbContextAsync())
+        {
+            var pt = await db.PropertyTypes.FirstAsync(p => p.Behavior == "normal");
+            var et = new EquipmentType { Name = "EtForSrcPoll", VisType = "single_kpi", CreatedAt = DateTime.UtcNow };
+            db.EquipmentTypes.Add(et);
+            await db.SaveChangesAsync();
+
+            db.EquipmentTypeSensors.Add(new EquipmentTypeSensor
+            {
+                EquipmentTypeId = et.Id,
+                SensorId = 9001,
+                PointId = "pt_9001",
+                Label = "Src",
+                PropertyTypeId = pt.Id,
+                SortOrder = 0
+            });
+
+            var lc = new LineConfig { LineId = $"line_pollchk_{Guid.NewGuid():N}", Name = "pollchk", UpdatedAt = DateTime.UtcNow };
+            db.LineConfigs.Add(lc);
+            await db.SaveChangesAsync();
+
+            db.LineEquipments.Add(new LineEquipment
+            {
+                LineConfigId = lc.Id,
+                EquipmentTypeId = et.Id,
+                AssetCode = AssetB,
+                DisplayName = "Src",
+                SortOrder = 0
+            });
+
+            db.DeviceConnections.Add(new DeviceConnection
+            {
+                Name = "DiSrc",
+                Protocol = "modbus_tcp",
+                ConfigJson = "{}",
+                PollIntervalMs = 5000,
+                IsEnabled = true,
+                EquipmentTypeId = et.Id,
+                CreatedAt = DateTime.UtcNow
+            });
+            await db.SaveChangesAsync();
+        }
+
+        // maxAgeMs (1000) < pollIntervalMs (5000) — must be rejected with 400
+        var req = MakeRequest(MakeRule(1001, AssetB, 9001, maxAgeMs: 1000));
+
+        var response = await Client.PutAsJsonAsync($"/api/sensor-gating/{AssetA}", req);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
     public async Task Update_ChainedGating_Returns400()
     {
         // AssetB/2001 is already being gated by some rule in the DB

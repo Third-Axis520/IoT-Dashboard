@@ -31,5 +31,8 @@ public record GatingCandidateDto(
     int SensorId,
     string SensorLabel,
     double? CurrentValue,
-    DateTime? LastUpdate
+    DateTime? LastUpdate,
+    // PollIntervalMs of the DeviceConnection driving this asset's EquipmentType.
+    // Frontend uses this to validate gating MaxAgeMs against the actual source poll rate.
+    int? PollIntervalMs
 );

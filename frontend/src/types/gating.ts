@@ -20,6 +20,9 @@ export interface GatingCandidate {
   sensorLabel: string;
   currentValue?: number;
   lastUpdate?: string;
+  // Smallest enabled PollIntervalMs across DeviceConnections targeting this asset's
+  // EquipmentType. Used by GatingRow to validate maxAgeMs ≥ source poll rate.
+  pollIntervalMs?: number;
 }
 
 export interface SaveGatingRuleItem {

@@ -27,10 +27,20 @@ public class SensorGatingController(
             .AsNoTracking()
             .ToListAsync();
 
+        // Map EquipmentTypeId → smallest enabled PollIntervalMs (one EquipmentType
+        // may be referenced by multiple DeviceConnections; the smallest is the strictest gate).
+        var pollByEquipmentType = await db.DeviceConnections
+            .Where(dc => dc.IsEnabled && dc.EquipmentTypeId != null && dc.PollIntervalMs.HasValue)
+            .GroupBy(dc => dc.EquipmentTypeId!.Value)
+            .Select(g => new { EquipmentTypeId = g.Key, PollIntervalMs = g.Min(dc => dc.PollIntervalMs!.Value) })
+            .AsNoTracking()
+            .ToDictionaryAsync(x => x.EquipmentTypeId, x => x.PollIntervalMs);
+
         var candidates = new List<GatingCandidateDto>();
         foreach (var le in lineEquipments)
         {
             if (le.EquipmentType?.Sensors == null) continue;
+            int? pollMs = pollByEquipmentType.TryGetValue(le.EquipmentTypeId, out var p) ? p : null;
             foreach (var s in le.EquipmentType.Sensors)
             {
                 if (s.PropertyType?.Behavior == "asset_code") continue;
@@ -44,7 +54,8 @@ public class SensorGatingController(
                     SensorId: s.SensorId,
                     SensorLabel: s.Label,
                     CurrentValue: latest?.Value,
-                    LastUpdate: latest?.Timestamp
+                    LastUpdate: latest?.Timestamp,
+                    PollIntervalMs: pollMs
                 ));
             }
         }
@@ -100,6 +111,28 @@ public class SensorGatingController(
                 .AnyAsync(r => r.GatedAssetCode == asset && r.GatedSensorId == sid);
             if (sourceIsGated)
                 return BadRequest(new { error = $"鏈式 gating 不允許：{asset}/{sid} 本身已被 gating" });
+        }
+
+        // MaxAgeMs vs source DI poll interval: if maxAgeMs < pollIntervalMs the gated
+        // sensor is filtered as Stale most of the time (production incident 2026-04-30).
+        var sourceAssets = request.Rules.Select(r => r.GatingAssetCode).Distinct().ToList();
+        var sourcePollIntervals = await (
+            from le in db.LineEquipments
+            where le.AssetCode != null && sourceAssets.Contains(le.AssetCode)
+            join dc in db.DeviceConnections on le.EquipmentTypeId equals dc.EquipmentTypeId into dcs
+            from dc in dcs.DefaultIfEmpty()
+            select new { le.AssetCode, dc!.PollIntervalMs, dc.IsEnabled })
+            .ToListAsync();
+
+        var pollByAsset = sourcePollIntervals
+            .Where(x => x.PollIntervalMs.HasValue && x.IsEnabled)
+            .GroupBy(x => x.AssetCode!)
+            .ToDictionary(g => g.Key, g => g.Min(x => x.PollIntervalMs!.Value));
+
+        foreach (var item in request.Rules)
+        {
+            if (pollByAsset.TryGetValue(item.GatingAssetCode, out var poll) && item.MaxAgeMs < poll)
+                return BadRequest(new { error = $"MaxAgeMs ({item.MaxAgeMs}ms) 必須 ≥ gating 來源 {item.GatingAssetCode} 的 PollIntervalMs ({poll}ms)，否則 cache 大部分時間會被視為過期，sensor 會被擋掉" });
         }
 
         // Upsert + delete missing

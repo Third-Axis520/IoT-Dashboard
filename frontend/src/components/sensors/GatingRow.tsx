@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { GatingSelector } from './GatingSelector';
+import { useGatingCandidates } from '../../hooks/useGatingCandidates';
 import type { SaveGatingRuleItem } from '../../types/gating';
 
 interface GatingRowProps {
@@ -11,7 +12,15 @@ interface GatingRowProps {
 
 export function GatingRow({ assetCode, sensorId, rule, onChange }: GatingRowProps) {
   const { t } = useTranslation();
+  const { data: candidates } = useGatingCandidates();
   const enabled = rule !== null;
+
+  const sourcePoll = rule && rule.gatingAssetCode
+    ? candidates?.find(c => c.assetCode === rule.gatingAssetCode && c.sensorId === rule.gatingSensorId)?.pollIntervalMs
+    : undefined;
+  // Without a known source poll interval, fall back to the production-tested minimum.
+  const threshold = sourcePoll ?? 5000;
+  const showWarning = enabled && rule != null && rule.maxAgeMs < threshold;
 
   return (
     <div className="flex flex-col gap-2 py-2 border-l-2 border-blue-200 pl-3">
@@ -63,9 +72,9 @@ export function GatingRow({ assetCode, sensorId, rule, onChange }: GatingRowProp
                 onChange={e => onChange({ ...rule, maxAgeMs: Number(e.target.value) })}
                 className="w-full bg-[var(--bg-panel)] border border-[var(--border-input)] rounded px-2 py-1 text-sm"
               />
-              {rule.maxAgeMs < 5000 && (
+              {showWarning && (
                 <div className="text-[11px] text-[var(--accent-yellow)] mt-1">
-                  ⚠ 必須 ≥ DI 來源的 poll 間隔（通常 5000ms），否則 cache 會被視為過期，sensor 資料會被擋掉看不到
+                  ⚠ 必須 ≥ {sourcePoll ? `來源 ${rule.gatingAssetCode} 的 PollIntervalMs (${sourcePoll}ms)` : 'DI 來源的 poll 間隔（通常 5000ms）'}，否則 cache 會被視為過期，sensor 資料會被擋掉看不到
                 </div>
               )}
             </div>

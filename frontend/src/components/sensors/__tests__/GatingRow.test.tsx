@@ -10,10 +10,13 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-// Mock useGatingCandidates (used inside GatingSelector which GatingRow renders)
+// Mock useGatingCandidates (used inside GatingSelector which GatingRow renders,
+// and inside GatingRow itself to look up the source's pollIntervalMs)
 vi.mock('../../../hooks/useGatingCandidates', () => ({
   useGatingCandidates: vi.fn(() => ({ data: [], error: null })),
 }));
+
+import { useGatingCandidates } from '../../../hooks/useGatingCandidates';
 
 const defaultRule: SaveGatingRuleItem = {
   gatedSensorId: 42,
@@ -91,6 +94,34 @@ describe('GatingRow', () => {
     fireEvent.change(spinners[1], { target: { value: '5000' } });
 
     expect(onChange).toHaveBeenCalledWith({ ...defaultRule, maxAgeMs: 5000 });
+  });
+
+  it('shows warning when maxAgeMs is below source pollIntervalMs from candidates', () => {
+    vi.mocked(useGatingCandidates).mockReturnValue({
+      data: [
+        { assetCode: 'A01', assetName: 'Machine A', sensorId: 101, sensorLabel: 'Temperature', pollIntervalMs: 8000 },
+      ],
+      error: null,
+    });
+    render(
+      <GatingRow assetCode="B02" sensorId={42} rule={{ ...defaultRule, maxAgeMs: 5000 }} onChange={() => {}} />
+    );
+
+    expect(screen.getByText(/PollIntervalMs \(8000ms\)/)).toBeInTheDocument();
+  });
+
+  it('does not show warning when maxAgeMs >= source pollIntervalMs', () => {
+    vi.mocked(useGatingCandidates).mockReturnValue({
+      data: [
+        { assetCode: 'A01', assetName: 'Machine A', sensorId: 101, sensorLabel: 'Temperature', pollIntervalMs: 5000 },
+      ],
+      error: null,
+    });
+    render(
+      <GatingRow assetCode="B02" sensorId={42} rule={{ ...defaultRule, maxAgeMs: 10000 }} onChange={() => {}} />
+    );
+
+    expect(screen.queryByText(/必須 ≥/)).not.toBeInTheDocument();
   });
 
   it('unchecking checkbox when rule is set calls onChange(null)', () => {
