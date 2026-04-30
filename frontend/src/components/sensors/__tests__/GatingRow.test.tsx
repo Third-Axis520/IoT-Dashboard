@@ -50,7 +50,7 @@ describe('GatingRow', () => {
       gatingAssetCode: '',
       gatingSensorId: 0,
       delayMs: 0,
-      maxAgeMs: 1000,
+      maxAgeMs: 10000,
     });
   });
 

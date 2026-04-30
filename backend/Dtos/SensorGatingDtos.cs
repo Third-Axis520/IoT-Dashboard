@@ -20,7 +20,9 @@ public record SaveGatingRuleItem(
     string GatingAssetCode,
     int GatingSensorId,
     int DelayMs = 0,
-    int MaxAgeMs = 1000
+    // Default 10000ms — must be >= DI source pollIntervalMs (typically 5000ms),
+    // otherwise the cache is treated as Stale and gated sensors get filtered out.
+    int MaxAgeMs = 10000
 );
 
 public record GatingCandidateDto(

@@ -21,7 +21,7 @@ export function GatingRow({ assetCode, sensorId, rule, onChange }: GatingRowProp
           checked={enabled}
           onChange={e => {
             if (!e.target.checked) onChange(null);
-            else onChange({ gatedSensorId: sensorId, gatingAssetCode: '', gatingSensorId: 0, delayMs: 0, maxAgeMs: 1000 });
+            else onChange({ gatedSensorId: sensorId, gatingAssetCode: '', gatingSensorId: 0, delayMs: 0, maxAgeMs: 10000 });
           }}
         />
         <div>
@@ -63,6 +63,11 @@ export function GatingRow({ assetCode, sensorId, rule, onChange }: GatingRowProp
                 onChange={e => onChange({ ...rule, maxAgeMs: Number(e.target.value) })}
                 className="w-full bg-[var(--bg-panel)] border border-[var(--border-input)] rounded px-2 py-1 text-sm"
               />
+              {rule.maxAgeMs < 5000 && (
+                <div className="text-[11px] text-[var(--accent-yellow)] mt-1">
+                  ⚠ 必須 ≥ DI 來源的 poll 間隔（通常 5000ms），否則 cache 會被視為過期，sensor 資料會被擋掉看不到
+                </div>
+              )}
             </div>
           </div>
         </div>

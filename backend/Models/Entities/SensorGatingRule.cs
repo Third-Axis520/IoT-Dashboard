@@ -17,7 +17,9 @@ public class SensorGatingRule
     public int GatingSensorId { get; set; }
 
     public int DelayMs { get; set; } = 0;
-    public int MaxAgeMs { get; set; } = 1000;
+    // Default 10000ms — must be >= DI source pollIntervalMs (typically 5000ms)
+    // or every gated sensor will be filtered as Stale most of the time.
+    public int MaxAgeMs { get; set; } = 10000;
 
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
