@@ -1,9 +1,19 @@
 using FluentAssertions;
 using IoT.CentralApi.Models;
 using IoT.CentralApi.Services;
+using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace IoT.CentralApi.Tests.Services;
+
+internal sealed class RecordingLogger<T> : ILogger<T>
+{
+    public List<(LogLevel Level, string Message)> Records { get; } = new();
+    IDisposable? ILogger.BeginScope<TState>(TState state) => null;
+    public bool IsEnabled(LogLevel logLevel) => true;
+    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        => Records.Add((logLevel, formatter(state, exception)));
+}
 
 public class GatingEvaluatorTests
 {
@@ -121,5 +131,26 @@ public class GatingEvaluatorTests
         cache.Update("ASSET-B", 3, 1.0, now.AddMilliseconds(-1000));
         var sut = new GatingEvaluator(cache);
         sut.Evaluate(Rule(maxAgeMs: 1000), now).Should().Be(GatingDecision.Pass);
+    }
+
+    [Fact]
+    public void StaleDi_LogsWarningOnce_ThenThrottled()
+    {
+        var cache = new LatestReadingCache();
+        var log = new RecordingLogger<GatingEvaluator>();
+        var sut = new GatingEvaluator(cache, log);
+        var now = DateTime.UtcNow;
+        cache.Update("ASSET-B", 3, 1.0, now.AddSeconds(-2));
+
+        // First Stale → logs warning
+        sut.Evaluate(Rule(maxAgeMs: 1000), now).Should().Be(GatingDecision.Stale);
+        // Second Stale 500ms later → throttled (no new warning)
+        sut.Evaluate(Rule(maxAgeMs: 1000), now.AddMilliseconds(500)).Should().Be(GatingDecision.Stale);
+        // 61s later → window elapsed, logs again
+        sut.Evaluate(Rule(maxAgeMs: 1000), now.AddSeconds(61)).Should().Be(GatingDecision.Stale);
+
+        var warns = log.Records.Where(r => r.Level == LogLevel.Warning).ToList();
+        warns.Should().HaveCount(2);
+        warns[0].Message.Should().Contain("Gating Stale").And.Contain("ASSET-B").And.Contain("ASSET-A");
     }
 }

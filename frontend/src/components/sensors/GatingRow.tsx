@@ -15,10 +15,14 @@ export function GatingRow({ assetCode, sensorId, rule, onChange }: GatingRowProp
   const { data: candidates } = useGatingCandidates();
   const enabled = rule !== null;
 
-  const sourcePoll = rule && rule.gatingAssetCode
-    ? candidates?.find(c => c.assetCode === rule.gatingAssetCode && c.sensorId === rule.gatingSensorId)?.pollIntervalMs
+  const sourceSelected = !!(rule && rule.gatingAssetCode);
+  const sourcePoll = sourceSelected
+    ? candidates?.find(c => c.assetCode === rule!.gatingAssetCode && c.sensorId === rule!.gatingSensorId)?.pollIntervalMs
     : undefined;
-  // Without a known source poll interval, fall back to the production-tested minimum.
+  // Threshold rules:
+  //   - source selected + pollIntervalMs known → use that exact value
+  //   - source selected + pollIntervalMs unknown (push_ingest, missing DC, etc.) → no comparison, use the production-tested floor
+  //   - no source selected → no comparison
   const threshold = sourcePoll ?? 5000;
   const showWarning = enabled && rule != null && rule.maxAgeMs < threshold;
 
@@ -74,7 +78,11 @@ export function GatingRow({ assetCode, sensorId, rule, onChange }: GatingRowProp
               />
               {showWarning && (
                 <div className="text-[11px] text-[var(--accent-yellow)] mt-1">
-                  ⚠ 必須 ≥ {sourcePoll ? `來源 ${rule.gatingAssetCode} 的 PollIntervalMs (${sourcePoll}ms)` : 'DI 來源的 poll 間隔（通常 5000ms）'}，否則 cache 會被視為過期，sensor 資料會被擋掉看不到
+                  {sourcePoll != null
+                    ? `⚠ 必須 ≥ 來源 ${rule.gatingAssetCode} 的 PollIntervalMs (${sourcePoll}ms)，否則 cache 會被視為過期，sensor 資料會被擋掉看不到`
+                    : sourceSelected
+                      ? '⚠ 抓不到來源的 PollIntervalMs（可能來源是 push_ingest 或 candidates 還沒載入），建議至少 5000ms 並等載入完成後再確認'
+                      : '⚠ 必須 ≥ DI 來源的 poll 間隔（通常 5000ms），否則 cache 會被視為過期'}
                 </div>
               )}
             </div>

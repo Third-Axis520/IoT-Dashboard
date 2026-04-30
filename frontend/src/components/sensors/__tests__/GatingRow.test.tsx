@@ -110,6 +110,21 @@ describe('GatingRow', () => {
     expect(screen.getByText(/PollIntervalMs \(8000ms\)/)).toBeInTheDocument();
   });
 
+  it('shows fallback message when source is selected but pollIntervalMs is unknown', () => {
+    // Candidate exists for the asset but pollIntervalMs is missing (e.g. push_ingest)
+    vi.mocked(useGatingCandidates).mockReturnValue({
+      data: [
+        { assetCode: 'A01', assetName: 'Machine A', sensorId: 101, sensorLabel: 'Push' },
+      ],
+      error: null,
+    });
+    render(
+      <GatingRow assetCode="B02" sensorId={42} rule={{ ...defaultRule, maxAgeMs: 2000 }} onChange={() => {}} />
+    );
+
+    expect(screen.getByText(/抓不到來源的 PollIntervalMs/)).toBeInTheDocument();
+  });
+
   it('does not show warning when maxAgeMs >= source pollIntervalMs', () => {
     vi.mocked(useGatingCandidates).mockReturnValue({
       data: [
