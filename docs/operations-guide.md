@@ -287,7 +287,10 @@ JSON 路徑：data.value（點號路徑）
 1. 在步驟 5 的限值 modal 裡，找到要 gating 的溫度 sensor（例如 `40003 鞋面溫度`）
 2. 該列下方展開 **⚙ 條件採樣**
 3. 勾選「啟用 gating」→ 來源下拉選 `烤箱-DI` 對應的 DI bit（**支援跨 AssetCode**）
-4. （選用）調整 `DelayMs`（預設 0，gating 升起後多久才開始採樣）和 `MaxAgeMs`（預設 1000，DI 訊號過期視為未到位）
+4. （選用）調整 `DelayMs`（預設 0，gating 升起後多久才開始採樣）和 `MaxAgeMs`（預設 10000，DI 訊號過期視為未到位）
+   - **`MaxAgeMs` 必須 ≥ 來源 DI 連線的 `PollIntervalMs`**，否則 cache 大部分時間會被視為過期，sensor 完全看不到資料。
+   - UI 在 source 下拉選定後會即時顯示警告，後端 `PUT /api/sensor-gating/{assetCode}` 也會擋掉違反值（HTTP 400）。
+   - 觸發 Stale 時後端會 LogWarning（每對 60 秒節流一次），方便事後 debug。
 5. 儲存 → 下一個 polling tick 立刻生效
 
 **三態效果：**
