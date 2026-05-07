@@ -73,16 +73,34 @@ $exe = Join-Path $root 'backend\publish\IoT.CentralApi.exe'
 Start-Process -FilePath $exe -WorkingDirectory (Split-Path $exe) -WindowStyle Hidden
 ```
 
-### 5. 設定開機自動啟動
+### 5. 授予 SYSTEM 帳號 SQL Server sysadmin（Windows Service 必要）
+
+> **一次性步驟**：Windows Service 以 `LocalSystem` 跑，需要有 SQL Server 存取權。
+
 ```powershell
-schtasks.exe /Create /TN 'IoTBackend' `
-    /TR 'C:\Users\Administrator\Desktop\IoT\NB_C.C_Dashboard\backend\publish\IoT.CentralApi.exe' `
-    /SC ONSTART /RU 'administrator' /RP '<admin-password>' /RL HIGHEST /F
+# 在 server 上以 administrator 身分執行（或透過 RDP）
+sqlcmd -E -S localhost -Q "EXEC sp_addsrvrolemember 'NT AUTHORITY\SYSTEM', 'sysadmin'"
 ```
 
-### 6. 驗證
+### 6. 安裝 Windows Service（取代舊的 Task Scheduler）
+
+```powershell
+$exe = 'C:\Users\Administrator\Desktop\IoT\NB_C.C_Dashboard\backend\publish\IoT.CentralApi.exe'
+
+# 建立 Service（以 LocalSystem 執行，開機自動啟動）
+sc.exe create IoTDashboard binPath= $exe DisplayName= "IoT Dashboard" start= auto obj= "LocalSystem"
+
+# 設定 Failure Recovery：失敗後分別等 60s / 30s / 30s 重啟，計數每天重置
+sc.exe failure IoTDashboard reset= 86400 actions= restart/60000/restart/30000/restart/30000
+
+# 啟動
+sc.exe start IoTDashboard
+```
+
+### 7. 驗證
 - `http://192.168.6.23:5200/api/protocols` → 回 JSON 陣列（3 個 protocol）
 - `http://192.168.6.23:5200/` → 回 dashboard SPA
+- `sc.exe query IoTDashboard` → `STATE: 4 RUNNING`
 
 ---
 
@@ -90,19 +108,21 @@ schtasks.exe /Create /TN 'IoTBackend' `
 
 ### 更新部署
 1. dev 機器 `npm run build` + `dotnet publish`
-2. **先停 server 上的進程**：`Stop-Process -Name 'IoT.CentralApi' -Force` （否則 .exe 鎖檔）
+2. **先停 Service**：`sc.exe \\192.168.6.23 stop IoTDashboard`（否則 .exe 鎖檔）
 3. Robocopy 新 publish 到 server
-4. 重啟：`schtasks /Run /TN 'IoTBackend'` 或直接 `Start-Process IoT.CentralApi.exe`
+4. **重啟 Service**：`sc.exe \\192.168.6.23 start IoTDashboard`
 
-### 改 administrator 密碼
-排程任務裡存的密碼會失效，要更新：
+### 管理 Service（遠端）
 ```powershell
-schtasks.exe /Change /TN 'IoTBackend' /RU 'administrator' /RP '<new-password>'
+sc.exe \\192.168.6.23 query IoTDashboard    # 查狀態
+sc.exe \\192.168.6.23 stop IoTDashboard     # 停止
+sc.exe \\192.168.6.23 start IoTDashboard    # 啟動
+sc.exe \\192.168.6.23 delete IoTDashboard   # 移除（需先 stop）
 ```
 
 ### 查看 backend log
-- stdout：取決於啟動方式（Start-Process 帶 `-RedirectStandardOutput` 才有）
-- 建議 production 用 NLog / Serilog 寫檔案
+- Windows Service 模式下，logs 寫入 Windows Event Log（Application，Source: IoT.CentralApi）
+- 查詢：`wevtutil qe Application /r:192.168.6.23 /u:administrator /p:<password> /c:50 /q:"*[System[Provider[@Name='IoT.CentralApi']]]" /f:text`
 
 ### CORS 設定
 單 port 同源所以本身**不需要 CORS**。如果之後拆成不同 origin（例如 IIS 反代），要在 `appsettings.json` 加：
@@ -118,8 +138,9 @@ schtasks.exe /Change /TN 'IoTBackend' /RU 'administrator' /RP '<new-password>'
 |------|-----|------|
 | `http://192.168.6.23:5200/` 回 404，但 `/api/*` 正常 | `wwwroot` 沒有 SPA 檔案 | 確認 publish 含 `wwwroot/index.html`，沒有的話重新 `dotnet publish` |
 | backend 啟動 crash 提示 index 已存在 | 舊版 bootstrap bug（已修） | 確認部署的是含 commit `f219de5` 之後的版本 |
-| schtasks `IoTBackend` 啟動失敗 | administrator 密碼變了 | 用上面的 `/Change` 指令更新 |
-| 開不了 SQL connection | SQL Server 服務沒跑 / Trusted Connection 失敗 | `Start-Service MSSQLSERVER`；確認跑的帳號是 sysadmin |
+| Service 啟動失敗（1069 Logon failure） | 嘗試用 administrator 跑但無 Log on as service 權限 | 改用 `LocalSystem`：`sc.exe config IoTDashboard obj= LocalSystem` |
+| Service 啟動失敗（1053 timeout），Event Log 顯示 `CREATE DATABASE` 拒絕 | `LocalSystem` 沒有 SQL sysadmin | 執行步驟 5 的 `sp_addsrvrolemember` |
+| 開不了 SQL connection | SQL Server 服務沒跑 | `sc.exe \\192.168.6.23 start MSSQLSERVER` |
 
 ---
 

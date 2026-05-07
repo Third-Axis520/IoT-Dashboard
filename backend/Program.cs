@@ -39,6 +39,7 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
     Args = args,
     WebRootPath = webRoot,
 });
+builder.Host.UseWindowsService(options => options.ServiceName = "IoT Dashboard");
 if (webRoot is null)
 {
     Console.Error.WriteLine("[startup] WARNING: no frontend/dist or wwwroot found — SPA will 404. Did you run `npm run build`?");
