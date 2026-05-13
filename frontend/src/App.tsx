@@ -20,6 +20,7 @@ import { useLiveData } from './hooks/useLiveData';
 import { useToast } from './hooks/useToast';
 import { useDevices } from './hooks/useDevices';
 import { fetchGatingRules } from './lib/apiSensorGating';
+import { fetchHistoryByAsset, type HistoryPoint } from './lib/apiHistory';
 import { TempTrendsView } from './components/panels/TempTrendsView';
 
 import { AppToolbar } from './components/layout/AppToolbar';
@@ -159,6 +160,36 @@ export default function App() {
                 if (p.sensorId === undefined) return p;
                 const lim = limits.find(l => l.sensorId === p.sensorId);
                 return lim ? { ...p, ucl: lim.ucl, lcl: lim.lcl } : p;
+              }),
+            };
+          }),
+        })));
+
+        // Seed point.history from DB so sparklines show recent values right
+        // after page refresh, instead of starting empty and slowly filling
+        // from SSE over the next few minutes. Last 5 minutes per AssetCode,
+        // capped at 60 points (matches the SSE rolling window in useLiveData).
+        const historyTo = new Date();
+        const historyFrom = new Date(historyTo.getTime() - 5 * 60_000);
+        const allHistory = await Promise.all(assetCodes.map(async ac => {
+          try {
+            const map = await fetchHistoryByAsset(ac, historyFrom, historyTo, 60);
+            return [ac, map] as const;
+          } catch { return [ac, {} as Record<number, HistoryPoint[]>] as const; }
+        }));
+        const historyByAsset = new Map(allHistory);
+        setData(prev => prev.map(line => ({
+          ...line,
+          equipments: line.equipments.map(eq => {
+            const hMap = historyByAsset.get(eq.deviceId);
+            if (!hMap) return eq;
+            return {
+              ...eq,
+              points: eq.points.map(p => {
+                if (p.sensorId === undefined) return p;
+                const h = hMap[p.sensorId];
+                if (!h || h.length === 0) return p;
+                return { ...p, history: h.slice(-60) };
               }),
             };
           }),
