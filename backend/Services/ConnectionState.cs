@@ -2,6 +2,13 @@ using IoT.CentralApi.Adapters.Contracts;
 
 namespace IoT.CentralApi.Services;
 
+public enum AlertTransition
+{
+    None,
+    BecameUnhealthy,
+    Recovered,
+}
+
 /// <summary>
 /// Per-connection in-memory state for polling health tracking.
 /// Circuit breaker: >=3 consecutive errors → 30s slow retry.
@@ -31,6 +38,9 @@ public class ConnectionState
 
     private DateTime? _lastSuccessAt;
     public DateTime? LastSuccessAt { get { lock (_lock) return _lastSuccessAt; } }
+
+    private bool _wasUnhealthy;       // tracks whether we previously crossed into unhealthy
+    private DateTime? _lastAlertAt;   // for cooldown re-arm
 
     public void RecordSuccess()
     {
@@ -70,4 +80,38 @@ public class ConnectionState
     }
 
     public bool IsCircuitOpen => ConsecutiveErrors >= CircuitBreakerThreshold;
+
+    /// <summary>
+    /// Evaluates whether a state transition occurred since the previous call.
+    /// Returns BecameUnhealthy on first crossing past threshold (cooldown re-arm allowed),
+    /// Recovered when a success follows a previously-unhealthy state, None otherwise.
+    /// </summary>
+    public AlertTransition EvaluateAlertTransition(int alertThreshold, int cooldownSec)
+    {
+        lock (_lock)
+        {
+            var nowUnhealthy = _consecutiveErrors >= alertThreshold;
+            var now = DateTime.UtcNow;
+
+            if (nowUnhealthy && !_wasUnhealthy)
+            {
+                var cooledDown = _lastAlertAt == null
+                    || (now - _lastAlertAt.Value).TotalSeconds >= cooldownSec;
+                if (!cooledDown) return AlertTransition.None;
+
+                _wasUnhealthy = true;
+                _lastAlertAt = now;
+                return AlertTransition.BecameUnhealthy;
+            }
+
+            if (!nowUnhealthy && _wasUnhealthy && _lastSuccessAt != null)
+            {
+                _wasUnhealthy = false;
+                _lastAlertAt = now;
+                return AlertTransition.Recovered;
+            }
+
+            return AlertTransition.None;
+        }
+    }
 }

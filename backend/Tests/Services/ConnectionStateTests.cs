@@ -79,4 +79,66 @@ public class ConnectionStateTests
         var state = new ConnectionState();
         state.ShouldPoll().Should().BeTrue();
     }
+
+    [Fact]
+    public void EvaluateTransition_FirstUnhealthyCrossing_ReturnsUnhealthy()
+    {
+        var state = new ConnectionState();
+        state.RecordFailure(ErrorKind.Transient, "e");
+        state.RecordFailure(ErrorKind.Transient, "e");
+        state.RecordFailure(ErrorKind.Transient, "e");
+
+        var transition = state.EvaluateAlertTransition(alertThreshold: 3, cooldownSec: 60);
+
+        transition.Should().Be(AlertTransition.BecameUnhealthy);
+    }
+
+    [Fact]
+    public void EvaluateTransition_BelowThreshold_ReturnsNone()
+    {
+        var state = new ConnectionState();
+        state.RecordFailure(ErrorKind.Transient, "e");
+        state.RecordFailure(ErrorKind.Transient, "e");
+
+        var transition = state.EvaluateAlertTransition(alertThreshold: 3, cooldownSec: 60);
+
+        transition.Should().Be(AlertTransition.None);
+    }
+
+    [Fact]
+    public void EvaluateTransition_StillUnhealthy_ReturnsNone()
+    {
+        var state = new ConnectionState();
+        for (int i = 0; i < 5; i++) state.RecordFailure(ErrorKind.Transient, "e");
+        state.EvaluateAlertTransition(alertThreshold: 3, cooldownSec: 60); // first crossing → BecameUnhealthy
+
+        state.RecordFailure(ErrorKind.Transient, "e");
+        var transition = state.EvaluateAlertTransition(alertThreshold: 3, cooldownSec: 60);
+
+        transition.Should().Be(AlertTransition.None);
+    }
+
+    [Fact]
+    public void EvaluateTransition_RecoveryAfterUnhealthy_ReturnsRecovered()
+    {
+        var state = new ConnectionState();
+        for (int i = 0; i < 5; i++) state.RecordFailure(ErrorKind.Transient, "e");
+        state.EvaluateAlertTransition(alertThreshold: 3, cooldownSec: 60);
+
+        state.RecordSuccess();
+        var transition = state.EvaluateAlertTransition(alertThreshold: 3, cooldownSec: 60);
+
+        transition.Should().Be(AlertTransition.Recovered);
+    }
+
+    [Fact]
+    public void EvaluateTransition_RecoveryWithoutPriorUnhealthy_ReturnsNone()
+    {
+        var state = new ConnectionState();
+        state.RecordSuccess();
+
+        var transition = state.EvaluateAlertTransition(alertThreshold: 3, cooldownSec: 60);
+
+        transition.Should().Be(AlertTransition.None);
+    }
 }
