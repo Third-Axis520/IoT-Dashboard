@@ -45,9 +45,15 @@ public class DiagnosticsController(
 
         var activeCount = connections.Count(dc => dc.IsEnabled);
 
+        const int StaleSecondsThreshold = 60;
+        var isAlive = pollingService != null
+            && pollingService.IsRunning
+            && (!pollingService.LastTickAt.HasValue
+                || (DateTime.UtcNow - pollingService.LastTickAt.Value).TotalSeconds < StaleSecondsThreshold);
+
         return Ok(new PollingDiagnosticsDto(
             Polling: new PollingStatusDto(
-                IsRunning: pollingService?.IsRunning ?? false,
+                IsRunning: isAlive,
                 ActiveConnections: activeCount,
                 LastTickAt: pollingService?.LastTickAt),
             Connections: connectionDtos));

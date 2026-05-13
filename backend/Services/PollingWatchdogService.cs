@@ -50,9 +50,9 @@ public class PollingWatchdogService : BackgroundService
                     .OfType<PollingBackgroundService>()
                     .FirstOrDefault();
 
-                if (polling != null && polling.LastTickAt != DateTime.MinValue)
+                if (polling != null && polling.LastTickAt.HasValue)
                 {
-                    await CheckOnceAsync(polling.LastTickAt, stoppingToken);
+                    await CheckOnceAsync(polling.LastTickAt.Value, stoppingToken);
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)

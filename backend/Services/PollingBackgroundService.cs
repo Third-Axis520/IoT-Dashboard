@@ -18,9 +18,9 @@ public class PollingBackgroundService(
     ILogger<PollingBackgroundService> logger) : BackgroundService
 {
     private static readonly TimeSpan TickInterval = TimeSpan.FromSeconds(1);
-    private DateTime _lastTickAt = DateTime.MinValue;
+    private DateTime? _lastTickAt;
 
-    public DateTime LastTickAt => _lastTickAt;
+    public DateTime? LastTickAt => _lastTickAt;
     public bool IsRunning { get; private set; }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
