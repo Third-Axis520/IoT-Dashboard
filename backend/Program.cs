@@ -139,6 +139,7 @@ builder.Services.AddSingleton<ConnectionStateRegistry>();
 builder.Services.AddSingleton<ILatestReadingCache, LatestReadingCache>();
 builder.Services.AddSingleton<GatingEvaluator>();
 builder.Services.AddHostedService<PollingBackgroundService>();
+builder.Services.AddHostedService<PollingWatchdogService>();
 builder.Services.AddScoped<ImpactAnalyzer>();
 
 // ── Port ─────────────────────────────────────────────────────────────────
