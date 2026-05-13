@@ -14,6 +14,7 @@ public class PollingBackgroundService(
     IServiceScopeFactory scopeFactory,
     IEnumerable<IProtocolAdapter> adapters,
     ConnectionStateRegistry registry,
+    IoT.CentralApi.Services.Alerting.AlertDispatcher alertDispatcher,
     ILogger<PollingBackgroundService> logger) : BackgroundService
 {
     private static readonly TimeSpan TickInterval = TimeSpan.FromSeconds(1);
@@ -97,11 +98,13 @@ public class PollingBackgroundService(
                     "Poll failed for connection {Id} ({Name}): {Error} (consecutive: {Count})",
                     dc.Id, dc.Name, result.ErrorMessage, state.ConsecutiveErrors);
             }
+            await EvaluateAndDispatchAsync(dc, state, ct);
             return;
         }
 
         state.RecordSuccess();
         state.ScheduleNext(dc.PollIntervalMs ?? 5000);
+        await EvaluateAndDispatchAsync(dc, state, ct);
 
         // Convert PollResult → IngestPayload
         if (dc.EquipmentType?.Sensors is { Count: > 0 } sensors)
@@ -154,6 +157,32 @@ public class PollingBackgroundService(
             IsConnected = true,
             Sensors = sensorReadings,
         };
+    }
+
+    private async Task EvaluateAndDispatchAsync(DeviceConnection dc, ConnectionState state, CancellationToken ct)
+    {
+        if (!dc.IsAlertEnabled) return;
+
+        var transition = state.EvaluateAlertTransition(
+            alertThreshold: dc.AlertOnConsecutiveErrors,
+            cooldownSec: dc.AlertCooldownSec);
+
+        if (transition == IoT.CentralApi.Services.AlertTransition.None) return;
+
+        var kind = transition == IoT.CentralApi.Services.AlertTransition.BecameUnhealthy
+            ? IoT.CentralApi.Services.Alerting.ConnectionAlertKind.Unhealthy
+            : IoT.CentralApi.Services.Alerting.ConnectionAlertKind.Recovered;
+
+        var evt = new IoT.CentralApi.Services.Alerting.ConnectionAlertEvent(
+            Kind: kind,
+            ConnectionId: dc.Id,
+            ConnectionName: dc.Name,
+            Protocol: dc.Protocol,
+            ConsecutiveErrors: state.ConsecutiveErrors,
+            ErrorMessage: state.LastErrorMessage,
+            OccurredAt: DateTime.UtcNow);
+
+        await alertDispatcher.DispatchAsync(evt, ct);
     }
 
     private static async Task UpdateDbStateAsync(
