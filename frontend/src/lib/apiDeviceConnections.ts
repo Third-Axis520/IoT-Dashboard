@@ -13,6 +13,9 @@ export interface DeviceConnectionItem {
   equipmentTypeId: number | null;
   equipmentTypeName: string | null;
   createdAt: string;
+  alertOnConsecutiveErrors: number;
+  alertCooldownSec: number;
+  isAlertEnabled: boolean;
 }
 
 export interface SaveDeviceConnectionRequest {
@@ -35,6 +38,9 @@ export interface SaveDeviceConnectionRequest {
       sortOrder: number;
     }>;
   };
+  alertOnConsecutiveErrors?: number;
+  alertCooldownSec?: number;
+  isAlertEnabled?: boolean;
 }
 
 export interface UpdateDeviceConnectionRequest {
@@ -42,6 +48,9 @@ export interface UpdateDeviceConnectionRequest {
   config: string;
   pollIntervalMs: number | null;
   isEnabled: boolean;
+  alertOnConsecutiveErrors?: number;
+  alertCooldownSec?: number;
+  isAlertEnabled?: boolean;
 }
 
 export interface PollingDiagnostics {
