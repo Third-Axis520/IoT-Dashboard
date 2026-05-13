@@ -60,6 +60,9 @@ export default function Step7Review({ onClose, onSuccess }: Step7ReviewProps) {
         config: JSON.stringify(coercedConfig),
         pollIntervalMs: state.protocol === 'push_ingest' ? null : state.pollIntervalMs,
         isEnabled: true,
+        alertOnConsecutiveErrors: state.alertOnConsecutiveErrors,
+        alertCooldownSec: state.alertCooldownSec,
+        isAlertEnabled: state.isAlertEnabled,
         equipmentType: {
           name: state.equipmentName,
           visType: state.visType,

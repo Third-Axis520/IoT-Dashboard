@@ -21,6 +21,9 @@ export interface WizardState {
   visType: string;
   description: string;
   pollIntervalMs: number;
+  alertOnConsecutiveErrors: number;
+  alertCooldownSec: number;
+  isAlertEnabled: boolean;
   error: string | null;
 }
 
@@ -36,6 +39,9 @@ const initialState: WizardState = {
   visType: 'single_kpi',
   description: '',
   pollIntervalMs: 5000,
+  alertOnConsecutiveErrors: 5,
+  alertCooldownSec: 300,
+  isAlertEnabled: true,
   error: null,
 };
 
@@ -56,6 +62,7 @@ type Action =
   | { type: 'PREV_STEP' }
   | { type: 'SET_ERROR'; error: string | null }
   | { type: 'SET_POLL_INTERVAL'; ms: number }
+  | { type: 'SET_ALERT_SETTINGS'; alertOnConsecutiveErrors: number; alertCooldownSec: number; isAlertEnabled: boolean }
   | { type: 'RESET' };
 
 export function wizardReducer(state: WizardState, action: Action): WizardState {
@@ -123,6 +130,14 @@ export function wizardReducer(state: WizardState, action: Action): WizardState {
 
     case 'SET_POLL_INTERVAL':
       return { ...state, pollIntervalMs: action.ms };
+
+    case 'SET_ALERT_SETTINGS':
+      return {
+        ...state,
+        alertOnConsecutiveErrors: action.alertOnConsecutiveErrors,
+        alertCooldownSec: action.alertCooldownSec,
+        isAlertEnabled: action.isAlertEnabled,
+      };
 
     case 'SET_ERROR':
       return { ...state, error: action.error };
