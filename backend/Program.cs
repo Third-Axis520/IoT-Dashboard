@@ -532,6 +532,21 @@ using (var scope = app.Services.CreateScope())
         END
         """);
 
+    // Connection health alert settings — added 2026-05-13
+    await ctx.Database.ExecuteSqlRawAsync("""
+        IF EXISTS (SELECT 1 FROM sys.tables WHERE name = 'DeviceConnections' AND schema_id = SCHEMA_ID('dbo'))
+           AND NOT EXISTS (
+               SELECT 1 FROM sys.columns
+               WHERE object_id = OBJECT_ID('dbo.DeviceConnections') AND name = 'AlertOnConsecutiveErrors'
+           )
+        BEGIN
+            ALTER TABLE [dbo].[DeviceConnections]
+                ADD [AlertOnConsecutiveErrors] INT NOT NULL CONSTRAINT DF_DeviceConnections_AlertOnConsecutiveErrors DEFAULT 5,
+                    [AlertCooldownSec]         INT NOT NULL CONSTRAINT DF_DeviceConnections_AlertCooldownSec DEFAULT 300,
+                    [IsAlertEnabled]           BIT NOT NULL CONSTRAINT DF_DeviceConnections_IsAlertEnabled DEFAULT 1;
+        END
+        """);
+
     } // end if (!IsEnvironment("Test"))
 
     // Seed for test environment (DDL block above already seeds for production)
