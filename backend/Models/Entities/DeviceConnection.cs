@@ -42,6 +42,15 @@ public class DeviceConnection
 
     public int ConsecutiveErrors { get; set; }
 
+    /// <summary>連續錯誤幾次後觸發告警（per-connection；預設 5）</summary>
+    public int AlertOnConsecutiveErrors { get; set; } = 5;
+
+    /// <summary>告警冷卻秒數，避免 alert storm（預設 300）</summary>
+    public int AlertCooldownSec { get; set; } = 300;
+
+    /// <summary>是否啟用此連線的告警（測試/開發用連線可關）</summary>
+    public bool IsAlertEnabled { get; set; } = true;
+
     /// <summary>關聯的 EquipmentType (nullable，刪除設備類型不連帶刪連線)</summary>
     public int? EquipmentTypeId { get; set; }
     public EquipmentType? EquipmentType { get; set; }

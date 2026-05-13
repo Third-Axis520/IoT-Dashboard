@@ -15,7 +15,10 @@ public record DeviceConnectionDto(
     int ConsecutiveErrors,
     int? EquipmentTypeId,
     string? EquipmentTypeName,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    int AlertOnConsecutiveErrors = 5,
+    int AlertCooldownSec = 300,
+    bool IsAlertEnabled = true);
 
 public record DeviceConnectionDetailDto(
     int Id,
@@ -30,8 +33,10 @@ public record DeviceConnectionDetailDto(
     int? EquipmentTypeId,
     EquipmentTypeDto? EquipmentType,
     DateTime CreatedAt,
-    /// <summary>自動建立的 Device.AssetCode；push_ingest 時為 null</summary>
-    string? AssetCode = null);
+    string? AssetCode = null,
+    int AlertOnConsecutiveErrors = 5,
+    int AlertCooldownSec = 300,
+    bool IsAlertEnabled = true);
 
 public record SaveDeviceConnectionRequest(
     [Required, MaxLength(200)] string Name,
@@ -39,10 +44,16 @@ public record SaveDeviceConnectionRequest(
     [Required] string Config,
     int? PollIntervalMs,
     bool IsEnabled = true,
-    SaveEquipmentTypeRequest? EquipmentType = null);
+    SaveEquipmentTypeRequest? EquipmentType = null,
+    int AlertOnConsecutiveErrors = 5,
+    int AlertCooldownSec = 300,
+    bool IsAlertEnabled = true);
 
 public record UpdateDeviceConnectionRequest(
     [Required, MaxLength(200)] string Name,
     [Required] string Config,
     int? PollIntervalMs,
-    bool IsEnabled = true);
+    bool IsEnabled = true,
+    int AlertOnConsecutiveErrors = 5,
+    int AlertCooldownSec = 300,
+    bool IsAlertEnabled = true);

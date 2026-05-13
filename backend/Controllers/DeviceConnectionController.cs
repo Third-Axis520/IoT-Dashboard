@@ -84,6 +84,9 @@ public class DeviceConnectionController(
             PollIntervalMs = req.PollIntervalMs,
             IsEnabled = req.IsEnabled,
             CreatedAt = DateTime.UtcNow,
+            AlertOnConsecutiveErrors = req.AlertOnConsecutiveErrors,
+            AlertCooldownSec = req.AlertCooldownSec,
+            IsAlertEnabled = req.IsAlertEnabled,
         };
 
         // Atomic provision: create EquipmentType + Sensors in the same transaction
@@ -161,6 +164,9 @@ public class DeviceConnectionController(
         dc.ConfigJson = req.Config;
         dc.PollIntervalMs = req.PollIntervalMs;
         dc.IsEnabled = req.IsEnabled;
+        dc.AlertOnConsecutiveErrors = req.AlertOnConsecutiveErrors;
+        dc.AlertCooldownSec = req.AlertCooldownSec;
+        dc.IsAlertEnabled = req.IsAlertEnabled;
         await db.SaveChangesAsync();
 
         _ = sseHub.BroadcastConfigAsync("device_connection", dc.Id, "updated");
@@ -219,18 +225,37 @@ public class DeviceConnectionController(
     }
 
     private static DeviceConnectionDto MapToDto(DeviceConnection dc) => new(
-        dc.Id, dc.Name, dc.Protocol, dc.ConfigJson,
-        dc.PollIntervalMs, dc.IsEnabled,
-        dc.LastPollAt, dc.LastPollError, dc.ConsecutiveErrors,
-        dc.EquipmentTypeId, dc.EquipmentType?.Name,
-        dc.CreatedAt);
+        Id: dc.Id,
+        Name: dc.Name,
+        Protocol: dc.Protocol,
+        ConfigJson: dc.ConfigJson,
+        PollIntervalMs: dc.PollIntervalMs,
+        IsEnabled: dc.IsEnabled,
+        LastPollAt: dc.LastPollAt,
+        LastPollError: dc.LastPollError,
+        ConsecutiveErrors: dc.ConsecutiveErrors,
+        EquipmentTypeId: dc.EquipmentTypeId,
+        EquipmentTypeName: dc.EquipmentType?.Name,
+        CreatedAt: dc.CreatedAt,
+        AlertOnConsecutiveErrors: dc.AlertOnConsecutiveErrors,
+        AlertCooldownSec: dc.AlertCooldownSec,
+        IsAlertEnabled: dc.IsAlertEnabled);
 
     private static DeviceConnectionDetailDto MapToDetailDto(DeviceConnection dc, string? assetCode = null) => new(
-        dc.Id, dc.Name, dc.Protocol, dc.ConfigJson,
-        dc.PollIntervalMs, dc.IsEnabled,
-        dc.LastPollAt, dc.LastPollError, dc.ConsecutiveErrors,
-        dc.EquipmentTypeId,
-        dc.EquipmentType != null ? EquipmentTypeController.MapToDtoPublic(dc.EquipmentType) : null,
-        dc.CreatedAt,
-        assetCode);
+        Id: dc.Id,
+        Name: dc.Name,
+        Protocol: dc.Protocol,
+        ConfigJson: dc.ConfigJson,
+        PollIntervalMs: dc.PollIntervalMs,
+        IsEnabled: dc.IsEnabled,
+        LastPollAt: dc.LastPollAt,
+        LastPollError: dc.LastPollError,
+        ConsecutiveErrors: dc.ConsecutiveErrors,
+        EquipmentTypeId: dc.EquipmentTypeId,
+        EquipmentType: dc.EquipmentType != null ? EquipmentTypeController.MapToDtoPublic(dc.EquipmentType) : null,
+        CreatedAt: dc.CreatedAt,
+        AssetCode: assetCode,
+        AlertOnConsecutiveErrors: dc.AlertOnConsecutiveErrors,
+        AlertCooldownSec: dc.AlertCooldownSec,
+        IsAlertEnabled: dc.IsAlertEnabled);
 }
