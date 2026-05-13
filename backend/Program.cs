@@ -5,6 +5,7 @@ using IoT.CentralApi.Dtos;
 using IoT.CentralApi.Middleware;
 using IoT.CentralApi.Models;
 using IoT.CentralApi.Services;
+using IoT.CentralApi.Services.Alerting;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Metrics;
@@ -116,6 +117,11 @@ builder.Services.AddSingleton<SseHub>();
 builder.Services.AddSingleton<FasApiService>();
 builder.Services.AddSingleton<WeChatService>();
 builder.Services.AddSingleton<DataIngestionService>();
+
+// ── Alerting Channels ───────────────────────────────────────────────────────
+builder.Services.AddSingleton<IAlertChannel, IoT.CentralApi.Services.Alerting.Channels.SseAlertChannel>();
+builder.Services.AddSingleton<IAlertChannel, IoT.CentralApi.Services.Alerting.Channels.WeChatAlertChannel>();
+builder.Services.AddSingleton<IoT.CentralApi.Services.Alerting.AlertDispatcher>();
 
 // ── HttpClient for WebApiAdapter ───────────────────────────────────────────
 builder.Services.AddHttpClient("WebApiAdapter", client =>

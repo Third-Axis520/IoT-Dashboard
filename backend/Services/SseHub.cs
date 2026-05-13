@@ -61,6 +61,23 @@ public class SseHub
             _connections.TryRemove(deadId!, out _);
     }
 
+    /// <summary>廣播 connection-alert 事件給所有已連線的 Dashboard。</summary>
+    public async Task BroadcastConnectionAlertAsync(object payload, CancellationToken ct = default)
+    {
+        if (_connections.IsEmpty) return;
+
+        var json = JsonSerializer.Serialize(payload, _jsonOptions);
+        var message = $"event: connection-alert\ndata: {json}\n\n";
+
+        var tasks = _connections.Select(kv =>
+            WriteToConnectionAsync(kv.Key, kv.Value, message, ct));
+
+        var results = await Task.WhenAll(tasks);
+
+        foreach (var deadId in results.Where(id => id != null))
+            _connections.TryRemove(deadId!, out _);
+    }
+
     /// <summary>傳送 heartbeat 給所有已連線的 Dashboard。</summary>
     public async Task SendHeartbeatAsync(CancellationToken ct = default)
     {

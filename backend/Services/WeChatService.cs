@@ -35,4 +35,30 @@ public class WeChatService(IConfiguration config, ILogger<WeChatService> logger)
             // await _httpClient.PostAsJsonAsync(_webhookUrl, payload);
         }
     }
+
+    public async Task SendConnectionAlertAsync(Alerting.ConnectionAlertEvent evt)
+    {
+        var (icon, label) = evt.Kind switch
+        {
+            Alerting.ConnectionAlertKind.Unhealthy      => ("🔴", "連線異常"),
+            Alerting.ConnectionAlertKind.Recovered      => ("🟢", "連線恢復"),
+            Alerting.ConnectionAlertKind.PollingStalled => ("⚠️", "Polling 停擺"),
+            _ => ("ℹ️", "連線狀態變更"),
+        };
+
+        var text = $"[{icon} {label}] {evt.ConnectionName} ({evt.Protocol})\n" +
+                   $"連續錯誤：{evt.ConsecutiveErrors} 次\n" +
+                   (evt.ErrorMessage is null ? "" : $"訊息：{evt.ErrorMessage}\n") +
+                   $"時間：{evt.OccurredAt:yyyy-MM-dd HH:mm:ss}";
+
+        logger.LogWarning("[WeChat Mock - Connection] {Text}", text);
+
+        Directory.CreateDirectory("Logs");
+        await File.AppendAllTextAsync(_logPath, $"{DateTime.UtcNow:O} | {text}\n---\n");
+
+        if (_enabled && !string.IsNullOrWhiteSpace(_webhookUrl))
+        {
+            // TODO: POST to WeChat Work Webhook (same as SendAlertAsync)
+        }
+    }
 }
