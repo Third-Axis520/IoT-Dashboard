@@ -429,6 +429,19 @@ const en: Translation = {
     title: 'Something went wrong',
     tryAgain: 'Try Again',
   },
+  connectionHealth: {
+    badgeAllHealthy: 'Connections OK',
+    badgeSomeUnhealthy: '{{bad}}/{{total}} unhealthy',
+    badgeAllOffline: 'All offline',
+    popoverTitle: 'Connection Health',
+    pollingStopped: 'Polling stopped',
+    pollingHealthy: 'Polling healthy',
+    lastTickAt: 'Last tick',
+    noConnections: 'No active connections',
+    consecutiveErrors: '{{count}} consecutive errors',
+    lastPollAt: 'Last poll',
+    alertsDisabled: 'Alerts off',
+  },
 };
 
 export default en;

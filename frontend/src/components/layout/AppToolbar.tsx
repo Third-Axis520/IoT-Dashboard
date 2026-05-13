@@ -9,6 +9,7 @@ import type { ConnectionStatus } from '../../hooks/useLiveData';
 import { cn } from '../../utils/cn';
 import { ConnectionStatusBadge } from '../ui/ConnectionStatusBadge';
 import { LanguageSwitcher } from '../ui/LanguageSwitcher';
+import ConnectionHealthBadge from './ConnectionHealthBadge';
 
 export interface AppToolbarProps {
   // Line management
@@ -200,6 +201,7 @@ export function AppToolbar(props: AppToolbarProps) {
             </>
           )}
           <div className="w-px h-3 bg-[var(--border-base)]" />
+          <ConnectionHealthBadge />
           <ConnectionStatusBadge status={connStatus} error={connError} />
         </div>
       </div>

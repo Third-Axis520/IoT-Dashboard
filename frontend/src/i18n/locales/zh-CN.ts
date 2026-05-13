@@ -429,6 +429,19 @@ const zhCN: Translation = {
     title: 'Something went wrong',
     tryAgain: 'Try Again',
   },
+  connectionHealth: {
+    badgeAllHealthy: '连接正常',
+    badgeSomeUnhealthy: '{{bad}}/{{total}} 异常',
+    badgeAllOffline: '全部异常',
+    popoverTitle: '连接健康度',
+    pollingStopped: 'Polling 停摆',
+    pollingHealthy: 'Polling 正常',
+    lastTickAt: '上次 tick',
+    noConnections: '尚无启用连接',
+    consecutiveErrors: '连续错误 {{count}} 次',
+    lastPollAt: '上次轮询',
+    alertsDisabled: '已关闭告警',
+  },
 };
 
 export default zhCN;

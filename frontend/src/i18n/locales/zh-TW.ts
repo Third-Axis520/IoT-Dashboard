@@ -427,6 +427,19 @@ const zhTW = {
     title: 'Something went wrong',
     tryAgain: 'Try Again',
   },
+  connectionHealth: {
+    badgeAllHealthy: '連線正常',
+    badgeSomeUnhealthy: '{{bad}}/{{total}} 異常',
+    badgeAllOffline: '全部異常',
+    popoverTitle: '連線健康度',
+    pollingStopped: 'Polling 停擺',
+    pollingHealthy: 'Polling 正常',
+    lastTickAt: '上次 tick',
+    noConnections: '尚無啟用連線',
+    consecutiveErrors: '連續錯誤 {{count}} 次',
+    lastPollAt: '上次輪詢',
+    alertsDisabled: '已關閉告警',
+  },
 } as const;
 
 export default zhTW;
