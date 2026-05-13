@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X } from 'lucide-react';
+import { X, ChevronDown, ChevronRight } from 'lucide-react';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import DynamicForm from './DeviceIntegrationWizard/DynamicForm';
 import InlineErrorBanner from '../ui/InlineErrorBanner';
@@ -32,13 +32,21 @@ export default function EditDeviceConnectionModal({ conn, onClose, onSaved }: Pr
   }, [conn.configJson]);
   const [config, setConfig] = useState<Record<string, string>>(initialConfig);
 
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [alertOnConsecutiveErrors, setAlertOnConsecutiveErrors] = useState(conn.alertOnConsecutiveErrors);
+  const [alertCooldownSec, setAlertCooldownSec] = useState(conn.alertCooldownSec);
+  const [isAlertEnabled, setIsAlertEnabled] = useState(conn.isAlertEnabled);
+
   // Detect unsaved edits — Test button hits the backend with the *stored*
   // (not currently edited) config, so we warn the user when there are
   // pending edits that won't be reflected in the test.
   const isDirty =
     name !== conn.name ||
     pollIntervalMs !== (conn.pollIntervalMs ?? 5000) ||
-    JSON.stringify(config) !== JSON.stringify(initialConfig);
+    JSON.stringify(config) !== JSON.stringify(initialConfig) ||
+    alertOnConsecutiveErrors !== conn.alertOnConsecutiveErrors ||
+    alertCooldownSec !== conn.alertCooldownSec ||
+    isAlertEnabled !== conn.isAlertEnabled;
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -66,6 +74,9 @@ export default function EditDeviceConnectionModal({ conn, onClose, onSaved }: Pr
         config: JSON.stringify(config),
         pollIntervalMs: conn.protocol === 'push_ingest' ? null : pollIntervalMs,
         isEnabled: conn.isEnabled,
+        alertOnConsecutiveErrors,
+        alertCooldownSec,
+        isAlertEnabled,
       });
       setSaveSuccess(true);
       // Hold the green confirmation visible for ~1s before parent unmounts us
@@ -171,6 +182,64 @@ export default function EditDeviceConnectionModal({ conn, onClose, onSaved }: Pr
           ) : (
             <div className="text-sm text-[var(--text-muted)]" role="status" aria-live="polite">{t('common.loading')}</div>
           )}
+
+          {/* Advanced alert settings */}
+          <div className="mt-4 border-t border-[var(--border-base)] pt-3">
+            <button
+              type="button"
+              onClick={() => setAdvancedOpen(o => !o)}
+              className="flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--text-main)]"
+            >
+              {advancedOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              {t('wizard.config.advancedTitle')}
+              <span className="text-xs text-[var(--text-muted)] ml-2">— {t('wizard.config.advancedHint')}</span>
+            </button>
+
+            {advancedOpen && (
+              <div className="mt-3 space-y-3 pl-4">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={isAlertEnabled}
+                    onChange={e => setIsAlertEnabled(e.target.checked)}
+                  />
+                  <span className="text-[var(--text-main)]">{t('wizard.config.isAlertEnabled')}</span>
+                </label>
+
+                <div>
+                  <label className="block text-sm text-[var(--text-main)] mb-1">
+                    {t('wizard.config.alertOnConsecutiveErrors')}
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={1000}
+                    value={alertOnConsecutiveErrors}
+                    onChange={e => setAlertOnConsecutiveErrors(Math.max(1, parseInt(e.target.value, 10) || 5))}
+                    disabled={!isAlertEnabled}
+                    className="w-24 px-2 py-1 rounded border border-[var(--border-base)] bg-[var(--bg-panel)] text-[var(--text-main)] text-sm disabled:opacity-50"
+                  />
+                  <p className="text-xs text-[var(--text-muted)] mt-1">{t('wizard.config.alertOnConsecutiveErrorsHelp')}</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-[var(--text-main)] mb-1">
+                    {t('wizard.config.alertCooldownSec')}
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={86400}
+                    value={alertCooldownSec}
+                    onChange={e => setAlertCooldownSec(Math.max(0, parseInt(e.target.value, 10) || 300))}
+                    disabled={!isAlertEnabled}
+                    className="w-24 px-2 py-1 rounded border border-[var(--border-base)] bg-[var(--bg-panel)] text-[var(--text-main)] text-sm disabled:opacity-50"
+                  />
+                  <p className="text-xs text-[var(--text-muted)] mt-1">{t('wizard.config.alertCooldownSecHelp')}</p>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Save error banner — backend validation / network */}
           {saveError && (
