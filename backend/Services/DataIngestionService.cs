@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using IoT.CentralApi.Data;
 using IoT.CentralApi.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace IoT.CentralApi.Services;
 
@@ -21,6 +22,7 @@ public class DataIngestionService(
     SseHub sseHub,
     ILatestReadingCache latestCache,
     GatingEvaluator gatingEvaluator,
+    IOptions<GatingConvergenceOptions> gatingOptions,
     ILogger<DataIngestionService> logger)
 {
     // 記錄每個 (AssetCode, SensorId) 的上一次 status，避免重複產生告警
@@ -107,6 +109,12 @@ public class DataIngestionService(
             }
 
             // 4. 寫入時序讀值（material_detect 感測器為狀態位元，不寫入溫度表；A1 gating 封鎖的也跳過）
+            // StrictMode (Phase B cutover, default OFF today): when hasMaterial=false
+            // drop ALL remaining readings too, matching SensorGatingRule "don't write"
+            // semantics. Today's prod runs with the flag off → identical behaviour to
+            // the previous revision. See plans/2026-05-14-gating-convergence-sprint1.md.
+            var strictMode = gatingOptions.Value.StrictMode;
+
             var readings = payload.Sensors
                 .Where(s => !matSensorId.HasValue || s.Id != matSensorId.Value)
                 .Where(s => !IsBlockedByNewGating(s.Id))
@@ -119,6 +127,9 @@ public class DataIngestionService(
                     HasMaterial = hasMaterial,
                     Timestamp = now
                 }).ToList();
+
+            if (strictMode && !hasMaterial)
+                readings.Clear();
 
             db.SensorReadings.AddRange(readings);
 
