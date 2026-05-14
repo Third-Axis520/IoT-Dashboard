@@ -42,7 +42,7 @@ export interface ModalContainerProps {
   showDeviceMgmt: boolean; onCloseDeviceMgmt: () => void;
   liveDrillDownEq: Equipment | null;
   onCloseDrillDown: () => void;
-  showLimits: boolean; onCloseLimits: () => void;
+  showLimits: boolean; onCloseLimits: () => void; limitsFocusAsset?: string;
   sensorMappingEq: Equipment | null; onCloseSensorMapping: () => void;
   showPlcTemplates: boolean; onClosePlcTemplates: () => void;
   showRegisterMap: boolean; onCloseRegisterMap: () => void;
@@ -97,7 +97,7 @@ export default function ModalContainer(props: ModalContainerProps) {
     wizardPostInfo, onCloseWizardPost,
     showDeviceMgmt, onCloseDeviceMgmt,
     liveDrillDownEq, onCloseDrillDown,
-    showLimits, onCloseLimits,
+    showLimits, onCloseLimits, limitsFocusAsset,
     sensorMappingEq, onCloseSensorMapping,
     showPlcTemplates, onClosePlcTemplates,
     showRegisterMap, onCloseRegisterMap,
@@ -166,6 +166,7 @@ export default function ModalContainer(props: ModalContainerProps) {
           equipments={activeLine.equipments.filter(eq => eq.deviceId)}
           onClose={onCloseLimits}
           onSaved={onLimitsSaved}
+          focusAssetCode={limitsFocusAsset}
         />
       )}
 

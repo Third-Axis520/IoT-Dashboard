@@ -18,6 +18,10 @@ interface LimitsSettingsModalProps {
   onClose: () => void;
   /** 儲存成功後，通知 App 更新所有 point 的 ucl/lcl（keyed by sensorId） */
   onSaved: (limits: Record<number, { ucl: number; lcl: number }>) => void;
+  /** Optional: scroll to this asset's first sensor on mount (set when the
+   *  modal was opened from an EquipmentCard so the user lands at the
+   *  relevant block instead of the top of a multi-asset list). */
+  focusAssetCode?: string;
 }
 
 interface LimitRow {
@@ -32,7 +36,9 @@ interface LimitRow {
   lcl: number;
 }
 
-export const LimitsSettingsModal = ({ scopeLabel, equipments, onClose, onSaved }: LimitsSettingsModalProps) => {
+export const LimitsSettingsModal = ({
+  scopeLabel, equipments, onClose, onSaved, focusAssetCode,
+}: LimitsSettingsModalProps) => {
   const { t } = useTranslation();
   const trapRef = useFocusTrap<HTMLDivElement>(onClose);
   const initialRows = useMemo<LimitRow[]>(() =>
@@ -123,6 +129,19 @@ export const LimitsSettingsModal = ({ scopeLabel, equipments, onClose, onSaved }
   }, [assetCodesKey]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+
+  // When opened from an EquipmentCard, jump to that asset's first sensor row.
+  // Run after `loading` flips false so the row element exists in the DOM.
+  useEffect(() => {
+    if (loading || !focusAssetCode) return;
+    const firstRow = rows.find(r => r.assetCode === focusAssetCode);
+    if (!firstRow) return;
+    const el = document.getElementById(`gating-row-${firstRow.sensorId}`);
+    if (el) {
+      (el as HTMLDetailsElement).open = true;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [loading, focusAssetCode, rows]);
 
   const handleChange = useCallback((sensorId: number, field: 'ucl' | 'lcl', value: string) => {
     const num = parseFloat(value);

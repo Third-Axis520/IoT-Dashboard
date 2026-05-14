@@ -54,6 +54,7 @@ export default function App() {
   const [wizardPostInfo, setWizardPostInfo] = useState<{ template: MachineTemplate; initialName: string; assetCode: string | null } | null>(null);
   const [showDeviceMgmt, setShowDeviceMgmt] = useState(false);
   const [showLimits, setShowLimits] = useState(false);
+  const [limitsFocusAsset, setLimitsFocusAsset] = useState<string | undefined>(undefined);
   const [showRegisterMap, setShowRegisterMap] = useState(false);
   const [showPlcTemplates, setShowPlcTemplates] = useState(false);
   const [showWizard, setShowWizard] = useState(false);
@@ -473,7 +474,7 @@ export default function App() {
                 onDrillDown={setDrillDownEq} onSensorMapping={setSensorMappingEq}
                 onDelete={handleDeleteEquipment} onPointSwap={handlePointSwap}
                 gatingRulesBySensorId={gatingRulesBySensorId}
-                onOpenLimits={() => setShowLimits(true)}
+                onOpenLimits={(focusAsset) => { setLimitsFocusAsset(focusAsset); setShowLimits(true); }}
               />
             ))}
           </div>
@@ -488,7 +489,7 @@ export default function App() {
         wizardPostInfo={wizardPostInfo} onCloseWizardPost={() => setWizardPostInfo(null)}
         showDeviceMgmt={showDeviceMgmt} onCloseDeviceMgmt={() => setShowDeviceMgmt(false)}
         liveDrillDownEq={liveDrillDownEq} onCloseDrillDown={() => { setDrillDownEq(null); setIsAutoPlaying(false); }}
-        showLimits={showLimits} onCloseLimits={() => setShowLimits(false)}
+        showLimits={showLimits} onCloseLimits={() => { setShowLimits(false); setLimitsFocusAsset(undefined); }} limitsFocusAsset={limitsFocusAsset}
         sensorMappingEq={sensorMappingEq} onCloseSensorMapping={() => setSensorMappingEq(null)}
         showPlcTemplates={showPlcTemplates} onClosePlcTemplates={() => setShowPlcTemplates(false)}
         showRegisterMap={showRegisterMap} onCloseRegisterMap={() => setShowRegisterMap(false)}
