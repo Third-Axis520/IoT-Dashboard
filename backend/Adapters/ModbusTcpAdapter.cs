@@ -9,6 +9,7 @@
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Text.Json;
 using FluentModbus;
 using IoT.CentralApi.Adapters.Contracts;
@@ -212,8 +213,47 @@ public class ModbusTcpAdapter : IProtocolAdapter, IDisposable
         {
             var ip = IPAddress.Parse(config.Host);
             client.Connect(new IPEndPoint(ip, config.Port));
+            TryEnableTcpKeepAlive(client);
         }
         return client;
+    }
+
+    // FluentModbus 5.x doesn't expose TCP-level options on its ModbusTcpClient,
+    // so we reach for the underlying TcpClient via reflection and turn on
+    // SO_KEEPALIVE. Cheap Modbus gateways frequently kill long-lived TCP
+    // sessions silently; without keepalive probes the local socket reports
+    // IsConnected=true forever and the next read fails with WSAECONNRESET.
+    // Defensive: every step is wrapped in try/catch — if reflection breaks
+    // on a FluentModbus upgrade we fall back to the prior behaviour.
+    private static void TryEnableTcpKeepAlive(ModbusTcpClient client)
+    {
+        try
+        {
+            var tcpClientField = client.GetType()
+                .GetField("_tcpClient", BindingFlags.NonPublic | BindingFlags.Instance);
+            if (tcpClientField?.GetValue(client) is not TcpClient tcp) return;
+            var sock = tcp.Client;
+            if (sock == null) return;
+
+            sock.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+
+            // .NET 5+ on Windows 10 / Server 2016+ honours these — probe every
+            // 5 seconds after 10 seconds of idle, 3 retries before declaring dead.
+            // On older platforms the SetSocketOption call quietly no-ops and the
+            // OS default keepalive interval applies (~2 hours, not useful here).
+            try
+            {
+                sock.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveTime, 10);
+                sock.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveInterval, 5);
+                sock.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveRetryCount, 3);
+            }
+            catch (SocketException) { /* OS too old — basic SO_KEEPALIVE still on */ }
+        }
+        catch
+        {
+            // Reflection / field rename — fall back silently. Caller still gets
+            // a connected client, just without the keepalive probe tuning.
+        }
     }
 
     private void EvictClient(string key)
