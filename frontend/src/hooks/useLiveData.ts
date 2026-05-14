@@ -17,11 +17,6 @@ interface SseDataUpdate {
   assetName?: string;
   timestamp: number;
   isConnected: boolean;
-  /** Legacy field (#7 Phase C). Backend now always sends null — sensor
-   *  gating goes through SensorGatingRule (sensors just don't show up in
-   *  the payload when blocked). Kept on the type for backward-compat with
-   *  any cached SSE payloads but no longer consumed anywhere. */
-  hasMaterial?: boolean | null;
   sensors: SseSensorItem[];
 }
 

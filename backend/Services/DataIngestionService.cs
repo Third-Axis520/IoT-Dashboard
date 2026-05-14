@@ -97,9 +97,7 @@ public class DataIngestionService(
                 return false;
             }
 
-            // 4. 寫入時序讀值（SensorGatingRule 封鎖的跳過。HasMaterial 欄位保留
-            // 在 schema 內供舊歷史資料相容，新寫入永遠 true — 真正的「無料時不寫」
-            // 邏輯透過 SensorGatingRule + GatingEvaluator 處理。）
+            // 4. 寫入時序讀值（SensorGatingRule 封鎖的跳過）
             var readings = payload.Sensors
                 .Where(s => !IsBlockedByNewGating(s.Id))
                 .Select(s => new SensorReading
@@ -108,7 +106,6 @@ public class DataIngestionService(
                     SensorId = s.Id,
                     Value = s.Value,
                     HasError = s.Error != null,
-                    HasMaterial = true,
                     Timestamp = now
                 }).ToList();
 
@@ -199,11 +196,6 @@ public class DataIngestionService(
                     AssetName = assetInfo?.AssetName ?? assetInfo?.NickName,
                     Timestamp = payload.Timestamp,
                     IsConnected = payload.IsConnected,
-                    // HasMaterial intentionally left null — the frontend's old
-                    // dependency on hasMaterial=false readings was removed in
-                    // 2638466 (Phase B prep). Kept in the DTO shape for SSE
-                    // payload backward-compat with any legacy consumers.
-                    HasMaterial = null,
                     Sensors = BuildSseSensors(payload.Sensors, limits, IsBlockedByNewGating),
                 };
 

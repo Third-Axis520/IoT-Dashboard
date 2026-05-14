@@ -18,9 +18,6 @@ public class SensorReading
 
     public bool HasError { get; set; }
 
-    /// <summary>記錄當下 40013 鞋子在位狀態；true = 有料，false = 無料（空機）</summary>
-    public bool HasMaterial { get; set; } = true;
-
     public DateTime Timestamp { get; set; }
 }
 

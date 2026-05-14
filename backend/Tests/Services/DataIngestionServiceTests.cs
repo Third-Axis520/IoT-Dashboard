@@ -173,12 +173,12 @@ public class DataIngestionServiceTests : IntegrationTestBase
     }
 
     [Fact]
-    public async Task Process_GatingRulePass_WritesReadingWithDefaultHasMaterial()
+    public async Task Process_GatingRulePass_WritesReading()
     {
-        // Post #7 Phase C: material_detect special path is gone.
-        // SensorGatingRule alone decides whether readings get written.
-        // When the rule allows (pass), the reading writes with the new
-        // schema default HasMaterial=true.
+        // Post #7 Phase C: material_detect special path is gone and the
+        // HasMaterial column has been dropped from the schema. SensorGatingRule
+        // alone decides whether readings get written. When the rule allows
+        // (pass), the reading writes.
         await SeedDeviceAsync();
         await SeedGatingRuleAsync();
         var cache = GetCache();
@@ -190,8 +190,9 @@ public class DataIngestionServiceTests : IntegrationTestBase
         await sut.ProcessAsync(MakePayload((GatedSensorId, 300.0)));
 
         await using var db = await CreateDbContextAsync();
-        var reading = await db.SensorReadings.FirstAsync(r =>
+        var reading = await db.SensorReadings.FirstOrDefaultAsync(r =>
             r.AssetCode == AssetCode && r.SensorId == GatedSensorId);
-        reading.HasMaterial.Should().BeTrue();
+        reading.Should().NotBeNull();
+        reading!.Value.Should().Be(300.0);
     }
 }

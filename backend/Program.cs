@@ -265,28 +265,41 @@ using (var scope = app.Services.CreateScope())
         END
         """);
 
-    // SensorReadings 加 HasMaterial 欄位（舊 DB 沒有時補上，預設 1 = 有料）
+    // #7 Phase C cleanup: drop the obsolete HasMaterial column + its index.
+    // Idempotent (IF EXISTS) so it's safe to re-run on already-cleaned DBs.
     await ctx.Database.ExecuteSqlRawAsync("""
-        IF NOT EXISTS (
-            SELECT 1 FROM sys.columns
-            WHERE object_id = OBJECT_ID('dbo.SensorReadings')
-              AND name = 'HasMaterial'
-        )
-        BEGIN
-            ALTER TABLE [dbo].[SensorReadings] ADD [HasMaterial] BIT NOT NULL DEFAULT 1;
-        END
-        """);
-
-    // SensorReadings HasMaterial + AssetCode 複合索引（查詢有料歷史用）
-    await ctx.Database.ExecuteSqlRawAsync("""
-        IF NOT EXISTS (
+        IF EXISTS (
             SELECT 1 FROM sys.indexes
             WHERE object_id = OBJECT_ID('dbo.SensorReadings')
               AND name = 'IX_SensorReadings_AssetCode_HasMaterial_Timestamp'
         )
         BEGIN
-            CREATE INDEX [IX_SensorReadings_AssetCode_HasMaterial_Timestamp]
-                ON [dbo].[SensorReadings] ([AssetCode], [HasMaterial], [Timestamp] DESC);
+            DROP INDEX [IX_SensorReadings_AssetCode_HasMaterial_Timestamp]
+                ON [dbo].[SensorReadings];
+        END
+        """);
+
+    await ctx.Database.ExecuteSqlRawAsync("""
+        IF EXISTS (
+            SELECT 1 FROM sys.columns
+            WHERE object_id = OBJECT_ID('dbo.SensorReadings')
+              AND name = 'HasMaterial'
+        )
+        BEGIN
+            -- The HasMaterial column had a NOT NULL default(1) constraint
+            -- created with the original ADD COLUMN. SQL Server auto-names that
+            -- default constraint, so drop it dynamically by name before
+            -- dropping the column.
+            DECLARE @df nvarchar(128);
+            SELECT @df = dc.name
+            FROM sys.default_constraints dc
+            JOIN sys.columns c ON c.default_object_id = dc.object_id
+            WHERE c.object_id = OBJECT_ID('dbo.SensorReadings')
+              AND c.name = 'HasMaterial';
+            IF @df IS NOT NULL
+                EXEC('ALTER TABLE [dbo].[SensorReadings] DROP CONSTRAINT [' + @df + ']');
+
+            ALTER TABLE [dbo].[SensorReadings] DROP COLUMN [HasMaterial];
         END
         """);
 

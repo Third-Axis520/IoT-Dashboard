@@ -25,8 +25,6 @@ public class SseDataUpdate
     public string? AssetName { get; set; }
     public long Timestamp { get; set; }
     public bool IsConnected { get; set; }
-    /// <summary>40013 鞋子在位：true = 有料，false = 無料，null = 設備無此感測器</summary>
-    public bool? HasMaterial { get; set; }
     public List<SseSensorItem> Sensors { get; set; } = [];
 }
 
