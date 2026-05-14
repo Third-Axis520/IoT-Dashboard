@@ -8,9 +8,8 @@ import { fetchProtocol, type ProtocolItem } from '../../../../lib/apiProtocols';
 import { POLL_INTERVAL_SECONDS } from '../../../../constants/pollIntervals';
 import { fetchDeviceConnections } from '../../../../lib/apiDeviceConnections';
 import {
-  SAME_HOST_RECOMMEND_THRESHOLD,
-  RECOMMENDED_POLL_MS,
   countSiblingsOnSameHost,
+  getGatewayConcurrencyHints,
 } from '../../../../lib/gatewayConcurrency';
 
 export default function Step2Config() {
@@ -59,10 +58,11 @@ export default function Step2Config() {
   }, [protocol, dispatch]);
 
   const canProceed = state.connectionName.trim().length > 0;
+  const concurrencyHints = getGatewayConcurrencyHints(state.protocol);
   const shouldSuggestLongerPoll =
-    sameHostCount >= SAME_HOST_RECOMMEND_THRESHOLD &&
-    state.protocol !== 'push_ingest' &&
-    state.pollIntervalMs < RECOMMENDED_POLL_MS;
+    concurrencyHints !== null &&
+    sameHostCount >= concurrencyHints.threshold &&
+    state.pollIntervalMs < concurrencyHints.recommendedMs;
 
   return (
     <div className="p-6">
@@ -135,7 +135,7 @@ export default function Step2Config() {
             </p>
             <button
               type="button"
-              onClick={() => dispatch({ type: 'SET_POLL_INTERVAL', ms: RECOMMENDED_POLL_MS })}
+              onClick={() => dispatch({ type: 'SET_POLL_INTERVAL', ms: concurrencyHints!.recommendedMs })}
               aria-label={t('connectionSettings.pollSuggestionApply') + ' — ' + t('connectionSettings.intervalLabel')}
               className="px-3 py-1 rounded border border-[var(--accent-green)] text-[var(--accent-green)] hover:bg-[var(--accent-green)]/10 transition-colors"
             >

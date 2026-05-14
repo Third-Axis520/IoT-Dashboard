@@ -325,6 +325,14 @@ describe('EditDeviceConnectionModal', () => {
     expect(screen.queryByText(/connectionSettings\.pollSuggestionBanner/)).toBeNull();
   });
 
+  it('hides banner for polling protocols without calibration data (e.g. web_api)', async () => {
+    vi.mocked(fetchDeviceConnections).mockResolvedValue(makeSiblings(5));
+    renderModal({ protocol: 'web_api' });
+    await waitFor(() => expect(fetchDeviceConnections).toHaveBeenCalled());
+    // web_api isn't in PROTOCOL_HINTS — silent rather than guess wrong recommendation
+    expect(screen.queryByText(/connectionSettings\.pollSuggestionBanner/)).toBeNull();
+  });
+
   it('excludes self from same-host count (id collision filter)', async () => {
     // Make a sibling list where one entry shares mockConn.id (7).
     // That entry must be excluded so it doesn't count toward the threshold.

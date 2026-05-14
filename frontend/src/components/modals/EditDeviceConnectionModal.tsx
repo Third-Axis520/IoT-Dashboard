@@ -14,9 +14,8 @@ import {
   type DeviceConnectionItem,
 } from '../../lib/apiDeviceConnections';
 import {
-  SAME_HOST_RECOMMEND_THRESHOLD,
-  RECOMMENDED_POLL_MS,
   countSiblingsOnSameHost,
+  getGatewayConcurrencyHints,
 } from '../../lib/gatewayConcurrency';
 
 interface Props {
@@ -58,10 +57,11 @@ export default function EditDeviceConnectionModal({ conn, onClose, onSaved }: Pr
     return () => { cancelled = true; };
   }, [config.host, config.port, conn.id]);
 
+  const concurrencyHints = getGatewayConcurrencyHints(conn.protocol);
   const shouldSuggestLongerPoll =
-    sameHostCount >= SAME_HOST_RECOMMEND_THRESHOLD &&
-    conn.protocol !== 'push_ingest' &&
-    pollIntervalMs < RECOMMENDED_POLL_MS;
+    concurrencyHints !== null &&
+    sameHostCount >= concurrencyHints.threshold &&
+    pollIntervalMs < concurrencyHints.recommendedMs;
 
   // Detect unsaved edits — Test button hits the backend with the *stored*
   // (not currently edited) config, so we warn the user when there are
@@ -224,7 +224,7 @@ export default function EditDeviceConnectionModal({ conn, onClose, onSaved }: Pr
                 </p>
                 <button
                   type="button"
-                  onClick={() => setPollIntervalMs(RECOMMENDED_POLL_MS)}
+                  onClick={() => setPollIntervalMs(concurrencyHints!.recommendedMs)}
                   aria-label={t('connectionSettings.pollSuggestionApply') + ' — ' + t('connectionSettings.intervalLabel')}
                   className="px-3 py-1 rounded border border-[var(--accent-green)] text-[var(--accent-green)] hover:bg-[var(--accent-green)]/10 transition-colors"
                 >

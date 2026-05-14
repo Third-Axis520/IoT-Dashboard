@@ -1,10 +1,26 @@
 import type { DeviceConnectionItem } from './apiDeviceConnections';
 
-// Some Modbus gateways limit concurrent sessions to as few as 1-4 and start
-// dropping reads under contention; when this many siblings already share
-// host:port we proactively suggest a longer poll interval.
-export const SAME_HOST_RECOMMEND_THRESHOLD = 3;
-export const RECOMMENDED_POLL_MS = 10000;
+export interface ProtocolConcurrencyHints {
+  /** Number of siblings on the same host:port that triggers the recommendation. */
+  threshold: number;
+  /** Recommended poll interval (ms) to apply when threshold is met. */
+  recommendedMs: number;
+}
+
+// Protocols whose recommendation values are calibrated against real concurrency
+// limits. Protocols absent from this map deliberately produce no banner — we
+// would rather be silent than wrong.
+//
+// modbus_tcp: most low-cost gateways cap concurrent Modbus sessions at 1-4
+// (verified against 2026-05-13 LeanA incident on 192.168.62.74:502).
+const PROTOCOL_HINTS: Record<string, ProtocolConcurrencyHints> = {
+  modbus_tcp: { threshold: 3, recommendedMs: 10000 },
+};
+
+export function getGatewayConcurrencyHints(protocol: string | null | undefined): ProtocolConcurrencyHints | null {
+  if (!protocol) return null;
+  return PROTOCOL_HINTS[protocol] ?? null;
+}
 
 export function countSiblingsOnSameHost(
   connections: DeviceConnectionItem[],

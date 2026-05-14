@@ -126,6 +126,15 @@ describe('Step2Config — poll-interval suggestion banner', () => {
     expect(screen.queryByText(/connectionSettings\.pollSuggestionBanner/)).toBeNull();
   });
 
+  it('hides the banner for polling protocols without calibration data (e.g. web_api)', async () => {
+    mockState = baseState({ protocol: 'web_api' });
+    vi.mocked(fetchDeviceConnections).mockResolvedValue(makeSiblings(5));
+    render(<Step2Config />);
+    await waitFor(() => expect(fetchDeviceConnections).toHaveBeenCalled());
+    // web_api isn't in PROTOCOL_HINTS — silent rather than guess wrong recommendation
+    expect(screen.queryByText(/connectionSettings\.pollSuggestionBanner/)).toBeNull();
+  });
+
   it('clicking "Apply 10s" dispatches SET_POLL_INTERVAL with 10000ms', async () => {
     vi.mocked(fetchDeviceConnections).mockResolvedValue(makeSiblings(3));
     render(<Step2Config />);
