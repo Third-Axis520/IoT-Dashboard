@@ -452,6 +452,7 @@ const zhTW = {
       bind: '綁 DI',
       gotoEnabled: '此感測器已綁定 DI gating，點擊聚焦設定',
       gotoDisabled: '尚未綁定 DI，點擊跳到設定區',
+      openFromCard: '此設備有 DI gating 規則 — 點擊開啟限值與條件設定',
     },
   },
   errorBoundary: {

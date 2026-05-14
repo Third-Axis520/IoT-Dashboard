@@ -45,6 +45,8 @@ export interface EquipmentCardProps {
 
   /** Gating rules keyed by gatedSensorId — used to show gating indicator in header */
   gatingRulesBySensorId?: Map<number, SensorGatingRule>;
+  /** Opens the limits modal (where the user can view / edit gating rules). */
+  onOpenLimits?: () => void;
 }
 
 const EquipmentCard = React.memo(function EquipmentCard({
@@ -72,6 +74,7 @@ const EquipmentCard = React.memo(function EquipmentCard({
   onDelete,
   onPointSwap,
   gatingRulesBySensorId,
+  onOpenLimits,
 }: EquipmentCardProps) {
   const { t } = useTranslation();
 
@@ -143,10 +146,22 @@ const EquipmentCard = React.memo(function EquipmentCard({
                 {eq.deviceId || t('app.notBound')}
               </span>
               {hasGatedSensors && (
-                <Shield
-                  className="w-3 h-3 text-blue-400 opacity-70 shrink-0"
-                  title={t('sensor.gating.advanced')}
-                />
+                onOpenLimits ? (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onOpenLimits(); }}
+                    title={t('sensor.gating.openFromCard')}
+                    aria-label={t('sensor.gating.openFromCard')}
+                    className="p-0.5 text-blue-400 hover:text-blue-300 hover:bg-blue-400/10 rounded transition-colors shrink-0"
+                  >
+                    <Shield className="w-3.5 h-3.5" />
+                  </button>
+                ) : (
+                  <Shield
+                    className="w-3 h-3 text-blue-400 opacity-70 shrink-0"
+                    title={t('sensor.gating.advanced')}
+                  />
+                )
               )}
             </>
           )}

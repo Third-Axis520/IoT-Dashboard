@@ -473,6 +473,7 @@ export default function App() {
                 onDrillDown={setDrillDownEq} onSensorMapping={setSensorMappingEq}
                 onDelete={handleDeleteEquipment} onPointSwap={handlePointSwap}
                 gatingRulesBySensorId={gatingRulesBySensorId}
+                onOpenLimits={() => setShowLimits(true)}
               />
             ))}
           </div>

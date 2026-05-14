@@ -454,6 +454,7 @@ const zhCN: Translation = {
       bind: '绑 DI',
       gotoEnabled: '此传感器已绑定 DI gating，点击聚焦设置',
       gotoDisabled: '尚未绑定 DI，点击跳到设置区',
+      openFromCard: '此设备有 DI gating 规则 — 点击开启限值与条件设置',
     },
   },
   errorBoundary: {
