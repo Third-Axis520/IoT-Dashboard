@@ -26,8 +26,8 @@ export default function AlertSettingsSection({ value, onChange, defaultOpen = fa
         className="flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--text-main)]"
       >
         {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-        {t('wizard.config.advancedTitle')}
-        <span className="text-xs text-[var(--text-muted)] ml-2">— {t('wizard.config.advancedHint')}</span>
+        {t('connectionSettings.advancedTitle')}
+        <span className="text-xs text-[var(--text-muted)] ml-2">— {t('connectionSettings.advancedHint')}</span>
       </button>
 
       {open && (
@@ -38,12 +38,12 @@ export default function AlertSettingsSection({ value, onChange, defaultOpen = fa
               checked={value.isAlertEnabled}
               onChange={e => onChange({ ...value, isAlertEnabled: e.target.checked })}
             />
-            <span className="text-[var(--text-main)]">{t('wizard.config.isAlertEnabled')}</span>
+            <span className="text-[var(--text-main)]">{t('connectionSettings.isAlertEnabled')}</span>
           </label>
 
           <div>
             <label className="block text-sm text-[var(--text-main)] mb-1">
-              {t('wizard.config.alertOnConsecutiveErrors')}
+              {t('connectionSettings.alertOnConsecutiveErrors')}
             </label>
             <input
               type="number"
@@ -57,12 +57,12 @@ export default function AlertSettingsSection({ value, onChange, defaultOpen = fa
               disabled={!value.isAlertEnabled}
               className="w-24 px-2 py-1 rounded border border-[var(--border-base)] bg-[var(--bg-panel)] text-[var(--text-main)] text-sm disabled:opacity-50"
             />
-            <p className="text-xs text-[var(--text-muted)] mt-1">{t('wizard.config.alertOnConsecutiveErrorsHelp')}</p>
+            <p className="text-xs text-[var(--text-muted)] mt-1">{t('connectionSettings.alertOnConsecutiveErrorsHelp')}</p>
           </div>
 
           <div>
             <label className="block text-sm text-[var(--text-main)] mb-1">
-              {t('wizard.config.alertCooldownSec')}
+              {t('connectionSettings.alertCooldownSec')}
             </label>
             <input
               type="number"
@@ -76,7 +76,7 @@ export default function AlertSettingsSection({ value, onChange, defaultOpen = fa
               disabled={!value.isAlertEnabled}
               className="w-24 px-2 py-1 rounded border border-[var(--border-base)] bg-[var(--bg-panel)] text-[var(--text-main)] text-sm disabled:opacity-50"
             />
-            <p className="text-xs text-[var(--text-muted)] mt-1">{t('wizard.config.alertCooldownSecHelp')}</p>
+            <p className="text-xs text-[var(--text-muted)] mt-1">{t('connectionSettings.alertCooldownSecHelp')}</p>
           </div>
         </div>
       )}

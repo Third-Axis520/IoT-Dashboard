@@ -81,7 +81,7 @@ describe('EditDeviceConnectionModal', () => {
 
   it('renders with current connection name and protocol', async () => {
     renderModal();
-    const nameInput = screen.getByLabelText(/wizard\.config\.nameLabel/i) as HTMLInputElement;
+    const nameInput = screen.getByLabelText(/connectionSettings\.nameLabel/i) as HTMLInputElement;
     expect(nameInput.value).toBe('PLC-A');
     expect(screen.getByText('modbus_tcp')).toBeInTheDocument();
   });
@@ -101,7 +101,7 @@ describe('EditDeviceConnectionModal', () => {
     const { onSaved } = renderModal();
     await waitFor(() => expect(fetchProtocol).toHaveBeenCalled());
 
-    const nameInput = screen.getByLabelText(/wizard\.config\.nameLabel/i) as HTMLInputElement;
+    const nameInput = screen.getByLabelText(/connectionSettings\.nameLabel/i) as HTMLInputElement;
     fireEvent.change(nameInput, { target: { value: 'PLC-A-Renamed' } });
 
     const saveBtn = screen.getByRole('button', { name: /common\.save/ });
@@ -140,7 +140,7 @@ describe('EditDeviceConnectionModal', () => {
     renderModal();
     await waitFor(() => expect(fetchProtocol).toHaveBeenCalled());
 
-    const intervalSelect = screen.getByLabelText(/wizard\.config\.intervalLabel/) as HTMLSelectElement;
+    const intervalSelect = screen.getByLabelText(/connectionSettings\.intervalLabel/) as HTMLSelectElement;
     fireEvent.change(intervalSelect, { target: { value: '10' } });
 
     fireEvent.click(screen.getByRole('button', { name: /common\.save/ }));
@@ -156,7 +156,7 @@ describe('EditDeviceConnectionModal', () => {
     renderModal();
     await waitFor(() => expect(fetchProtocol).toHaveBeenCalled());
 
-    const nameInput = screen.getByLabelText(/wizard\.config\.nameLabel/i) as HTMLInputElement;
+    const nameInput = screen.getByLabelText(/connectionSettings\.nameLabel/i) as HTMLInputElement;
     fireEvent.change(nameInput, { target: { value: '   ' } });
 
     const saveBtn = screen.getByRole('button', { name: /common\.save/ }) as HTMLButtonElement;
@@ -174,7 +174,7 @@ describe('EditDeviceConnectionModal', () => {
 
     await waitFor(() => expect(fetchProtocol).toHaveBeenCalledWith('push_ingest'));
 
-    expect(screen.queryByLabelText(/wizard\.config\.intervalLabel/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/connectionSettings\.intervalLabel/)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /common\.save/ }));
 

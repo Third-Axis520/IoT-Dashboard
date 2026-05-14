@@ -136,7 +136,7 @@ export default function EditDeviceConnectionModal({ conn, onClose, onSaved }: Pr
           {/* Name */}
           <div>
             <label htmlFor="edit-conn-name" className="block text-sm font-medium text-[var(--text-main)] mb-1">
-              {t('wizard.config.nameLabel')}
+              {t('connectionSettings.nameLabel')}
             </label>
             <input
               id="edit-conn-name"
@@ -151,7 +151,7 @@ export default function EditDeviceConnectionModal({ conn, onClose, onSaved }: Pr
           {conn.protocol !== 'push_ingest' && (
             <div>
               <label htmlFor="edit-conn-interval" className="block text-sm font-medium text-[var(--text-main)] mb-1">
-                {t('wizard.config.intervalLabel')}
+                {t('connectionSettings.intervalLabel')}
               </label>
               <select
                 id="edit-conn-interval"
@@ -160,7 +160,7 @@ export default function EditDeviceConnectionModal({ conn, onClose, onSaved }: Pr
                 className="w-full px-3 py-2 rounded-lg border border-[var(--border-input)] bg-[var(--bg-panel)] text-[var(--text-main)] text-sm outline-none focus:border-[var(--accent-green)]"
               >
                 {POLL_INTERVAL_SECONDS.map((s) => (
-                  <option key={s} value={s}>{t('wizard.config.intervalOption', { seconds: s })}</option>
+                  <option key={s} value={s}>{t('connectionSettings.intervalOption', { seconds: s })}</option>
                 ))}
               </select>
             </div>

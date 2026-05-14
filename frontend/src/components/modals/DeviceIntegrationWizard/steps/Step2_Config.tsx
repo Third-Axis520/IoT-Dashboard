@@ -81,7 +81,7 @@ export default function Step2Config() {
       {/* Connection name */}
       <div className="mb-5">
         <label className="block text-sm font-medium text-[var(--text-main)] mb-1">
-          {t('wizard.config.nameLabel')} <span className="text-[var(--accent-red)]">*</span>
+          {t('connectionSettings.nameLabel')} <span className="text-[var(--accent-red)]">*</span>
         </label>
         <input
           type="text"
@@ -99,7 +99,7 @@ export default function Step2Config() {
       {state.protocol !== 'push_ingest' && (
         <div className="mb-5">
           <label className="block text-sm font-medium text-[var(--text-main)] mb-1">
-            {t('wizard.config.intervalLabel')}
+            {t('connectionSettings.intervalLabel')}
           </label>
           <select
             value={state.pollIntervalMs / 1000}
@@ -110,11 +110,11 @@ export default function Step2Config() {
           >
             {POLL_INTERVAL_SECONDS.map((s) => (
               <option key={s} value={s}>
-                {t('wizard.config.intervalOption', { seconds: s })}
+                {t('connectionSettings.intervalOption', { seconds: s })}
               </option>
             ))}
           </select>
-          <p className="text-xs text-[var(--text-muted)] mt-1">{t('wizard.config.intervalHint')}</p>
+          <p className="text-xs text-[var(--text-muted)] mt-1">{t('connectionSettings.intervalHint')}</p>
         </div>
       )}
 
@@ -134,7 +134,7 @@ export default function Step2Config() {
           <Lightbulb size={14} className="mt-0.5 shrink-0 text-[var(--accent-green)]" />
           <div className="flex-1">
             <p className="mb-2" aria-live="polite">
-              {t('wizard.config.pollSuggestionBanner', {
+              {t('connectionSettings.pollSuggestionBanner', {
                 host: state.config.host,
                 port: state.config.port || '502',
                 count: sameHostCount,
@@ -143,10 +143,10 @@ export default function Step2Config() {
             <button
               type="button"
               onClick={() => dispatch({ type: 'SET_POLL_INTERVAL', ms: RECOMMENDED_POLL_MS })}
-              aria-label={t('wizard.config.pollSuggestionApply') + ' — ' + t('wizard.config.intervalLabel')}
+              aria-label={t('connectionSettings.pollSuggestionApply') + ' — ' + t('connectionSettings.intervalLabel')}
               className="px-3 py-1 rounded border border-[var(--accent-green)] text-[var(--accent-green)] hover:bg-[var(--accent-green)]/10 transition-colors"
             >
-              {t('wizard.config.pollSuggestionApply')}
+              {t('connectionSettings.pollSuggestionApply')}
             </button>
           </div>
         </div>
@@ -158,7 +158,7 @@ export default function Step2Config() {
         <div className="mb-4 flex items-start gap-2 px-3 py-2 rounded-md bg-[var(--accent-yellow)]/10 border border-[var(--accent-yellow)]/30 text-xs text-[var(--accent-yellow)]">
           <AlertTriangle size={14} className="mt-0.5 shrink-0" />
           <span>
-            {t('wizard.config.sameHostHint', {
+            {t('connectionSettings.sameHostHint', {
               host: state.config.host,
               port: state.config.port || '502',
               count: sameHostCount,

@@ -93,19 +93,19 @@ describe('Step2Config — poll-interval suggestion banner', () => {
     // Wait for the async fetch to settle
     await waitFor(() => expect(fetchDeviceConnections).toHaveBeenCalled());
     // The actionable banner key should not be in the document
-    expect(screen.queryByText(/wizard\.config\.pollSuggestionBanner/)).toBeNull();
+    expect(screen.queryByText(/connectionSettings\.pollSuggestionBanner/)).toBeNull();
     // The textual sameHostHint SHOULD still appear (count=2 > 0)
-    expect(screen.queryByText(/wizard\.config\.sameHostHint/)).not.toBeNull();
+    expect(screen.queryByText(/connectionSettings\.sameHostHint/)).not.toBeNull();
   });
 
   it('shows the actionable banner when sameHostCount >= 3 and poll < 10s', async () => {
     vi.mocked(fetchDeviceConnections).mockResolvedValue(makeSiblings(3));
     render(<Step2Config />);
     await waitFor(() => {
-      expect(screen.queryByText(/wizard\.config\.pollSuggestionBanner/)).not.toBeNull();
+      expect(screen.queryByText(/connectionSettings\.pollSuggestionBanner/)).not.toBeNull();
     });
     // And the textual sameHostHint should be suppressed (no duplicate noise)
-    expect(screen.queryByText(/wizard\.config\.sameHostHint/)).toBeNull();
+    expect(screen.queryByText(/connectionSettings\.sameHostHint/)).toBeNull();
   });
 
   it('hides the banner when poll interval is already >= 10s', async () => {
@@ -113,9 +113,9 @@ describe('Step2Config — poll-interval suggestion banner', () => {
     vi.mocked(fetchDeviceConnections).mockResolvedValue(makeSiblings(4));
     render(<Step2Config />);
     await waitFor(() => expect(fetchDeviceConnections).toHaveBeenCalled());
-    expect(screen.queryByText(/wizard\.config\.pollSuggestionBanner/)).toBeNull();
+    expect(screen.queryByText(/connectionSettings\.pollSuggestionBanner/)).toBeNull();
     // Falls back to textual hint since count > 0
-    expect(screen.queryByText(/wizard\.config\.sameHostHint/)).not.toBeNull();
+    expect(screen.queryByText(/connectionSettings\.sameHostHint/)).not.toBeNull();
   });
 
   it('hides the banner when protocol is push_ingest (no polling)', async () => {
@@ -123,13 +123,13 @@ describe('Step2Config — poll-interval suggestion banner', () => {
     vi.mocked(fetchDeviceConnections).mockResolvedValue(makeSiblings(5));
     render(<Step2Config />);
     await waitFor(() => expect(fetchDeviceConnections).toHaveBeenCalled());
-    expect(screen.queryByText(/wizard\.config\.pollSuggestionBanner/)).toBeNull();
+    expect(screen.queryByText(/connectionSettings\.pollSuggestionBanner/)).toBeNull();
   });
 
   it('clicking "Apply 10s" dispatches SET_POLL_INTERVAL with 10000ms', async () => {
     vi.mocked(fetchDeviceConnections).mockResolvedValue(makeSiblings(3));
     render(<Step2Config />);
-    const applyBtn = await screen.findByText(/wizard\.config\.pollSuggestionApply/);
+    const applyBtn = await screen.findByText(/connectionSettings\.pollSuggestionApply/);
     fireEvent.click(applyBtn);
     expect(dispatchSpy).toHaveBeenCalledWith({ type: 'SET_POLL_INTERVAL', ms: 10000 });
   });
@@ -140,8 +140,8 @@ describe('Step2Config — poll-interval suggestion banner', () => {
     render(<Step2Config />);
     // fetchDeviceConnections should not even be called when host is empty
     await waitFor(() => {
-      expect(screen.queryByText(/wizard\.config\.pollSuggestionBanner/)).toBeNull();
-      expect(screen.queryByText(/wizard\.config\.sameHostHint/)).toBeNull();
+      expect(screen.queryByText(/connectionSettings\.pollSuggestionBanner/)).toBeNull();
+      expect(screen.queryByText(/connectionSettings\.sameHostHint/)).toBeNull();
     });
   });
 });
