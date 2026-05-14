@@ -1,19 +1,19 @@
 # IoT Dashboard
 
-A high-fidelity IIoT process control dashboard for factory floor monitoring. Built with React 19 + TypeScript (frontend) and .NET 9 C# (backend), featuring real-time SSE push, PLC register mapping, UCL/LCL alerting, and shoe-material presence detection.
+A high-fidelity IIoT process control dashboard for factory floor monitoring. Built with React 19 + TypeScript (frontend) and .NET 9 C# (backend), featuring real-time SSE push, PLC register mapping, UCL/LCL alerting, and SensorGatingRule-driven conditional sampling.
 
 ## Architecture
 
 ```
 PLC → OvenDataReceive → POST /api/data/ingest
-  → DataIngestionService (HasMaterial detection, alert generation)
+  → DataIngestionService (SensorGatingRule filtering, alert generation)
   → SQL Server (SensorReadings, SensorAlerts)
   → SSE push → React Dashboard
 ```
 
 **Frontend:** React 19, TypeScript, Tailwind CSS 4, Vite 6, Recharts  
 **Backend:** .NET 9, EF Core 9, SQL Server, SSE  
-**Key features:** Real-time monitoring, PLC template system, register map, UCL/LCL limits, shoe-material presence (reg 40013), sensor gating (per-sensor conditional sampling driven by a DI photo-eye, cross-AssetCode supported), Modbus FC02 (Discrete Input) support, LTTB downsampling, OpenTelemetry, Device Integration Wizard (auto-provision + production-line binding), in-place connection editing (edit name / host / port / poll interval without delete-recreate), FAS asset category integration, multi-language UI (zh-TW / zh-CN / EN), theme persistence
+**Key features:** Real-time monitoring, PLC template system, register map, UCL/LCL limits, sensor gating (per-sensor conditional sampling driven by a DI photo-eye, cross-AssetCode supported), Modbus FC02 (Discrete Input) support, LTTB downsampling, OpenTelemetry, Device Integration Wizard (auto-provision + production-line binding), in-place connection editing (edit name / host / port / poll interval, manage sensors with scan-and-add / remove), FAS asset category integration, multi-language UI (zh-TW / zh-CN / EN), theme persistence
 
 ## Run Locally
 
