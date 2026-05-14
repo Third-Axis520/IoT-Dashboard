@@ -6,6 +6,7 @@
 // FC02 固定回傳 0.0 / 1.0（光電開關、限位、到位訊號）
 // ─────────────────────────────────────────────────────────────────────────────
 
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using System.Text.Json;
@@ -15,10 +16,19 @@ using static IoT.CentralApi.Adapters.ModbusTcpAdapterHelpers;
 
 namespace IoT.CentralApi.Adapters;
 
-public class ModbusTcpAdapter : IProtocolAdapter
+public class ModbusTcpAdapter : IProtocolAdapter, IDisposable
 {
     private static readonly string[] ValidDataTypes =
         ["uint16", "int16", "uint32", "int32", "float32"];
+
+    // Per-host long-lived clients reused across PollAsync calls so we don't
+    // open + close a TCP session every tick. Cheap Modbus gateways throttle
+    // session re-establishment and reset the socket under that churn.
+    // Safety: PollingBackgroundService's host-level semaphore (C-1) ensures
+    // only one thread is inside ReadAsync for any given host at a time, so
+    // FluentModbus's non-thread-safe ModbusTcpClient is fine to share.
+    // Discovery deliberately bypasses the pool (one-shot use case).
+    private readonly ConcurrentDictionary<string, ModbusTcpClient> _clientPool = new();
 
     public string ProtocolId => "modbus_tcp";
     public string DisplayName => "Modbus TCP";
@@ -154,7 +164,8 @@ public class ModbusTcpAdapter : IProtocolAdapter
         if (!TryParseConfig(configJson, out var config, out var parseError))
             return Result<DiscoveryResult>.Fail(ErrorKind.InvalidConfig, parseError!);
 
-        var readResult = await ReadAsync(config!, ct);
+        // Discovery is one-shot — fresh client, disconnected after.
+        var readResult = await ReadAsync(config!, ct, usePool: false);
         if (!readResult.IsSuccess)
             return Result<DiscoveryResult>.Fail(readResult.ErrorKind, readResult.ErrorMessage!);
 
@@ -174,29 +185,79 @@ public class ModbusTcpAdapter : IProtocolAdapter
         if (!TryParseConfig(configJson, out var config, out var parseError))
             return Result<PollResult>.Fail(ErrorKind.InvalidConfig, parseError!);
 
-        var readResult = await ReadAsync(config!, ct);
+        // Polling reuses a per-host long-lived client to avoid TCP session churn.
+        var readResult = await ReadAsync(config!, ct, usePool: true);
         if (!readResult.IsSuccess)
             return Result<PollResult>.Fail(readResult.ErrorKind, readResult.ErrorMessage!);
 
         return Result<PollResult>.Ok(new PollResult(readResult.Value!, DateTime.UtcNow));
     }
 
+    // ── Pool helpers ───────────────────────────────────────────────────────────
+
+    internal static string GetClientKey(string host, int port) => $"{host}:{port}";
+
+    private static ModbusTcpClient CreateClient() => new()
+    {
+        ConnectTimeout = 5000,
+        ReadTimeout = 5000,
+        WriteTimeout = 5000,
+    };
+
+    private ModbusTcpClient GetOrConnectClient(ModbusTcpConfig config)
+    {
+        var key = GetClientKey(config.Host, config.Port);
+        var client = _clientPool.GetOrAdd(key, _ => CreateClient());
+        if (!client.IsConnected)
+        {
+            var ip = IPAddress.Parse(config.Host);
+            client.Connect(new IPEndPoint(ip, config.Port));
+        }
+        return client;
+    }
+
+    private void EvictClient(string key)
+    {
+        if (_clientPool.TryRemove(key, out var client))
+        {
+            try { client.Disconnect(); } catch { }
+        }
+    }
+
+    // Exposed for tests / diagnostics. Don't surface in DTOs.
+    internal int PoolSize => _clientPool.Count;
+
+    public void Dispose()
+    {
+        foreach (var (_, client) in _clientPool)
+        {
+            try { client.Disconnect(); } catch { }
+        }
+        _clientPool.Clear();
+        GC.SuppressFinalize(this);
+    }
+
     // ── Shared read logic ──────────────────────────────────────────────────────
 
     private async Task<Result<Dictionary<string, double>>> ReadAsync(
-        ModbusTcpConfig config, CancellationToken ct)
+        ModbusTcpConfig config, CancellationToken ct, bool usePool)
     {
         return await Task.Run(() =>
         {
-            var client = new ModbusTcpClient();
+            ModbusTcpClient? client = null;
+            var poolKey = usePool ? GetClientKey(config.Host, config.Port) : null;
             try
             {
-                client.ConnectTimeout = 5000;
-                client.ReadTimeout = 5000;
-                client.WriteTimeout = 5000;
-
-                var ip = IPAddress.Parse(config.Host);
-                client.Connect(new IPEndPoint(ip, config.Port));
+                if (usePool)
+                {
+                    client = GetOrConnectClient(config);
+                }
+                else
+                {
+                    client = CreateClient();
+                    var ip = IPAddress.Parse(config.Host);
+                    client.Connect(new IPEndPoint(ip, config.Port));
+                }
 
                 return config.Function == "discrete"
                     ? ReadDiscreteInputsImpl(client, config)
@@ -204,16 +265,20 @@ public class ModbusTcpAdapter : IProtocolAdapter
             }
             catch (SocketException ex)
             {
+                if (poolKey != null) EvictClient(poolKey);
                 return Result<Dictionary<string, double>>.Fail(
                     ErrorKind.Transient, $"Socket 連線失敗: {ex.Message}");
             }
             catch (TimeoutException ex)
             {
+                if (poolKey != null) EvictClient(poolKey);
                 return Result<Dictionary<string, double>>.Fail(
                     ErrorKind.Transient, $"連線逾時: {ex.Message}");
             }
             catch (ModbusException ex)
             {
+                // Device errors don't necessarily mean the socket is broken;
+                // keep the pooled client alive for next poll.
                 return Result<Dictionary<string, double>>.Fail(
                     ErrorKind.DeviceError, $"Modbus 裝置錯誤: {ex.Message}");
             }
@@ -231,17 +296,28 @@ public class ModbusTcpAdapter : IProtocolAdapter
             {
                 // FluentModbus wraps exceptions in AggregateException — check if OCE is hiding inside
                 if (ex is AggregateException agg && agg.Flatten().InnerExceptions.Any(e => e is OperationCanceledException))
+                {
+                    if (poolKey != null) EvictClient(poolKey);
                     throw;
+                }
 
                 // Detect transient vs bug by message content.
                 var isTransient = IsTransientException(ex);
+                // Treat any IOException-shaped failure as transient and force a
+                // reconnect on the next poll.
+                if (isTransient && poolKey != null) EvictClient(poolKey);
                 return Result<Dictionary<string, double>>.Fail(
                     isTransient ? ErrorKind.Transient : ErrorKind.Bug,
                     $"未預期的錯誤: {ex.GetType().Name}: {ex.Message}");
             }
             finally
             {
-                try { client.Disconnect(); } catch { }
+                // One-shot client always gets disposed. Pooled clients live
+                // across calls and are only torn down on eviction or Dispose.
+                if (!usePool && client != null)
+                {
+                    try { client.Disconnect(); } catch { }
+                }
             }
         }, ct);
     }
