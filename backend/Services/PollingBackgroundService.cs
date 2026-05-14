@@ -89,14 +89,17 @@ public class PollingBackgroundService(
             return;
         }
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(TimeSpan.FromSeconds(10));
-
         var hostLock = _hostLocks.GetOrAdd(GetHostKey(dc), _ => new SemaphoreSlim(1, 1));
         Result<PollResult> result;
-        await hostLock.WaitAsync(cts.Token);
+        // Wait for the host lock using the parent token only. The per-poll
+        // 10s deadline must start AFTER we hold the lock, otherwise the 5th
+        // connection on a shared gateway sees its deadline elapse while
+        // queued, producing spurious cancellations.
+        await hostLock.WaitAsync(ct);
         try
         {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(TimeSpan.FromSeconds(10));
             result = await adapter.PollAsync(dc.ConfigJson, cts.Token);
         }
         finally
