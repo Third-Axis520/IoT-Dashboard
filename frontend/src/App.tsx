@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Activity, Plus, Search } from 'lucide-react';
 
-import type { AlertRecord, Equipment, MachineTemplate, ProductionLine } from './types';
+import type { AlertRecord, Equipment, MachineTemplate, PointStatus, ProductionLine } from './types';
 import type { SensorGatingRule } from './types/gating';
 import { cn } from './utils/cn';
 import { createEquipmentFromTemplate } from './utils/simulation';
@@ -194,7 +194,25 @@ export default function App() {
                 if (p.sensorId === undefined) return p;
                 const h = hMap[p.sensorId];
                 if (!h || h.length === 0) return p;
-                return { ...p, history: h.slice(-60) };
+                // Seed both the rolling history series AND the current value
+                // / status, so cards on Dashboard + Trend views display the
+                // last DB value instead of 0 until SSE delivers its first
+                // tick. Status calculation mirrors useLiveData.ts.
+                const recent = h.slice(-60);
+                const latest = recent[recent.length - 1].value;
+                const pValue = Number(latest.toFixed(1));
+                const ucl = p.ucl;
+                const lcl = p.lcl;
+                let status: PointStatus = 'normal';
+                if ((ucl > 0 && pValue > ucl) || (lcl > 0 && pValue < lcl)) {
+                  status = 'danger';
+                } else if (
+                  (ucl > 0 && pValue > ucl * 0.95) ||
+                  (lcl > 0 && pValue < lcl * 1.05)
+                ) {
+                  status = 'warning';
+                }
+                return { ...p, history: recent, value: pValue, status };
               }),
             };
           }),
