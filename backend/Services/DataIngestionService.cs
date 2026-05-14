@@ -213,6 +213,11 @@ public class DataIngestionService(
             {
                 var assetInfo = await fasService.GetAssetInfoAsync(assetCode);
 
+                // BuildSseSensors mirrors the DB readings filter above so that
+                // strict-mode + !hasMaterial produces a heartbeat with HasMaterial
+                // flag but no sensor values — DB and SSE stay consistent. The
+                // helper is internal+static so it's unit-testable without the
+                // SseHub connection-count gate getting in the way.
                 var ssePayload = new SseDataUpdate
                 {
                     AssetCode = assetCode,
@@ -220,25 +225,7 @@ public class DataIngestionService(
                     Timestamp = payload.Timestamp,
                     IsConnected = payload.IsConnected,
                     HasMaterial = hasMaterialNullable,
-                    // dropAllRemaining mirrors the DB readings filter above so that
-                    // strict-mode + !hasMaterial produces a heartbeat with HasMaterial
-                    // flag but no sensor values — DB and SSE stay consistent.
-                    Sensors = dropAllRemaining
-                        ? new List<SseSensorItem>()
-                        : payload.Sensors
-                            .Where(s => !IsBlockedByNewGating(s.Id))
-                            .Select(s =>
-                            {
-                                limits.TryGetValue(s.Id, out var lim);
-                                return new SseSensorItem
-                                {
-                                    Id = s.Id,
-                                    Value = s.Value,
-                                    Ucl = lim?.UCL ?? 0,
-                                    Lcl = lim?.LCL ?? 0,
-                                    Error = s.Error
-                                };
-                            }).ToList()
+                    Sensors = BuildSseSensors(payload.Sensors, limits, IsBlockedByNewGating, dropAllRemaining),
                 };
 
                 await sseHub.BroadcastAsync(ssePayload);
@@ -265,6 +252,35 @@ public class DataIngestionService(
 
         _gatingRulesCache[assetCode] = rules;
         return rules;
+    }
+
+    /// <summary>
+    /// Builds the Sensors list for an SSE data-update payload, honouring the
+    /// same drop predicate as the DB readings write. Extracted so it can be
+    /// unit-tested without going through SseHub (which gates broadcasts on
+    /// having at least one subscriber, making in-process tests awkward).
+    /// </summary>
+    internal static List<SseSensorItem> BuildSseSensors(
+        IList<SensorReading_Dto> payloadSensors,
+        Dictionary<int, SensorLimit> limits,
+        Func<int, bool> isBlockedByNewGating,
+        bool dropAllRemaining)
+    {
+        if (dropAllRemaining) return new List<SseSensorItem>();
+        return payloadSensors
+            .Where(s => !isBlockedByNewGating(s.Id))
+            .Select(s =>
+            {
+                limits.TryGetValue(s.Id, out var lim);
+                return new SseSensorItem
+                {
+                    Id = s.Id,
+                    Value = s.Value,
+                    Ucl = lim?.UCL ?? 0,
+                    Lcl = lim?.LCL ?? 0,
+                    Error = s.Error,
+                };
+            }).ToList();
     }
 
     private async Task<int?> GetMaterialDetectSensorIdAsync(string assetCode, IoT.CentralApi.Data.IoTDbContext db)
