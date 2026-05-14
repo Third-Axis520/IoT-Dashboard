@@ -3,6 +3,10 @@
 -- is parked in source control so it's reviewable; the Phase B runbook
 -- executes it during a planned maintenance window.
 --
+-- Target: SQL Server only (uses T-SQL MERGE). SQLite/Postgres would need
+-- a rewrite to INSERT ... ON CONFLICT — but the integration test DB is
+-- SQLite, so this script intentionally never runs in tests.
+--
 -- For every EquipmentType that has both a material_detect sensor and at
 -- least one non-material_detect sensor, insert a SensorGatingRule row
 -- making the non-material sensor gated by the material_detect sensor in
@@ -39,11 +43,26 @@ WHEN NOT MATCHED BY TARGET THEN
     INSERT (GatedAssetCode, GatedSensorId, GatingAssetCode, GatingSensorId, DelayMs, MaxAgeMs)
     VALUES (src.GatedAssetCode, src.GatedSensorId, src.GatingAssetCode, src.GatingSensorId, src.DelayMs, src.MaxAgeMs);
 
--- Rollback: the inverse delete. Removes only rules that look auto-generated
--- (DelayMs=0, MaxAgeMs=10000, gated and gating share AssetCode). Users with
--- manually-edited rules using the same shape will lose them, so prefer a
--- database backup if you don't fully trust this heuristic.
+-- Rollback strategy: RESTORE FROM DB SNAPSHOT, not the inverse DELETE below.
 --
+-- The Phase B runbook MUST take a fresh DB snapshot immediately before
+-- executing this migration. If anything goes wrong post-cutover, restore
+-- that snapshot rather than running the heuristic delete — a user could
+-- have manually authored a gating rule with the same shape (same
+-- AssetCode, DelayMs=0, MaxAgeMs=10000) and the inverse DELETE has no
+-- way to tell the difference.
+--
+-- The heuristic delete is kept here only as a last-resort tool when a
+-- snapshot isn't available. Read the WHERE clause carefully before you
+-- run it, ideally after a row count check.
+--
+--     -- Sanity check first — how many rows match the heuristic?
+--     SELECT COUNT(*) FROM SensorGatingRules
+--     WHERE GatedAssetCode = GatingAssetCode
+--       AND DelayMs = 0
+--       AND MaxAgeMs = 10000;
+--
+--     -- Only if the count matches the migration's insert count:
 --     DELETE FROM SensorGatingRules
 --     WHERE GatedAssetCode = GatingAssetCode
 --       AND DelayMs = 0

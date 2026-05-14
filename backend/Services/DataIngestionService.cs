@@ -108,28 +108,30 @@ public class DataIngestionService(
                 return false;
             }
 
-            // 4. 寫入時序讀值（material_detect 感測器為狀態位元，不寫入溫度表；A1 gating 封鎖的也跳過）
             // StrictMode (Phase B cutover, default OFF today): when hasMaterial=false
-            // drop ALL remaining readings too, matching SensorGatingRule "don't write"
-            // semantics. Today's prod runs with the flag off → identical behaviour to
-            // the previous revision. See plans/2026-05-14-gating-convergence-sprint1.md.
+            // drop ALL remaining readings — both the DB write and the SSE broadcast —
+            // matching SensorGatingRule "don't write" semantics. Today's prod runs with
+            // the flag off → identical behaviour to the previous revision. The shared
+            // predicate keeps DB + SSE in lockstep; an earlier revision only cleared
+            // readings and left SSE intact (audit P2-1).
             var strictMode = gatingOptions.Value.StrictMode;
+            var dropAllRemaining = strictMode && !hasMaterial;
 
-            var readings = payload.Sensors
-                .Where(s => !matSensorId.HasValue || s.Id != matSensorId.Value)
-                .Where(s => !IsBlockedByNewGating(s.Id))
-                .Select(s => new SensorReading
-                {
-                    AssetCode = assetCode,
-                    SensorId = s.Id,
-                    Value = s.Value,
-                    HasError = s.Error != null,
-                    HasMaterial = hasMaterial,
-                    Timestamp = now
-                }).ToList();
-
-            if (strictMode && !hasMaterial)
-                readings.Clear();
+            // 4. 寫入時序讀值（material_detect 感測器為狀態位元，不寫入溫度表；A1 gating 封鎖的也跳過）
+            var readings = dropAllRemaining
+                ? new List<SensorReading>()
+                : payload.Sensors
+                    .Where(s => !matSensorId.HasValue || s.Id != matSensorId.Value)
+                    .Where(s => !IsBlockedByNewGating(s.Id))
+                    .Select(s => new SensorReading
+                    {
+                        AssetCode = assetCode,
+                        SensorId = s.Id,
+                        Value = s.Value,
+                        HasError = s.Error != null,
+                        HasMaterial = hasMaterial,
+                        Timestamp = now
+                    }).ToList();
 
             db.SensorReadings.AddRange(readings);
 
@@ -218,20 +220,25 @@ public class DataIngestionService(
                     Timestamp = payload.Timestamp,
                     IsConnected = payload.IsConnected,
                     HasMaterial = hasMaterialNullable,
-                    Sensors = payload.Sensors
-                        .Where(s => !IsBlockedByNewGating(s.Id))
-                        .Select(s =>
-                        {
-                            limits.TryGetValue(s.Id, out var lim);
-                            return new SseSensorItem
+                    // dropAllRemaining mirrors the DB readings filter above so that
+                    // strict-mode + !hasMaterial produces a heartbeat with HasMaterial
+                    // flag but no sensor values — DB and SSE stay consistent.
+                    Sensors = dropAllRemaining
+                        ? new List<SseSensorItem>()
+                        : payload.Sensors
+                            .Where(s => !IsBlockedByNewGating(s.Id))
+                            .Select(s =>
                             {
-                                Id = s.Id,
-                                Value = s.Value,
-                                Ucl = lim?.UCL ?? 0,
-                                Lcl = lim?.LCL ?? 0,
-                                Error = s.Error
-                            };
-                        }).ToList()
+                                limits.TryGetValue(s.Id, out var lim);
+                                return new SseSensorItem
+                                {
+                                    Id = s.Id,
+                                    Value = s.Value,
+                                    Ucl = lim?.UCL ?? 0,
+                                    Lcl = lim?.LCL ?? 0,
+                                    Error = s.Error
+                                };
+                            }).ToList()
                 };
 
                 await sseHub.BroadcastAsync(ssePayload);
