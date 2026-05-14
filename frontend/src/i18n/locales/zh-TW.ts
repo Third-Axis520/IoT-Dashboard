@@ -322,6 +322,8 @@ const zhTW = {
       alertCooldownSecHelp: '兩次相同連線告警之間最少間隔，避免噪音（預設 300 = 5 分鐘）',
       isAlertEnabled: '啟用此連線告警',
       sameHostHint: '主機 {{host}}:{{port}} 已有 {{count}} 個連線；部分 Modbus gateway 並發限制 1-4，若儲存後不穩可考慮減少連線數或加大 PollInterval。',
+      pollSuggestionBanner: '偵測到 {{count}} 個連線打同一個 {{host}}:{{port}}，建議將輪詢間隔加大到 10 秒，可降低 gateway 並發壓力（之後仍可隨時調回）。',
+      pollSuggestionApply: '套用 10 秒',
     },
     discovery: {
       titlePush: '推送設備',
@@ -438,7 +440,6 @@ const zhTW = {
   connectionHealth: {
     badgeAllHealthy: '連線正常',
     badgeSomeUnhealthy: '{{bad}}/{{total}} 異常',
-    badgeAllOffline: '全部異常',
     popoverTitle: '連線健康度',
     pollingStopped: 'Polling 停擺',
     pollingHealthy: 'Polling 正常',
@@ -446,7 +447,6 @@ const zhTW = {
     noConnections: '尚無啟用連線',
     consecutiveErrors: '連續錯誤 {{count}} 次',
     lastPollAt: '上次輪詢',
-    alertsDisabled: '已關閉告警',
   },
 } as const;
 

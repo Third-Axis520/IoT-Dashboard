@@ -324,6 +324,8 @@ const zhCN: Translation = {
       alertCooldownSecHelp: '两次相同连接告警之间最少间隔，避免噪音（默认 300 = 5 分钟）',
       isAlertEnabled: '启用此连接告警',
       sameHostHint: '主机 {{host}}:{{port}} 已有 {{count}} 个连接；部分 Modbus gateway 并发限制 1-4，若保存后不稳定可考虑减少连接数或加大 PollInterval。',
+      pollSuggestionBanner: '检测到 {{count}} 个连接打同一个 {{host}}:{{port}}，建议将轮询间隔加大到 10 秒，可降低 gateway 并发压力（之后仍可随时调回）。',
+      pollSuggestionApply: '应用 10 秒',
     },
     discovery: {
       titlePush: '推送设备',
@@ -440,7 +442,6 @@ const zhCN: Translation = {
   connectionHealth: {
     badgeAllHealthy: '连接正常',
     badgeSomeUnhealthy: '{{bad}}/{{total}} 异常',
-    badgeAllOffline: '全部异常',
     popoverTitle: '连接健康度',
     pollingStopped: 'Polling 停摆',
     pollingHealthy: 'Polling 正常',
@@ -448,7 +449,6 @@ const zhCN: Translation = {
     noConnections: '尚无启用连接',
     consecutiveErrors: '连续错误 {{count}} 次',
     lastPollAt: '上次轮询',
-    alertsDisabled: '已关闭告警',
   },
 };
 

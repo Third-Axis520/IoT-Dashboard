@@ -1,17 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Lightbulb } from 'lucide-react';
 import { useWizard } from '../WizardContext';
 import DynamicForm from '../DynamicForm';
+import AlertSettingsSection from '../../AlertSettingsSection';
 import { fetchProtocol, type ProtocolItem } from '../../../../lib/apiProtocols';
 import { POLL_INTERVAL_SECONDS } from '../../../../constants/pollIntervals';
 import { fetchDeviceConnections } from '../../../../lib/apiDeviceConnections';
+
+// Heuristic: when this many connections already share host:port, suggest a longer poll
+// interval to ease gateway concurrency. Calibrated from a real incident (2026-05-13)
+// where 5 connections at 5s polling exhausted a Modbus gateway's session limit.
+const SAME_HOST_RECOMMEND_THRESHOLD = 3;
+const RECOMMENDED_POLL_MS = 10000;
 
 export default function Step2Config() {
   const { state, dispatch } = useWizard();
   const { t } = useTranslation();
   const [protocol, setProtocol] = useState<ProtocolItem | null>(null);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [sameHostCount, setSameHostCount] = useState(0);
   const configRef = useRef(state.config);
   configRef.current = state.config;
@@ -60,6 +66,10 @@ export default function Step2Config() {
   }, [protocol, dispatch]);
 
   const canProceed = state.connectionName.trim().length > 0;
+  const shouldSuggestLongerPoll =
+    sameHostCount >= SAME_HOST_RECOMMEND_THRESHOLD &&
+    state.protocol !== 'push_ingest' &&
+    state.pollIntervalMs < RECOMMENDED_POLL_MS;
 
   return (
     <div className="p-6">
@@ -117,8 +127,34 @@ export default function Step2Config() {
         />
       )}
 
-      {/* Same-host hint */}
-      {sameHostCount > 0 && (
+      {/* Actionable poll-interval recommendation — supersedes textual sameHostHint
+          when concurrency is high enough to actually risk gateway issues. */}
+      {shouldSuggestLongerPoll && (
+        <div className="mb-4 flex items-start gap-2 px-3 py-2 rounded-md bg-[var(--accent-green)]/10 border border-[var(--accent-green)]/30 text-xs text-[var(--text-main)]">
+          <Lightbulb size={14} className="mt-0.5 shrink-0 text-[var(--accent-green)]" />
+          <div className="flex-1">
+            <p className="mb-2" aria-live="polite">
+              {t('wizard.config.pollSuggestionBanner', {
+                host: state.config.host,
+                port: state.config.port || '502',
+                count: sameHostCount,
+              })}
+            </p>
+            <button
+              type="button"
+              onClick={() => dispatch({ type: 'SET_POLL_INTERVAL', ms: RECOMMENDED_POLL_MS })}
+              aria-label={t('wizard.config.pollSuggestionApply') + ' — ' + t('wizard.config.intervalLabel')}
+              className="px-3 py-1 rounded border border-[var(--accent-green)] text-[var(--accent-green)] hover:bg-[var(--accent-green)]/10 transition-colors"
+            >
+              {t('wizard.config.pollSuggestionApply')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Same-host hint — only shown when the actionable banner isn't (lower count
+          OR user already chose ≥ 10s). Keeps the FYI without duplicate noise. */}
+      {sameHostCount > 0 && !shouldSuggestLongerPoll && (
         <div className="mb-4 flex items-start gap-2 px-3 py-2 rounded-md bg-[var(--accent-yellow)]/10 border border-[var(--accent-yellow)]/30 text-xs text-[var(--accent-yellow)]">
           <AlertTriangle size={14} className="mt-0.5 shrink-0" />
           <span>
@@ -131,78 +167,19 @@ export default function Step2Config() {
         </div>
       )}
 
-      {/* Advanced collapsible */}
-      <div className="mt-4 border-t border-[var(--border-base)] pt-3">
-        <button
-          type="button"
-          onClick={() => setAdvancedOpen(o => !o)}
-          className="flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--text-main)]"
-        >
-          {advancedOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-          {t('wizard.config.advancedTitle')}
-          <span className="text-xs text-[var(--text-muted)] ml-2">— {t('wizard.config.advancedHint')}</span>
-        </button>
-
-        {advancedOpen && (
-          <div className="mt-3 space-y-3 pl-4">
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={state.isAlertEnabled}
-                onChange={e => dispatch({
-                  type: 'SET_ALERT_SETTINGS',
-                  alertOnConsecutiveErrors: state.alertOnConsecutiveErrors,
-                  alertCooldownSec: state.alertCooldownSec,
-                  isAlertEnabled: e.target.checked,
-                })}
-              />
-              <span className="text-[var(--text-main)]">{t('wizard.config.isAlertEnabled')}</span>
-            </label>
-
-            <div>
-              <label className="block text-sm text-[var(--text-main)] mb-1">
-                {t('wizard.config.alertOnConsecutiveErrors')}
-              </label>
-              <input
-                type="number"
-                min={1}
-                max={1000}
-                value={state.alertOnConsecutiveErrors}
-                onChange={e => dispatch({
-                  type: 'SET_ALERT_SETTINGS',
-                  alertOnConsecutiveErrors: Math.max(1, parseInt(e.target.value, 10) || 5),
-                  alertCooldownSec: state.alertCooldownSec,
-                  isAlertEnabled: state.isAlertEnabled,
-                })}
-                disabled={!state.isAlertEnabled}
-                className="w-24 px-2 py-1 rounded border border-[var(--border-base)] bg-[var(--bg-panel)] text-[var(--text-main)] text-sm disabled:opacity-50"
-              />
-              <p className="text-xs text-[var(--text-muted)] mt-1">{t('wizard.config.alertOnConsecutiveErrorsHelp')}</p>
-            </div>
-
-            <div>
-              <label className="block text-sm text-[var(--text-main)] mb-1">
-                {t('wizard.config.alertCooldownSec')}
-              </label>
-              <input
-                type="number"
-                min={0}
-                max={86400}
-                value={state.alertCooldownSec}
-                onChange={e => dispatch({
-                  type: 'SET_ALERT_SETTINGS',
-                  alertOnConsecutiveErrors: state.alertOnConsecutiveErrors,
-                  alertCooldownSec: Math.max(0, parseInt(e.target.value, 10) || 300),
-                  isAlertEnabled: state.isAlertEnabled,
-                })}
-                disabled={!state.isAlertEnabled}
-                className="w-24 px-2 py-1 rounded border border-[var(--border-base)] bg-[var(--bg-panel)] text-[var(--text-main)] text-sm disabled:opacity-50"
-              />
-              <p className="text-xs text-[var(--text-muted)] mt-1">{t('wizard.config.alertCooldownSecHelp')}</p>
-            </div>
-          </div>
-        )}
-      </div>
+      <AlertSettingsSection
+        value={{
+          isAlertEnabled: state.isAlertEnabled,
+          alertOnConsecutiveErrors: state.alertOnConsecutiveErrors,
+          alertCooldownSec: state.alertCooldownSec,
+        }}
+        onChange={next => dispatch({
+          type: 'SET_ALERT_SETTINGS',
+          alertOnConsecutiveErrors: next.alertOnConsecutiveErrors,
+          alertCooldownSec: next.alertCooldownSec,
+          isAlertEnabled: next.isAlertEnabled,
+        })}
+      />
 
       <div className="flex justify-between mt-6">
         <button

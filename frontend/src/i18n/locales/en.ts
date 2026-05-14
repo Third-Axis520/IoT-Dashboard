@@ -324,6 +324,8 @@ const en: Translation = {
       alertCooldownSecHelp: 'Minimum interval between repeat alerts for the same connection (default 300 = 5 min)',
       isAlertEnabled: 'Enable alerts for this connection',
       sameHostHint: '{{count}} connection(s) already target {{host}}:{{port}}. Some Modbus gateways limit concurrent sessions to 1-4 — if unstable after saving, reduce connections or increase PollInterval.',
+      pollSuggestionBanner: '{{count}} connections already target {{host}}:{{port}}. We recommend raising the poll interval to 10s to ease gateway concurrency (you can change this back any time).',
+      pollSuggestionApply: 'Apply 10s',
     },
     discovery: {
       titlePush: 'Push Device',
@@ -440,7 +442,6 @@ const en: Translation = {
   connectionHealth: {
     badgeAllHealthy: 'Connections OK',
     badgeSomeUnhealthy: '{{bad}}/{{total}} unhealthy',
-    badgeAllOffline: 'All offline',
     popoverTitle: 'Connection Health',
     pollingStopped: 'Polling stopped',
     pollingHealthy: 'Polling healthy',
@@ -448,7 +449,6 @@ const en: Translation = {
     noConnections: 'No active connections',
     consecutiveErrors: '{{count}} consecutive errors',
     lastPollAt: 'Last poll',
-    alertsDisabled: 'Alerts off',
   },
 };
 

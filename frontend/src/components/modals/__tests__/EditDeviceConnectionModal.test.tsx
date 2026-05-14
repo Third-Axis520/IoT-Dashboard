@@ -56,6 +56,9 @@ const mockConn: DeviceConnectionItem = {
   equipmentTypeId: null,
   equipmentTypeName: null,
   createdAt: '2026-04-27T00:00:00Z',
+  alertOnConsecutiveErrors: 5,
+  alertCooldownSec: 300,
+  isAlertEnabled: true,
 };
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
