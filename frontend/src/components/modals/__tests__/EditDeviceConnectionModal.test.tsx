@@ -25,12 +25,21 @@ vi.mock('../../../lib/apiDeviceConnections', () => ({
   fetchDeviceConnections: vi.fn(),
 }));
 
+vi.mock('../../../lib/apiEquipmentTypes', () => ({
+  fetchEquipmentTypeDetail: vi.fn(),
+  updateEquipmentType: vi.fn(),
+}));
+
 import { fetchProtocol } from '../../../lib/apiProtocols';
 import {
   updateDeviceConnection,
   testDeviceConnection,
   fetchDeviceConnections,
 } from '../../../lib/apiDeviceConnections';
+import {
+  fetchEquipmentTypeDetail,
+  updateEquipmentType,
+} from '../../../lib/apiEquipmentTypes';
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -75,6 +84,18 @@ describe('EditDeviceConnectionModal', () => {
     vi.mocked(updateDeviceConnection).mockResolvedValue(undefined as never);
     vi.mocked(testDeviceConnection).mockResolvedValue({ success: true } as never);
     vi.mocked(fetchDeviceConnections).mockResolvedValue([]);
+    vi.mocked(fetchEquipmentTypeDetail).mockResolvedValue({
+      id: 50,
+      name: 'PLC-A Equipment',
+      visType: 'single_kpi',
+      description: null,
+      createdAt: '2026-04-27T00:00:00Z',
+      sensors: [
+        { id: 1, sensorId: 1001, pointId: 'p1', rawAddress: '40001', label: 'Temp', unit: '°C', propertyTypeId: 1, propertyTypeBehavior: 'numeric', sortOrder: 0 },
+        { id: 2, sensorId: 1002, pointId: 'p2', rawAddress: '40002', label: 'Humid', unit: '%', propertyTypeId: 2, propertyTypeBehavior: 'numeric', sortOrder: 1 },
+      ],
+    } as never);
+    vi.mocked(updateEquipmentType).mockResolvedValue(undefined as never);
   });
 
   function renderModal(overrides?: Partial<DeviceConnectionItem>) {
@@ -367,5 +388,70 @@ describe('EditDeviceConnectionModal', () => {
     const nameInput = screen.getByLabelText(/connectionSettings\.nameLabel/) as HTMLInputElement;
     fireEvent.change(nameInput, { target: { value: 'PLC-A renamed' } });
     expect(screen.queryByText(/common\.unsavedChanges/)).not.toBeNull();
+  });
+
+  // ─── Sensor management section ───────────────────────────────────────────
+
+  it('does NOT render SensorManagementSection when conn.equipmentTypeId is null', async () => {
+    renderModal({ equipmentTypeId: null });
+    await waitFor(() => expect(fetchProtocol).toHaveBeenCalled());
+    expect(screen.queryByText(/connectionSettings\.sensors\.sectionTitle/)).toBeNull();
+    expect(fetchEquipmentTypeDetail).not.toHaveBeenCalled();
+  });
+
+  it('renders SensorManagementSection and fetches sensors when equipmentTypeId is set', async () => {
+    renderModal({ equipmentTypeId: 50, equipmentTypeName: 'PLC-A Equipment' });
+    await waitFor(() => expect(fetchEquipmentTypeDetail).toHaveBeenCalledWith(50));
+    // Section header should appear
+    expect(screen.queryByText(/connectionSettings\.sensors\.sectionTitle/)).not.toBeNull();
+  });
+
+  it('lists existing sensors when section is expanded', async () => {
+    renderModal({ equipmentTypeId: 50, equipmentTypeName: 'PLC-A Equipment' });
+    await waitFor(() => expect(fetchEquipmentTypeDetail).toHaveBeenCalled());
+    // Expand the section
+    fireEvent.click(screen.getByText(/connectionSettings\.sensors\.sectionTitle/));
+    // Two existing sensors should appear by label
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Temp')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('Humid')).toBeInTheDocument();
+    });
+  });
+
+  it('editing a sensor label flips isDirty (unsaved-changes indicator appears)', async () => {
+    renderModal({ equipmentTypeId: 50, equipmentTypeName: 'PLC-A Equipment' });
+    await waitFor(() => expect(fetchEquipmentTypeDetail).toHaveBeenCalled());
+    fireEvent.click(screen.getByText(/connectionSettings\.sensors\.sectionTitle/));
+    const tempInput = await screen.findByDisplayValue('Temp');
+    expect(screen.queryByText(/common\.unsavedChanges/)).toBeNull();
+    fireEvent.change(tempInput, { target: { value: 'Temp renamed' } });
+    expect(screen.queryByText(/common\.unsavedChanges/)).not.toBeNull();
+  });
+
+  it('save flow calls updateEquipmentType only when sensors changed', async () => {
+    renderModal({ equipmentTypeId: 50, equipmentTypeName: 'PLC-A Equipment' });
+    await waitFor(() => expect(fetchEquipmentTypeDetail).toHaveBeenCalled());
+    // Save without editing sensors — only connection update should fire
+    fireEvent.click(screen.getByRole('button', { name: /common\.save/ }));
+    await waitFor(() => expect(updateDeviceConnection).toHaveBeenCalled());
+    expect(updateEquipmentType).not.toHaveBeenCalled();
+  });
+
+  it('save flow calls BOTH updateDeviceConnection AND updateEquipmentType when sensors changed', async () => {
+    renderModal({ equipmentTypeId: 50, equipmentTypeName: 'PLC-A Equipment' });
+    await waitFor(() => expect(fetchEquipmentTypeDetail).toHaveBeenCalled());
+    fireEvent.click(screen.getByText(/connectionSettings\.sensors\.sectionTitle/));
+    const tempInput = await screen.findByDisplayValue('Temp');
+    fireEvent.change(tempInput, { target: { value: 'Temp renamed' } });
+    fireEvent.click(screen.getByRole('button', { name: /common\.save/ }));
+    await waitFor(() => {
+      expect(updateDeviceConnection).toHaveBeenCalled();
+      expect(updateEquipmentType).toHaveBeenCalledWith(50, expect.objectContaining({
+        sensors: expect.arrayContaining([
+          expect.objectContaining({ sensorId: 1001, label: 'Temp renamed' }),
+          expect.objectContaining({ sensorId: 1002, label: 'Humid' }),
+        ]),
+      }));
+    });
   });
 });

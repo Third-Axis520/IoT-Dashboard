@@ -17,6 +17,12 @@ import {
   countSiblingsOnSameHost,
   getGatewayConcurrencyHints,
 } from '../../lib/gatewayConcurrency';
+import {
+  fetchEquipmentTypeDetail,
+  updateEquipmentType,
+  type EquipmentTypeDetail,
+} from '../../lib/apiEquipmentTypes';
+import SensorManagementSection, { type SensorRow } from './SensorManagementSection';
 
 interface Props {
   conn: DeviceConnectionItem;
@@ -41,6 +47,43 @@ export default function EditDeviceConnectionModal({ conn, onClose, onSaved }: Pr
   const [alertOnConsecutiveErrors, setAlertOnConsecutiveErrors] = useState(conn.alertOnConsecutiveErrors);
   const [alertCooldownSec, setAlertCooldownSec] = useState(conn.alertCooldownSec);
   const [isAlertEnabled, setIsAlertEnabled] = useState(conn.isAlertEnabled);
+
+  const [sensors, setSensors] = useState<SensorRow[]>([]);
+  const [initialSensors, setInitialSensors] = useState<SensorRow[]>([]);
+  const [etMeta, setEtMeta] = useState<{ name: string; visType: string; description: string | null } | null>(null);
+  const [sensorsLoading, setSensorsLoading] = useState(false);
+  const [sensorsLoadError, setSensorsLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!conn.equipmentTypeId) return;
+    let cancelled = false;
+    setSensorsLoading(true);
+    setSensorsLoadError(null);
+    fetchEquipmentTypeDetail(conn.equipmentTypeId)
+      .then((et: EquipmentTypeDetail) => {
+        if (cancelled) return;
+        const rows: SensorRow[] = et.sensors.map(s => ({
+          sensorId: s.sensorId,
+          pointId: s.pointId,
+          rawAddress: s.rawAddress,
+          label: s.label,
+          unit: s.unit,
+          propertyTypeId: s.propertyTypeId,
+          sortOrder: s.sortOrder,
+        }));
+        setSensors(rows);
+        setInitialSensors(rows);
+        setEtMeta({ name: et.name, visType: et.visType, description: et.description });
+      })
+      .catch(e => {
+        if (cancelled) return;
+        setSensorsLoadError(e instanceof Error ? e.message : t('connectionSettings.sensors.loadFailed'));
+      })
+      .finally(() => { if (!cancelled) setSensorsLoading(false); });
+    return () => { cancelled = true; };
+  }, [conn.equipmentTypeId, t]);
+
+  const sensorsChanged = JSON.stringify(sensors) !== JSON.stringify(initialSensors);
 
   const [sameHostCount, setSameHostCount] = useState(0);
   useEffect(() => {
@@ -72,7 +115,8 @@ export default function EditDeviceConnectionModal({ conn, onClose, onSaved }: Pr
     JSON.stringify(config) !== JSON.stringify(initialConfig) ||
     alertOnConsecutiveErrors !== conn.alertOnConsecutiveErrors ||
     alertCooldownSec !== conn.alertCooldownSec ||
-    isAlertEnabled !== conn.isAlertEnabled;
+    isAlertEnabled !== conn.isAlertEnabled ||
+    sensorsChanged;
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -104,6 +148,25 @@ export default function EditDeviceConnectionModal({ conn, onClose, onSaved }: Pr
         alertCooldownSec,
         isAlertEnabled,
       });
+      // If user edited sensor labels, push the full-replace to /api/equipment-types.
+      // The two PUTs are sequential (not transactional): partial failure surfaces in
+      // saveError so the user can retry.
+      if (sensorsChanged && conn.equipmentTypeId && etMeta) {
+        await updateEquipmentType(conn.equipmentTypeId, {
+          name: etMeta.name,
+          visType: etMeta.visType,
+          description: etMeta.description,
+          sensors: sensors.map((s, i) => ({
+            sensorId: s.sensorId,
+            pointId: s.pointId,
+            label: s.label,
+            unit: s.unit,
+            propertyTypeId: s.propertyTypeId,
+            rawAddress: s.rawAddress,
+            sortOrder: s.sortOrder === 0 ? i : s.sortOrder,
+          })),
+        });
+      }
       setSaveSuccess(true);
       // Hold the green confirmation visible for ~1s before parent unmounts us
       setTimeout(() => onSaved(), 1000);
@@ -257,6 +320,15 @@ export default function EditDeviceConnectionModal({ conn, onClose, onSaved }: Pr
               setAlertCooldownSec(next.alertCooldownSec);
             }}
           />
+
+          {conn.equipmentTypeId !== null && (
+            <SensorManagementSection
+              sensors={sensors}
+              onChange={setSensors}
+              loading={sensorsLoading}
+              loadError={sensorsLoadError}
+            />
+          )}
 
           {/* Save error banner — backend validation / network */}
           {saveError && (
