@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using System.Text.Json;
 using IoT.CentralApi.Adapters.Contracts;
 using IoT.CentralApi.Data;
 using IoT.CentralApi.Models;
@@ -19,6 +21,12 @@ public class PollingBackgroundService(
 {
     private static readonly TimeSpan TickInterval = TimeSpan.FromSeconds(1);
     private DateTime? _lastTickAt;
+
+    // Serialise polls per (host:port) so connections sharing a gateway never
+    // overlap TCP connects — fixes the 2026-05-13 LeanA gateway concurrency
+    // failure where 5 connections to 192.168.62.74:502 ran in parallel and got
+    // IOException "remote host forcibly closed an existing connection".
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _hostLocks = new();
 
     public DateTime? LastTickAt => _lastTickAt;
     public bool IsRunning { get; private set; }
@@ -84,7 +92,17 @@ public class PollingBackgroundService(
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(TimeSpan.FromSeconds(10));
 
-        var result = await adapter.PollAsync(dc.ConfigJson, cts.Token);
+        var hostLock = _hostLocks.GetOrAdd(GetHostKey(dc), _ => new SemaphoreSlim(1, 1));
+        Result<PollResult> result;
+        await hostLock.WaitAsync(cts.Token);
+        try
+        {
+            result = await adapter.PollAsync(dc.ConfigJson, cts.Token);
+        }
+        finally
+        {
+            hostLock.Release();
+        }
 
         if (!result.IsSuccess)
         {
@@ -183,6 +201,29 @@ public class PollingBackgroundService(
             OccurredAt: DateTime.UtcNow);
 
         await alertDispatcher.DispatchAsync(evt, ct);
+    }
+
+    // Extract a stable group key from ConfigJson. Connections that share host:port
+    // share a semaphore and therefore poll serially. Protocols without host/port
+    // (or invalid JSON) fall back to a per-connection key so they don't block others.
+    internal static string GetHostKey(DeviceConnection dc)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(dc.ConfigJson);
+            var root = doc.RootElement;
+            if (!root.TryGetProperty("host", out var hostEl) || hostEl.ValueKind == JsonValueKind.Null)
+                return $"conn-{dc.Id}";
+            var host = hostEl.GetString();
+            if (string.IsNullOrWhiteSpace(host))
+                return $"conn-{dc.Id}";
+            var port = root.TryGetProperty("port", out var portEl) ? portEl.ToString() : "default";
+            return $"{host}:{port}";
+        }
+        catch (JsonException)
+        {
+            return $"conn-{dc.Id}";
+        }
     }
 
     private static async Task UpdateDbStateAsync(
