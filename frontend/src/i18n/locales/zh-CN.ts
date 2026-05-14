@@ -456,6 +456,9 @@ const zhCN: Translation = {
       gotoDisabled: '尚未绑定 DI，点击跳到设置区',
       openFromCard: '此设备有 DI gating 规则 — 点击开启限值与条件设置',
       bindFromCard: '为此设备绑定 DI（条件采样）— 点击开启设置',
+      diLive: 'DI 实时状态：{{state}}（点击查看 gating 设置）',
+      diPresent: '在位',
+      diAbsent: '不在位',
     },
   },
   errorBoundary: {

@@ -456,6 +456,9 @@ const en: Translation = {
       gotoDisabled: 'No DI bound yet — click to jump to gating settings',
       openFromCard: 'This equipment has DI gating rules — click to open limits & conditions',
       bindFromCard: 'Bind a DI to this equipment (conditional sampling) — click to open settings',
+      diLive: 'DI live state: {{state}} (click to view gating settings)',
+      diPresent: 'present',
+      diAbsent: 'absent',
     },
   },
   errorBoundary: {
