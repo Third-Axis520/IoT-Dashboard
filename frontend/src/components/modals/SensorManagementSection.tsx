@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
+import SensorAddPanel, { type NewSensorDraft } from './SensorAddPanel';
 
 export interface SensorRow {
   sensorId: number;
@@ -15,20 +16,42 @@ export interface SensorRow {
 interface Props {
   sensors: SensorRow[];
   onChange: (next: SensorRow[]) => void;
+  onAdd: (drafts: NewSensorDraft[]) => void;
+  protocol: string;
+  configJson: string;
   loading?: boolean;
   loadError?: string | null;
   defaultOpen?: boolean;
 }
 
 export default function SensorManagementSection({
-  sensors, onChange, loading = false, loadError = null, defaultOpen = false,
+  sensors, onChange, onAdd, protocol, configJson,
+  loading = false, loadError = null, defaultOpen = false,
 }: Props) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(defaultOpen);
+  const [adding, setAdding] = useState(false);
 
   function handleLabelChange(idx: number, label: string) {
     onChange(sensors.map((s, i) => i === idx ? { ...s, label } : s));
   }
+
+  function handleRemove(idx: number) {
+    const row = sensors[idx];
+    const msg = t('connectionSettings.sensors.removeConfirm') +
+      `\n\n${row.label || row.rawAddress || `Sensor ${row.sensorId}`}`;
+    if (typeof window !== 'undefined' && !window.confirm(msg)) return;
+    onChange(sensors.filter((_, i) => i !== idx));
+  }
+
+  function handleAddDrafts(drafts: NewSensorDraft[]) {
+    onAdd(drafts);
+    setAdding(false);
+  }
+
+  const existingRawAddresses = new Set(
+    sensors.map(s => s.rawAddress).filter((a): a is string => a !== null)
+  );
 
   return (
     <div className="mt-4 border-t border-[var(--border-base)] pt-3">
@@ -56,7 +79,7 @@ export default function SensorManagementSection({
             </div>
           )}
 
-          {!loading && !loadError && sensors.length === 0 && (
+          {!loading && !loadError && sensors.length === 0 && !adding && (
             <div className="text-sm text-[var(--text-muted)]">
               {t('connectionSettings.sensors.noSensors')}
             </div>
@@ -87,10 +110,38 @@ export default function SensorManagementSection({
                     {s.unit && (
                       <span className="text-xs text-[var(--text-muted)] shrink-0">{s.unit}</span>
                     )}
+                    <button
+                      type="button"
+                      onClick={() => handleRemove(i)}
+                      aria-label={`remove sensor ${s.sensorId}`}
+                      className="text-[var(--text-muted)] hover:text-[var(--accent-red)] transition-colors"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </li>
                 ))}
               </ul>
             </>
+          )}
+
+          {!loading && !loadError && !adding && (
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className="px-3 py-1 text-sm rounded border border-[var(--accent-green)] text-[var(--accent-green)] hover:bg-[var(--accent-green)]/10 transition-colors"
+            >
+              + {t('connectionSettings.sensors.scanAndAddButton')}
+            </button>
+          )}
+
+          {!loading && !loadError && adding && (
+            <SensorAddPanel
+              protocol={protocol}
+              configJson={configJson}
+              existingRawAddresses={existingRawAddresses}
+              onAdd={handleAddDrafts}
+              onCancel={() => setAdding(false)}
+            />
           )}
         </div>
       )}

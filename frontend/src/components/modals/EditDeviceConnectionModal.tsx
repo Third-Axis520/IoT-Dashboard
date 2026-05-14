@@ -325,6 +325,28 @@ export default function EditDeviceConnectionModal({ conn, onClose, onSaved }: Pr
             <SensorManagementSection
               sensors={sensors}
               onChange={setSensors}
+              onAdd={drafts => {
+                const maxId = sensors.reduce((m, s) => Math.max(m, s.sensorId), 0);
+                // Pick a base above all current ids; fall back to a 7-digit random
+                // floor so the first-ever sensor on a fresh ET still gets a sane id.
+                const sensorIdBase = Math.max(
+                  maxId + 1,
+                  Math.floor(Math.random() * 8_900_000) + 1_000_000,
+                );
+                const maxSort = sensors.reduce((m, s) => Math.max(m, s.sortOrder), 0);
+                const newRows: SensorRow[] = drafts.map((d, i) => ({
+                  sensorId: sensorIdBase + i,
+                  pointId: `pt_${d.rawAddress}`,
+                  rawAddress: d.rawAddress,
+                  label: d.label,
+                  unit: d.unit,
+                  propertyTypeId: d.propertyTypeId,
+                  sortOrder: maxSort + i + 1,
+                }));
+                setSensors([...sensors, ...newRows]);
+              }}
+              protocol={conn.protocol}
+              configJson={JSON.stringify(config)}
               loading={sensorsLoading}
               loadError={sensorsLoadError}
             />
