@@ -8,9 +8,9 @@ import { fetchProtocol, type ProtocolItem } from '../../../../lib/apiProtocols';
 import { POLL_INTERVAL_SECONDS } from '../../../../constants/pollIntervals';
 import { fetchDeviceConnections } from '../../../../lib/apiDeviceConnections';
 
-// Heuristic: when this many connections already share host:port, suggest a longer poll
-// interval to ease gateway concurrency. Calibrated from a real incident (2026-05-13)
-// where 5 connections at 5s polling exhausted a Modbus gateway's session limit.
+// Some Modbus gateways limit concurrent sessions to as few as 1-4 and start
+// dropping reads under contention; when this many siblings already share
+// host:port we proactively suggest a longer poll interval.
 const SAME_HOST_RECOMMEND_THRESHOLD = 3;
 const RECOMMENDED_POLL_MS = 10000;
 
