@@ -173,142 +173,25 @@ public class DataIngestionServiceTests : IntegrationTestBase
     }
 
     [Fact]
-    public async Task Process_MaterialDetectFalse_StillWritesReadingWithHasMaterialFalse()
+    public async Task Process_GatingRulePass_WritesReadingWithDefaultHasMaterial()
     {
-        // B1: when material_detect sensor signals no material, reading is still written
-        // but with HasMaterial=false. No gating rule is configured here.
+        // Post #7 Phase C: material_detect special path is gone.
+        // SensorGatingRule alone decides whether readings get written.
+        // When the rule allows (pass), the reading writes with the new
+        // schema default HasMaterial=true.
         await SeedDeviceAsync();
-
-        // Seed the full FK chain required by GetMaterialDetectSensorIdAsync:
-        // PropertyType → EquipmentType → EquipmentTypeSensor
-        // LineConfig → LineEquipment (bound to AssetCode)
-        await using (var db = await CreateDbContextAsync())
-        {
-            var pt = new PropertyType
-            {
-                Key = "material_detect_b1test",
-                Name = "Material Detect",
-                Icon = "circle",
-                DefaultUnit = "",
-                Behavior = "material_detect",
-                CreatedAt = DateTime.UtcNow
-            };
-            db.PropertyTypes.Add(pt);
-            await db.SaveChangesAsync();
-
-            var et = new EquipmentType
-            {
-                Name = "B1 Test Equipment",
-                VisType = "single_kpi",
-                CreatedAt = DateTime.UtcNow
-            };
-            db.EquipmentTypes.Add(et);
-            await db.SaveChangesAsync();
-
-            var ets = new EquipmentTypeSensor
-            {
-                EquipmentTypeId = et.Id,
-                SensorId = 8888,
-                PointId = "mat_detect",
-                Label = "Material Detect",
-                Unit = "",
-                PropertyTypeId = pt.Id
-            };
-            db.EquipmentTypeSensors.Add(ets);
-            await db.SaveChangesAsync();
-
-            // LineEquipment requires a valid LineConfig FK
-            var lineConfig = new LineConfig
-            {
-                LineId = "line_b1test",
-                Name = "B1 Test Line",
-                UpdatedAt = DateTime.UtcNow
-            };
-            db.LineConfigs.Add(lineConfig);
-            await db.SaveChangesAsync();
-
-            var lineEquip = new LineEquipment
-            {
-                AssetCode = AssetCode,
-                EquipmentTypeId = et.Id,
-                LineConfigId = lineConfig.Id
-            };
-            db.LineEquipments.Add(lineEquip);
-            await db.SaveChangesAsync();
-        }
-
-        var sut = GetSut();
-
-        // Send payload: mat sensor = 0 (no material), plus a temperature sensor
-        var payload = new IngestPayload
-        {
-            SerialNumber = SerialNumber,
-            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            IsConnected = true,
-            Sensors = new List<SensorReading_Dto>
-            {
-                new() { Id = 8888, Value = 0 },        // material_detect = no material
-                new() { Id = UngatedSensorId, Value = 99.9 }  // temperature sensor
-            }
-        };
-
-        await sut.ProcessAsync(payload);
-
-        await using var db2 = await CreateDbContextAsync();
-
-        // The temperature sensor reading MUST exist
-        var reading = await db2.SensorReadings.FirstOrDefaultAsync(r =>
-            r.AssetCode == AssetCode && r.SensorId == UngatedSensorId);
-        reading.Should().NotBeNull("B1: reading must be written even when no material");
-        reading!.HasMaterial.Should().BeFalse("B1: HasMaterial flag must be false");
-
-        // The material_detect sensor itself must NOT be written (state bit)
-        var matReading = await db2.SensorReadings.FirstOrDefaultAsync(r =>
-            r.AssetCode == AssetCode && r.SensorId == 8888);
-        matReading.Should().BeNull("material_detect sensor is a state bit, not written to readings");
-    }
-
-    [Fact]
-    public async Task Process_BothGatingsActive_AndLogic()
-    {
-        // Combined AND logic:
-        // Case A: A1 gating = Block + hasMaterial = true  → NO reading written
-        // Case B: A1 gating = Pass  + hasMaterial = false → reading written with HasMaterial=false
-        await SeedDeviceAsync();
-
-        // Seed a gating rule for GatedSensorId
         await SeedGatingRuleAsync();
         var cache = GetCache();
 
         var sut = GetSut();
         sut.InvalidateGatingRulesCache(AssetCode);
 
-        // ── Case A: DI = false (gated) + hasMaterial = true (no mat-detect sensor) ──
-        cache.Update(DiAsset, DiSensorId, 0.0, DateTime.UtcNow);
-
-        await sut.ProcessAsync(MakePayload((GatedSensorId, 300.0)));
-
-        await using (var db = await CreateDbContextAsync())
-        {
-            var countA = await db.SensorReadings.CountAsync(r =>
-                r.AssetCode == AssetCode && r.SensorId == GatedSensorId);
-            countA.Should().Be(0, "A: gating blocked → no reading");
-        }
-
-        // ── Case B: DI = true (pass) — no mat-detect sensor so hasMaterial=true by default ──
         cache.Update(DiAsset, DiSensorId, 1.0, DateTime.UtcNow);
-
         await sut.ProcessAsync(MakePayload((GatedSensorId, 300.0)));
 
-        await using (var db = await CreateDbContextAsync())
-        {
-            var countB = await db.SensorReadings.CountAsync(r =>
-                r.AssetCode == AssetCode && r.SensorId == GatedSensorId);
-            countB.Should().Be(1, "B: gating passes + hasMaterial default true → reading written");
-
-            var reading = await db.SensorReadings.FirstAsync(r =>
-                r.AssetCode == AssetCode && r.SensorId == GatedSensorId);
-            reading.HasMaterial.Should().BeTrue();
-        }
+        await using var db = await CreateDbContextAsync();
+        var reading = await db.SensorReadings.FirstAsync(r =>
+            r.AssetCode == AssetCode && r.SensorId == GatedSensorId);
+        reading.HasMaterial.Should().BeTrue();
     }
 }

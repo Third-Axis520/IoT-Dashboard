@@ -17,7 +17,10 @@ interface SseDataUpdate {
   assetName?: string;
   timestamp: number;
   isConnected: boolean;
-  /** 40013 鞋子在位：true=有料、false=無料、null/undefined=設備無此感測器 */
+  /** Legacy field (#7 Phase C). Backend now always sends null — sensor
+   *  gating goes through SensorGatingRule (sensors just don't show up in
+   *  the payload when blocked). Kept on the type for backward-compat with
+   *  any cached SSE payloads but no longer consumed anywhere. */
   hasMaterial?: boolean | null;
   sensors: SseSensorItem[];
 }
@@ -175,9 +178,6 @@ export function useLiveData(
     // 建立 sensorId → 感測器資料的快速查找
     const sensorMap = new Map(payload.sensors.map(s => [s.id, s]));
 
-    // 有料狀態：null/undefined 表示設備無 40013 感測器，視為有料
-    const hasMaterial = payload.hasMaterial ?? true;
-
     const nextData = prevData.map(line => ({
       ...line,
       equipments: line.equipments.map(eq => {
@@ -192,12 +192,10 @@ export function useLiveData(
 
             const sensor = sensorMap.get(point.sensorId);
             if (!sensor) {
-              // Sensor missing from this SSE tick. Today this only happens
-              // when SensorGatingRule blocks the sensor (or, after #7 Phase B
-              // strict-mode is on, when material_detect=false). In every case
-              // we don't want to leave a stale `danger`/`warning` ring on the
-              // card — there's no material to overheat. Force status normal
-              // so the dashboard shows "calm" until data resumes.
+              // Sensor missing from SSE = SensorGatingRule blocked it (post
+              // #7 Phase C this is the only path that drops a sensor mid-stream).
+              // Force status normal so cards don't keep glowing danger when
+              // the upstream DI says material is gone.
               return point.status === 'normal' ? point : { ...point, status: 'normal' as PointStatus };
             }
 
@@ -215,11 +213,6 @@ export function useLiveData(
               ...point.history.slice(-(HISTORY_MAX - 1)),
               { time: payload.timestamp, value: pValue },
             ];
-
-            // 無料時：保留數值但狀態強制 normal，不產生告警
-            if (!hasMaterial) {
-              return { ...point, value: pValue, history: newHistory, status: 'normal' as PointStatus, ucl, lcl };
-            }
 
             // 計算 status（與 useSimulation 相同邏輯）
             let pStatus: PointStatus = 'normal';

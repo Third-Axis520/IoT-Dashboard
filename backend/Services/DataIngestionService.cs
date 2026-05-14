@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using IoT.CentralApi.Data;
 using IoT.CentralApi.Models;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 
 namespace IoT.CentralApi.Services;
 
@@ -22,14 +21,11 @@ public class DataIngestionService(
     SseHub sseHub,
     ILatestReadingCache latestCache,
     GatingEvaluator gatingEvaluator,
-    IOptions<GatingConvergenceOptions> gatingOptions,
     ILogger<DataIngestionService> logger)
 {
     // 記錄每個 (AssetCode, SensorId) 的上一次 status，避免重複產生告警
     private readonly ConcurrentDictionary<(string, int), string> _lastStatus = new();
     private readonly SemaphoreSlim _lock = new(1, 1);
-    // Cache: assetCode → material-detect SensorId（null = 無此感測器）
-    private readonly ConcurrentDictionary<string, int?> _materialDetectCache = new();
     // Cache: assetCode → gating rules dict keyed by GatedSensorId
     private readonly ConcurrentDictionary<string, Dictionary<int, SensorGatingRule>> _gatingRulesCache = new();
 
@@ -85,15 +81,8 @@ public class DataIngestionService(
                 .Where(l => l.AssetCode == assetCode)
                 .ToDictionaryAsync(l => l.SensorId);
 
-            // 3b. 動態找 material_detect 感測器；無時預設有料
-            var matSensorId = await GetMaterialDetectSensorIdAsync(assetCode, db);
-            var shoeSensor = matSensorId.HasValue
-                ? payload.Sensors.FirstOrDefault(s => s.Id == matSensorId.Value)
-                : null;
-            bool? hasMaterialNullable = shoeSensor != null ? shoeSensor.Value == 1 : null;
-            bool hasMaterial = hasMaterialNullable ?? true;
-
-            // A1: 載入此 asset 的 gating rules
+            // 3b. 載入此 asset 的 gating rules — 自 #7 Phase C 起 SensorGatingRule
+            // 是唯一 gating 機制（舊 material_detect 路徑已收斂）
             var gatingRules = await GetGatingRulesAsync(assetCode, db);
 
             bool IsBlockedByNewGating(int sensorId)
@@ -108,40 +97,28 @@ public class DataIngestionService(
                 return false;
             }
 
-            // StrictMode (Phase B cutover, default OFF today): when hasMaterial=false
-            // drop ALL remaining readings — both the DB write and the SSE broadcast —
-            // matching SensorGatingRule "don't write" semantics. Today's prod runs with
-            // the flag off → identical behaviour to the previous revision. The shared
-            // predicate keeps DB + SSE in lockstep; an earlier revision only cleared
-            // readings and left SSE intact (audit P2-1).
-            var strictMode = gatingOptions.Value.StrictMode;
-            var dropAllRemaining = strictMode && !hasMaterial;
-
-            // 4. 寫入時序讀值（material_detect 感測器為狀態位元，不寫入溫度表；A1 gating 封鎖的也跳過）
-            var readings = dropAllRemaining
-                ? new List<SensorReading>()
-                : payload.Sensors
-                    .Where(s => !matSensorId.HasValue || s.Id != matSensorId.Value)
-                    .Where(s => !IsBlockedByNewGating(s.Id))
-                    .Select(s => new SensorReading
-                    {
-                        AssetCode = assetCode,
-                        SensorId = s.Id,
-                        Value = s.Value,
-                        HasError = s.Error != null,
-                        HasMaterial = hasMaterial,
-                        Timestamp = now
-                    }).ToList();
+            // 4. 寫入時序讀值（SensorGatingRule 封鎖的跳過。HasMaterial 欄位保留
+            // 在 schema 內供舊歷史資料相容，新寫入永遠 true — 真正的「無料時不寫」
+            // 邏輯透過 SensorGatingRule + GatingEvaluator 處理。）
+            var readings = payload.Sensors
+                .Where(s => !IsBlockedByNewGating(s.Id))
+                .Select(s => new SensorReading
+                {
+                    AssetCode = assetCode,
+                    SensorId = s.Id,
+                    Value = s.Value,
+                    HasError = s.Error != null,
+                    HasMaterial = true,
+                    Timestamp = now
+                }).ToList();
 
             db.SensorReadings.AddRange(readings);
 
-            // 5. 告警判斷（無料時跳過；A1 gating 封鎖的也跳過；避免空機假警報）
+            // 5. 告警判斷（SensorGatingRule 封鎖的跳過；避免空機假警報）
             var newAlerts = new List<SensorAlert>();
             foreach (var sensor in payload.Sensors)
             {
-                if (matSensorId.HasValue && sensor.Id == matSensorId.Value) continue; // 狀態位元，不判限值
-                if (!hasMaterial) continue;                 // 無料：跳過所有告警
-                if (IsBlockedByNewGating(sensor.Id)) continue; // A1 gating 封鎖：跳過告警
+                if (IsBlockedByNewGating(sensor.Id)) continue;
                 if (!limits.TryGetValue(sensor.Id, out var limit)) continue;
                 if (sensor.Error != null) continue;
 
@@ -213,19 +190,21 @@ public class DataIngestionService(
             {
                 var assetInfo = await fasService.GetAssetInfoAsync(assetCode);
 
-                // BuildSseSensors mirrors the DB readings filter above so that
-                // strict-mode + !hasMaterial produces a heartbeat with HasMaterial
-                // flag but no sensor values — DB and SSE stay consistent. The
-                // helper is internal+static so it's unit-testable without the
-                // SseHub connection-count gate getting in the way.
+                // BuildSseSensors filters out SensorGatingRule-blocked sensors so
+                // DB writes + SSE broadcasts stay in lockstep. Internal+static
+                // so it's unit-testable without the SseHub connection-count gate.
                 var ssePayload = new SseDataUpdate
                 {
                     AssetCode = assetCode,
                     AssetName = assetInfo?.AssetName ?? assetInfo?.NickName,
                     Timestamp = payload.Timestamp,
                     IsConnected = payload.IsConnected,
-                    HasMaterial = hasMaterialNullable,
-                    Sensors = BuildSseSensors(payload.Sensors, limits, IsBlockedByNewGating, dropAllRemaining),
+                    // HasMaterial intentionally left null — the frontend's old
+                    // dependency on hasMaterial=false readings was removed in
+                    // 2638466 (Phase B prep). Kept in the DTO shape for SSE
+                    // payload backward-compat with any legacy consumers.
+                    HasMaterial = null,
+                    Sensors = BuildSseSensors(payload.Sensors, limits, IsBlockedByNewGating),
                 };
 
                 await sseHub.BroadcastAsync(ssePayload);
@@ -255,18 +234,15 @@ public class DataIngestionService(
     }
 
     /// <summary>
-    /// Builds the Sensors list for an SSE data-update payload, honouring the
-    /// same drop predicate as the DB readings write. Extracted so it can be
-    /// unit-tested without going through SseHub (which gates broadcasts on
-    /// having at least one subscriber, making in-process tests awkward).
+    /// Builds the Sensors list for an SSE data-update payload, filtering out
+    /// SensorGatingRule-blocked sensors so DB writes + SSE broadcasts stay
+    /// consistent. Extracted so it can be unit-tested without SseHub.
     /// </summary>
     internal static List<SseSensorItem> BuildSseSensors(
         IList<SensorReading_Dto> payloadSensors,
         Dictionary<int, SensorLimit> limits,
-        Func<int, bool> isBlockedByNewGating,
-        bool dropAllRemaining)
+        Func<int, bool> isBlockedByNewGating)
     {
-        if (dropAllRemaining) return new List<SseSensorItem>();
         return payloadSensors
             .Where(s => !isBlockedByNewGating(s.Id))
             .Select(s =>
@@ -283,19 +259,4 @@ public class DataIngestionService(
             }).ToList();
     }
 
-    private async Task<int?> GetMaterialDetectSensorIdAsync(string assetCode, IoT.CentralApi.Data.IoTDbContext db)
-    {
-        if (_materialDetectCache.TryGetValue(assetCode, out var cached))
-            return cached;
-
-        var sensorId = await db.LineEquipments
-            .Where(le => le.AssetCode == assetCode)
-            .SelectMany(le => le.EquipmentType.Sensors)
-            .Where(s => s.PropertyType.Behavior == "material_detect")
-            .Select(s => (int?)s.SensorId)
-            .FirstOrDefaultAsync();
-
-        _materialDetectCache[assetCode] = sensorId;
-        return sensorId;
-    }
 }

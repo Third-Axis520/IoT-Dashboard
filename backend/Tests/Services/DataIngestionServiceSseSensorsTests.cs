@@ -7,9 +7,8 @@ namespace IoT.CentralApi.Tests.Services;
 /// Direct unit tests for DataIngestionService.BuildSseSensors. The SSE path
 /// in ProcessAsync is gated on SseHub.ConnectionCount > 0, which makes it
 /// impractical to exercise in integration tests (the in-memory factory has
-/// zero subscribers). Testing the helper directly verifies that the
-/// dropAllRemaining flag and the per-sensor gating predicate stay in lockstep
-/// with the DB readings filter — closing the audit P2-1 residual.
+/// zero subscribers). Testing the helper directly verifies the per-sensor
+/// gating predicate stays in lockstep with the DB readings filter.
 /// </summary>
 public class DataIngestionServiceSseSensorsTests
 {
@@ -19,27 +18,12 @@ public class DataIngestionServiceSseSensorsTests
         => sensors.Select(s => new SensorReading_Dto { Id = s.id, Value = s.value }).ToList();
 
     [Fact]
-    public void BuildSseSensors_DropAllRemaining_ReturnsEmpty()
-    {
-        // Strict-mode + !hasMaterial scenario: caller passes dropAllRemaining=true
-        // and we must return zero sensors regardless of what's in the payload.
-        var result = DataIngestionService.BuildSseSensors(
-            Payload((1, 25.5), (2, 30.0)),
-            EmptyLimits,
-            isBlockedByNewGating: _ => false,
-            dropAllRemaining: true);
-
-        Assert.Empty(result);
-    }
-
-    [Fact]
-    public void BuildSseSensors_NotDropping_IncludesAllUngatedSensors()
+    public void BuildSseSensors_NoGating_IncludesAllSensors()
     {
         var result = DataIngestionService.BuildSseSensors(
             Payload((101, 72.1), (102, 33.0)),
             EmptyLimits,
-            isBlockedByNewGating: _ => false,
-            dropAllRemaining: false);
+            isBlockedByNewGating: _ => false);
 
         Assert.Equal(2, result.Count);
         Assert.Contains(result, s => s.Id == 101 && s.Value == 72.1);
@@ -47,34 +31,19 @@ public class DataIngestionServiceSseSensorsTests
     }
 
     [Fact]
-    public void BuildSseSensors_NotDropping_FiltersOutGatedSensors()
+    public void BuildSseSensors_FiltersOutGatedSensors()
     {
         // SensorGatingRule path: 102 is blocked → drops from SSE just like it
         // drops from the DB write.
         var result = DataIngestionService.BuildSseSensors(
             Payload((101, 72.1), (102, 33.0), (103, 50.0)),
             EmptyLimits,
-            isBlockedByNewGating: id => id == 102,
-            dropAllRemaining: false);
+            isBlockedByNewGating: id => id == 102);
 
         Assert.Equal(2, result.Count);
         Assert.DoesNotContain(result, s => s.Id == 102);
         Assert.Contains(result, s => s.Id == 101);
         Assert.Contains(result, s => s.Id == 103);
-    }
-
-    [Fact]
-    public void BuildSseSensors_DropAllRemaining_BeatsPerSensorGating()
-    {
-        // Sanity: even if individual sensors WOULD pass the gating filter,
-        // dropAllRemaining wins. Mirrors the DB readings.Clear() behaviour.
-        var result = DataIngestionService.BuildSseSensors(
-            Payload((101, 72.1), (102, 33.0)),
-            EmptyLimits,
-            isBlockedByNewGating: _ => false,
-            dropAllRemaining: true);
-
-        Assert.Empty(result);
     }
 
     [Fact]
@@ -88,8 +57,7 @@ public class DataIngestionServiceSseSensorsTests
         var result = DataIngestionService.BuildSseSensors(
             Payload((101, 72.1), (102, 33.0)),
             limits,
-            isBlockedByNewGating: _ => false,
-            dropAllRemaining: false);
+            isBlockedByNewGating: _ => false);
 
         var s101 = result.Single(s => s.Id == 101);
         Assert.Equal(100.0, s101.Ucl);
@@ -107,8 +75,7 @@ public class DataIngestionServiceSseSensorsTests
         var result = DataIngestionService.BuildSseSensors(
             Payload(),
             EmptyLimits,
-            isBlockedByNewGating: _ => false,
-            dropAllRemaining: false);
+            isBlockedByNewGating: _ => false);
 
         Assert.Empty(result);
     }
