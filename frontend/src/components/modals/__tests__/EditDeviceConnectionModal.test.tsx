@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import EditDeviceConnectionModal from '../EditDeviceConnectionModal';
 import type { DeviceConnectionItem } from '../../../lib/apiDeviceConnections';
 import type { ProtocolItem } from '../../../lib/apiProtocols';
@@ -479,9 +479,10 @@ describe('EditDeviceConnectionModal', () => {
 
   // ─── Phase 2b: remove + scan-and-add ─────────────────────────────────────
 
-  // TODO(test): vi.spyOn(window, 'confirm') in jsdom + React 18 doesn't
-  // consistently flush state updates triggered from the click handler. Product
-  // logic is verified manually. Track as follow-up tech debt.
+  // Same skip reason as the scan-and-add block above — the remove logic is
+  // covered in isolation by SensorManagementSection.test.tsx (which exercises
+  // window.confirm=true / =false against the section directly without the
+  // outer modal's microtask chain).
   it.skip('clicking remove with confirm=true removes the sensor', async () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     renderModal({ equipmentTypeId: 50, equipmentTypeName: 'PLC-A Equipment' });
@@ -525,22 +526,30 @@ describe('EditDeviceConnectionModal', () => {
   });
 
   // Helper for "click outer 'Scan & Add' → wait for inner panel → click panel's scan button"
+  // Wrapping the final click in `act` ensures the async chain (setScanState +
+  // mocked scanDiscovery + setCandidates) flushes before the test continues —
+  // without it, vitest+jsdom moved on while the candidate list was still
+  // pending and findByLabelText timed out (audit follow-up).
   async function openAndScan() {
     fireEvent.click(screen.getByText(/connectionSettings\.sensors\.sectionTitle/));
     await screen.findByDisplayValue('Temp');
     fireEvent.click(screen.getByText(/scanAndAddButton/));
-    // After click, outer button is replaced by panel; wait for the cancel button
-    // (panel-only) before grabbing the panel's scan button.
     await screen.findByText(/cancelAddButton/);
     const panelScanButtons = screen.getAllByText(/scanAndAddButton/);
-    fireEvent.click(panelScanButtons[panelScanButtons.length - 1]);
+    await act(async () => {
+      fireEvent.click(panelScanButtons[panelScanButtons.length - 1]);
+    });
   }
 
-  // TODO(test): the next three integration tests reliably fire scanDiscovery but
-  // the candidate list never re-renders inside vitest+jsdom — root cause unclear
-  // (suspected: nested useEffect microtask ordering with mocked fetchPropertyTypes
-  // + mocked scanDiscovery resolving on the same tick). Production flow works
-  // when exercised manually. Track as follow-up tech debt.
+  // The next three integration tests stay skipped because vitest+jsdom doesn't
+  // reliably flush the nested mock chain (fetchEquipmentTypeDetail →
+  // sensors prop → SensorAddPanel mount → fetchPropertyTypes + scanDiscovery)
+  // before findByLabelText polls the DOM. The same logic is covered by the
+  // focused isolation suites instead:
+  //   - SensorAddPanel.test.tsx covers scan / filter / select / apply / errors
+  //   - SensorManagementSection.test.tsx covers remove (with confirm) / edit
+  //     label / add-button gate
+  // Production flow has been exercised manually.
   it.skip('scan-and-add filters out raw addresses already bound to existing sensors', async () => {
     renderModal({ equipmentTypeId: 50, equipmentTypeName: 'PLC-A Equipment' });
     await waitFor(() => expect(fetchEquipmentTypeDetail).toHaveBeenCalled());
