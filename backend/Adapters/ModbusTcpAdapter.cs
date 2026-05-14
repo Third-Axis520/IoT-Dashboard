@@ -30,6 +30,27 @@ public class ModbusTcpAdapter : IProtocolAdapter, IDisposable
     // FluentModbus's non-thread-safe ModbusTcpClient is fine to share.
     // Discovery deliberately bypasses the pool (one-shot use case).
     private readonly ConcurrentDictionary<string, ModbusTcpClient> _clientPool = new();
+    // Track when each pooled client was connected so we can pre-emptively
+    // recycle it. Cheap gateways often impose a session lifetime ceiling
+    // (silently RSTing long-lived sockets); recycling before that point
+    // avoids the IOException blip on the next read. Default ceiling
+    // (5 min) was chosen as a safe middle-ground — short enough to dodge
+    // common gateway timeouts (typically 60-300s), long enough that
+    // average socket churn stays trivial. Tune via the env var
+    // MODBUS_SOCKET_MAX_AGE_SECONDS (0 disables, default 300).
+    private readonly ConcurrentDictionary<string, DateTime> _clientConnectedAt = new();
+    private static readonly TimeSpan SocketMaxAge = LoadSocketMaxAge();
+
+    private static TimeSpan LoadSocketMaxAge()
+    {
+        var raw = Environment.GetEnvironmentVariable("MODBUS_SOCKET_MAX_AGE_SECONDS");
+        if (int.TryParse(raw, out var seconds) && seconds > 0)
+            return TimeSpan.FromSeconds(seconds);
+        // 0 (or unset / unparseable) keeps a generous default. Operators can
+        // dial down to e.g. 60 if a specific gateway is observed RSTing
+        // sooner than 5 minutes.
+        return TimeSpan.FromMinutes(5);
+    }
 
     public string ProtocolId => "modbus_tcp";
     public string DisplayName => "Modbus TCP";
@@ -208,12 +229,23 @@ public class ModbusTcpAdapter : IProtocolAdapter, IDisposable
     private ModbusTcpClient GetOrConnectClient(ModbusTcpConfig config)
     {
         var key = GetClientKey(config.Host, config.Port);
+
+        // Pre-emptive recycle: if the socket has been alive longer than
+        // SocketMaxAge, evict it before reuse. Beats waiting for the gateway
+        // to RST mid-read.
+        if (_clientConnectedAt.TryGetValue(key, out var connectedAt)
+            && DateTime.UtcNow - connectedAt > SocketMaxAge)
+        {
+            EvictClient(key);
+        }
+
         var client = _clientPool.GetOrAdd(key, _ => CreateClient());
         if (!client.IsConnected)
         {
             var ip = IPAddress.Parse(config.Host);
             client.Connect(new IPEndPoint(ip, config.Port));
             TryEnableTcpKeepAlive(client);
+            _clientConnectedAt[key] = DateTime.UtcNow;
         }
         return client;
     }
@@ -262,6 +294,7 @@ public class ModbusTcpAdapter : IProtocolAdapter, IDisposable
         {
             try { client.Disconnect(); } catch { }
         }
+        _clientConnectedAt.TryRemove(key, out _);
     }
 
     // Exposed for tests / diagnostics. Don't surface in DTOs.
@@ -274,6 +307,7 @@ public class ModbusTcpAdapter : IProtocolAdapter, IDisposable
             try { client.Disconnect(); } catch { }
         }
         _clientPool.Clear();
+        _clientConnectedAt.Clear();
         GC.SuppressFinalize(this);
     }
 
