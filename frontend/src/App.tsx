@@ -35,6 +35,10 @@ export default function App() {
   // ── Core data ──────────────────────────────────────────────────────────────
   const [templates, setTemplates] = useState<MachineTemplate[]>([]);
   const [data, setData] = useState<ProductionLine[]>([]);
+  // True until the mount-time line-configs + history-seed pipeline finishes.
+  // Used to suppress the "no devices, add your first" welcome page from
+  // flashing on every refresh while the async fetch is still running.
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [apiLineConfigs, setApiLineConfigs] = useState<ApiLineConfig[]>([]);
   const [alerts, setAlerts] = useState<AlertRecord[]>(() => {
     try { const s = localStorage.getItem(ALERTS_STORAGE_KEY); return s ? JSON.parse(s) : []; } catch { return []; }
@@ -196,6 +200,7 @@ export default function App() {
           }),
         })));
       } catch (err) { console.error('Failed to load config:', err); addToast('error', t('app.loadFailed')); }
+      finally { setIsInitialLoading(false); }
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -429,7 +434,15 @@ export default function App() {
       />
 
       <main className="flex-1 min-h-0 p-4 md:p-6 overflow-hidden flex flex-col">
-        {displayedEquipments.length === 0 ? (
+        {isInitialLoading ? (
+          /* Mount-time placeholder. Keeps the welcome "+ first device" prompt
+             from flashing on every refresh while line-configs + history seed
+             are still in flight. */
+          <div className="flex-1 flex flex-col items-center justify-center text-[var(--text-muted)] gap-3" role="status" aria-live="polite">
+            <div className="w-3 h-3 rounded-full bg-[var(--accent-green)] animate-pulse" />
+            <p className="text-sm opacity-60">{t('common.loading')}</p>
+          </div>
+        ) : displayedEquipments.length === 0 ? (
           searchQuery ? (
             <div className="flex-1 flex flex-col items-center justify-center text-[var(--text-muted)]">
               <Search className="w-10 h-10 mb-3 opacity-30" />
