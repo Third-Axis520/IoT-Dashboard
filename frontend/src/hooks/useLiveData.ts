@@ -191,7 +191,15 @@ export function useLiveData(
             if (point.sensorId === undefined) return point;
 
             const sensor = sensorMap.get(point.sensorId);
-            if (!sensor) return point;
+            if (!sensor) {
+              // Sensor missing from this SSE tick. Today this only happens
+              // when SensorGatingRule blocks the sensor (or, after #7 Phase B
+              // strict-mode is on, when material_detect=false). In every case
+              // we don't want to leave a stale `danger`/`warning` ring on the
+              // card — there's no material to overheat. Force status normal
+              // so the dashboard shows "calm" until data resumes.
+              return point.status === 'normal' ? point : { ...point, status: 'normal' as PointStatus };
+            }
 
             // 感測器有錯誤時標記 offline
             if (sensor.error) {
