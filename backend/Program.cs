@@ -129,6 +129,10 @@ builder.Services.AddHttpClient("WebApiAdapter", client =>
     client.Timeout = TimeSpan.FromSeconds(10);
 });
 
+// ── Feature flags ─────────────────────────────────────────────────────────
+builder.Services.Configure<GatingConvergenceOptions>(
+    builder.Configuration.GetSection(GatingConvergenceOptions.SectionName));
+
 // ── Protocol Adapters ─────────────────────────────────────────────────────
 builder.Services.AddSingleton<IProtocolAdapter, PushIngestAdapter>();
 builder.Services.AddSingleton<IProtocolAdapter, ModbusTcpAdapter>();
