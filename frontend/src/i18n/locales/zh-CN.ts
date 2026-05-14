@@ -27,6 +27,7 @@ const zhCN: Translation = {
     creating: '创建中...',
     yes: '是',
     no: '否',
+    unsavedChanges: '未保存的更改',
   },
   app: {
     dashboard: '仪表板',

@@ -25,6 +25,7 @@ const zhTW = {
     creating: '建立中...',
     yes: '是',
     no: '否',
+    unsavedChanges: '未儲存的變更',
   },
   app: {
     dashboard: '儀表板',

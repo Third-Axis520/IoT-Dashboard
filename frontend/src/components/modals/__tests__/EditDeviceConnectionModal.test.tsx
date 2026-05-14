@@ -22,10 +22,15 @@ vi.mock('../../../lib/apiProtocols', () => ({
 vi.mock('../../../lib/apiDeviceConnections', () => ({
   updateDeviceConnection: vi.fn(),
   testDeviceConnection: vi.fn(),
+  fetchDeviceConnections: vi.fn(),
 }));
 
 import { fetchProtocol } from '../../../lib/apiProtocols';
-import { updateDeviceConnection, testDeviceConnection } from '../../../lib/apiDeviceConnections';
+import {
+  updateDeviceConnection,
+  testDeviceConnection,
+  fetchDeviceConnections,
+} from '../../../lib/apiDeviceConnections';
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -69,6 +74,7 @@ describe('EditDeviceConnectionModal', () => {
     vi.mocked(fetchProtocol).mockResolvedValue(mockProtocol);
     vi.mocked(updateDeviceConnection).mockResolvedValue(undefined as never);
     vi.mocked(testDeviceConnection).mockResolvedValue({ success: true } as never);
+    vi.mocked(fetchDeviceConnections).mockResolvedValue([]);
   });
 
   function renderModal(overrides?: Partial<DeviceConnectionItem>) {
@@ -263,5 +269,95 @@ describe('EditDeviceConnectionModal', () => {
         isEnabled: false,
       }));
     });
+  });
+
+  // ─── Poll-interval suggestion banner (same heuristic as Wizard Step2) ─────
+
+  function makeSiblings(count: number, host = '192.168.0.10', port = '502') {
+    return Array.from({ length: count }, (_, i) => ({
+      id: i + 100,
+      name: `sibling-${i}`,
+      protocol: 'modbus_tcp',
+      configJson: JSON.stringify({ host, port, slaveId: String(i + 1) }),
+      pollIntervalMs: 5000,
+      isEnabled: true,
+      lastPollAt: null,
+      lastPollError: null,
+      consecutiveErrors: 0,
+      equipmentTypeId: null,
+      equipmentTypeName: null,
+      createdAt: '2026-04-27T00:00:00Z',
+      alertOnConsecutiveErrors: 5,
+      alertCooldownSec: 300,
+      isAlertEnabled: true,
+    }));
+  }
+
+  it('hides actionable banner when same-host siblings < 3', async () => {
+    vi.mocked(fetchDeviceConnections).mockResolvedValue(makeSiblings(2));
+    renderModal();
+    await waitFor(() => expect(fetchDeviceConnections).toHaveBeenCalled());
+    expect(screen.queryByText(/connectionSettings\.pollSuggestionBanner/)).toBeNull();
+    expect(screen.queryByText(/connectionSettings\.sameHostHint/)).not.toBeNull();
+  });
+
+  it('shows actionable banner when same-host siblings ≥ 3 and poll < 10s', async () => {
+    vi.mocked(fetchDeviceConnections).mockResolvedValue(makeSiblings(3));
+    renderModal();
+    await waitFor(() => {
+      expect(screen.queryByText(/connectionSettings\.pollSuggestionBanner/)).not.toBeNull();
+    });
+    expect(screen.queryByText(/connectionSettings\.sameHostHint/)).toBeNull();
+  });
+
+  it('hides banner when current pollIntervalMs is already ≥ 10s', async () => {
+    vi.mocked(fetchDeviceConnections).mockResolvedValue(makeSiblings(4));
+    renderModal({ pollIntervalMs: 10000 });
+    await waitFor(() => expect(fetchDeviceConnections).toHaveBeenCalled());
+    expect(screen.queryByText(/connectionSettings\.pollSuggestionBanner/)).toBeNull();
+    expect(screen.queryByText(/connectionSettings\.sameHostHint/)).not.toBeNull();
+  });
+
+  it('hides banner when protocol is push_ingest', async () => {
+    vi.mocked(fetchDeviceConnections).mockResolvedValue(makeSiblings(5));
+    renderModal({ protocol: 'push_ingest' });
+    await waitFor(() => expect(fetchDeviceConnections).toHaveBeenCalled());
+    expect(screen.queryByText(/connectionSettings\.pollSuggestionBanner/)).toBeNull();
+  });
+
+  it('excludes self from same-host count (id collision filter)', async () => {
+    // Make a sibling list where one entry shares mockConn.id (7).
+    // That entry must be excluded so it doesn't count toward the threshold.
+    const siblings = makeSiblings(3);
+    siblings[0] = { ...siblings[0], id: 7 };  // collide with self
+    vi.mocked(fetchDeviceConnections).mockResolvedValue(siblings);
+    renderModal();
+    await waitFor(() => expect(fetchDeviceConnections).toHaveBeenCalled());
+    // After excluding self, only 2 real siblings → no actionable banner
+    expect(screen.queryByText(/connectionSettings\.pollSuggestionBanner/)).toBeNull();
+    // But sameHostHint shows since count=2 > 0
+    expect(screen.queryByText(/connectionSettings\.sameHostHint/)).not.toBeNull();
+  });
+
+  it('clicking "Apply" lowers the interval dropdown to 10s', async () => {
+    vi.mocked(fetchDeviceConnections).mockResolvedValue(makeSiblings(3));
+    renderModal();
+    const applyBtn = await screen.findByText(/connectionSettings\.pollSuggestionApply/);
+    fireEvent.click(applyBtn);
+    await waitFor(() => {
+      const select = screen.getByLabelText(/connectionSettings\.intervalLabel/) as HTMLSelectElement;
+      expect(select.value).toBe('10');
+    });
+  });
+
+  it('shows unsaved-changes indicator only after the user edits a field', async () => {
+    renderModal();
+    await waitFor(() => expect(fetchProtocol).toHaveBeenCalled());
+    // Initial render: form matches conn props, no indicator
+    expect(screen.queryByText(/common\.unsavedChanges/)).toBeNull();
+    // Edit the name → indicator should appear
+    const nameInput = screen.getByLabelText(/connectionSettings\.nameLabel/) as HTMLInputElement;
+    fireEvent.change(nameInput, { target: { value: 'PLC-A renamed' } });
+    expect(screen.queryByText(/common\.unsavedChanges/)).not.toBeNull();
   });
 });

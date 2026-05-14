@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X } from 'lucide-react';
+import { X, AlertTriangle, Lightbulb } from 'lucide-react';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import DynamicForm from './DeviceIntegrationWizard/DynamicForm';
 import AlertSettingsSection from './AlertSettingsSection';
@@ -10,8 +10,14 @@ import { POLL_INTERVAL_SECONDS } from '../../constants/pollIntervals';
 import {
   updateDeviceConnection,
   testDeviceConnection,
+  fetchDeviceConnections,
   type DeviceConnectionItem,
 } from '../../lib/apiDeviceConnections';
+import {
+  SAME_HOST_RECOMMEND_THRESHOLD,
+  RECOMMENDED_POLL_MS,
+  countSiblingsOnSameHost,
+} from '../../lib/gatewayConcurrency';
 
 interface Props {
   conn: DeviceConnectionItem;
@@ -36,6 +42,26 @@ export default function EditDeviceConnectionModal({ conn, onClose, onSaved }: Pr
   const [alertOnConsecutiveErrors, setAlertOnConsecutiveErrors] = useState(conn.alertOnConsecutiveErrors);
   const [alertCooldownSec, setAlertCooldownSec] = useState(conn.alertCooldownSec);
   const [isAlertEnabled, setIsAlertEnabled] = useState(conn.isAlertEnabled);
+
+  const [sameHostCount, setSameHostCount] = useState(0);
+  useEffect(() => {
+    const host = config.host?.trim();
+    const port = config.port?.trim() || '502';
+    if (!host) { setSameHostCount(0); return; }
+    let cancelled = false;
+    fetchDeviceConnections()
+      .then(list => {
+        if (cancelled) return;
+        setSameHostCount(countSiblingsOnSameHost(list, host, port, conn.id));
+      })
+      .catch(() => { /* best-effort hint */ });
+    return () => { cancelled = true; };
+  }, [config.host, config.port, conn.id]);
+
+  const shouldSuggestLongerPoll =
+    sameHostCount >= SAME_HOST_RECOMMEND_THRESHOLD &&
+    conn.protocol !== 'push_ingest' &&
+    pollIntervalMs < RECOMMENDED_POLL_MS;
 
   // Detect unsaved edits — Test button hits the backend with the *stored*
   // (not currently edited) config, so we warn the user when there are
@@ -183,6 +209,46 @@ export default function EditDeviceConnectionModal({ conn, onClose, onSaved }: Pr
             <div className="text-sm text-[var(--text-muted)]" role="status" aria-live="polite">{t('common.loading')}</div>
           )}
 
+          {/* Actionable poll-interval recommendation — same gating concurrency
+              heuristic as the wizard, but excludes the connection being edited. */}
+          {shouldSuggestLongerPoll && (
+            <div className="flex items-start gap-2 px-3 py-2 rounded-md bg-[var(--accent-green)]/10 border border-[var(--accent-green)]/30 text-xs text-[var(--text-main)]">
+              <Lightbulb size={14} className="mt-0.5 shrink-0 text-[var(--accent-green)]" />
+              <div className="flex-1">
+                <p className="mb-2" aria-live="polite">
+                  {t('connectionSettings.pollSuggestionBanner', {
+                    host: config.host,
+                    port: config.port || '502',
+                    count: sameHostCount,
+                  })}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setPollIntervalMs(RECOMMENDED_POLL_MS)}
+                  aria-label={t('connectionSettings.pollSuggestionApply') + ' — ' + t('connectionSettings.intervalLabel')}
+                  className="px-3 py-1 rounded border border-[var(--accent-green)] text-[var(--accent-green)] hover:bg-[var(--accent-green)]/10 transition-colors"
+                >
+                  {t('connectionSettings.pollSuggestionApply')}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Falls back to textual sameHostHint when the actionable banner
+              isn't applicable (count below threshold, or poll already ≥ 10s). */}
+          {sameHostCount > 0 && !shouldSuggestLongerPoll && (
+            <div className="flex items-start gap-2 px-3 py-2 rounded-md bg-[var(--accent-yellow)]/10 border border-[var(--accent-yellow)]/30 text-xs text-[var(--accent-yellow)]">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+              <span>
+                {t('connectionSettings.sameHostHint', {
+                  host: config.host,
+                  port: config.port || '502',
+                  count: sameHostCount,
+                })}
+              </span>
+            </div>
+          )}
+
           <AlertSettingsSection
             value={{ isAlertEnabled, alertOnConsecutiveErrors, alertCooldownSec }}
             onChange={next => {
@@ -221,11 +287,16 @@ export default function EditDeviceConnectionModal({ conn, onClose, onSaved }: Pr
             )}
           </div>
           <div className="flex items-center gap-2" role="status" aria-live="polite">
-            {saveSuccess && (
+            {saveSuccess ? (
               <span className="text-xs text-[var(--accent-green)]">
                 {t('common.saved')}
               </span>
-            )}
+            ) : isDirty && !saving ? (
+              <span className="text-xs text-[var(--accent-yellow)]" aria-label={t('common.unsavedChanges')}>
+                <span aria-hidden="true" className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--accent-yellow)] mr-1.5 align-middle" />
+                {t('common.unsavedChanges')}
+              </span>
+            ) : null}
             <button
               onClick={onClose}
               className="px-4 py-2 text-sm rounded-lg border border-[var(--border-base)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--border-base)] transition-colors"

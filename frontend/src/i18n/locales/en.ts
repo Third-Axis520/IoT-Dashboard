@@ -27,6 +27,7 @@ const en: Translation = {
     creating: 'Creating...',
     yes: 'Yes',
     no: 'No',
+    unsavedChanges: 'Unsaved changes',
   },
   app: {
     dashboard: 'Dashboard',

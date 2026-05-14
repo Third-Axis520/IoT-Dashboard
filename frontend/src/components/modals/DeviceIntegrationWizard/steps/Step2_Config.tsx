@@ -7,12 +7,11 @@ import AlertSettingsSection from '../../AlertSettingsSection';
 import { fetchProtocol, type ProtocolItem } from '../../../../lib/apiProtocols';
 import { POLL_INTERVAL_SECONDS } from '../../../../constants/pollIntervals';
 import { fetchDeviceConnections } from '../../../../lib/apiDeviceConnections';
-
-// Some Modbus gateways limit concurrent sessions to as few as 1-4 and start
-// dropping reads under contention; when this many siblings already share
-// host:port we proactively suggest a longer poll interval.
-const SAME_HOST_RECOMMEND_THRESHOLD = 3;
-const RECOMMENDED_POLL_MS = 10000;
+import {
+  SAME_HOST_RECOMMEND_THRESHOLD,
+  RECOMMENDED_POLL_MS,
+  countSiblingsOnSameHost,
+} from '../../../../lib/gatewayConcurrency';
 
 export default function Step2Config() {
   const { state, dispatch } = useWizard();
@@ -38,13 +37,7 @@ export default function Step2Config() {
     fetchDeviceConnections()
       .then(list => {
         if (cancelled) return;
-        const count = list.filter(c => {
-          try {
-            const cfg = JSON.parse(c.configJson) as { host?: string; port?: string | number };
-            return cfg.host === host && String(cfg.port ?? '502') === port;
-          } catch { return false; }
-        }).length;
-        setSameHostCount(count);
+        setSameHostCount(countSiblingsOnSameHost(list, host, port));
       })
       .catch(() => { /* ignore — hint is best-effort */ });
     return () => { cancelled = true; };
