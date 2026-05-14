@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Check, X, Settings, Trash2, Shield } from 'lucide-react';
+import { Check, X, Settings, Trash2, Shield, Link } from 'lucide-react';
 
 import type { Equipment } from '../../types';
 import type { SensorGatingRule } from '../../types/gating';
@@ -184,6 +184,19 @@ const EquipmentCard = React.memo(function EquipmentCard({
           </span>
         )}
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {/* Bind-DI shortcut: only when this equipment has no gating rule yet AND
+              the parent wired the limits-modal opener. Hidden once a rule exists
+              (the now-clickable Shield in the title bar covers that case). */}
+          {!hasGatedSensors && onOpenLimits && (
+            <button
+              className="p-1.5 text-[var(--text-muted)] hover:text-blue-400 hover:bg-blue-400/10 rounded transition-colors"
+              onClick={(e) => { e.stopPropagation(); onOpenLimits(); }}
+              title={t('sensor.gating.bindFromCard')}
+              aria-label={t('sensor.gating.bindFromCard')}
+            >
+              <Link className="w-3.5 h-3.5" />
+            </button>
+          )}
           <button
             className="p-1.5 text-[var(--text-muted)] hover:text-[var(--accent-blue)] hover:bg-[var(--accent-blue)]/10 rounded transition-colors"
             onClick={(e) => { e.stopPropagation(); onSensorMapping(eq); }}
