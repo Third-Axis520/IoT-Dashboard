@@ -195,6 +195,31 @@ using (var scope = app.Services.CreateScope())
     if (!app.Environment.IsEnvironment("Test"))
     {
 
+    // ── Phase 4: drop self-service tables that no longer have entity classes.
+    // Order matters: child tables (with FKs) before parents. All IF EXISTS so
+    // a fresh DB (where EnsureCreated never created these) is a no-op, and a
+    // re-run after cleanup is also a no-op.
+    //
+    // CRITICAL: This block must NEVER touch tables owned by IoTReceiverAPI:
+    //   PressingMachineRealTimeData, VisualMarkingMachineRealTimeData,
+    //   AssetCodeAndPlantView, AssetSyncLog, IoTErrorLog.
+    await ctx.Database.ExecuteSqlRawAsync("""
+        IF EXISTS (SELECT 1 FROM sys.tables WHERE name = 'SensorGatingRules' AND schema_id = SCHEMA_ID('dbo'))
+            DROP TABLE [dbo].[SensorGatingRules];
+        IF EXISTS (SELECT 1 FROM sys.tables WHERE name = 'RegisterMapEntries' AND schema_id = SCHEMA_ID('dbo'))
+            DROP TABLE [dbo].[RegisterMapEntries];
+        IF EXISTS (SELECT 1 FROM sys.tables WHERE name = 'PlcRegisterDefinitions' AND schema_id = SCHEMA_ID('dbo'))
+            DROP TABLE [dbo].[PlcRegisterDefinitions];
+        IF EXISTS (SELECT 1 FROM sys.tables WHERE name = 'PlcZoneDefinitions' AND schema_id = SCHEMA_ID('dbo'))
+            DROP TABLE [dbo].[PlcZoneDefinitions];
+        IF EXISTS (SELECT 1 FROM sys.tables WHERE name = 'RegisterMapProfiles' AND schema_id = SCHEMA_ID('dbo'))
+            DROP TABLE [dbo].[RegisterMapProfiles];
+        IF EXISTS (SELECT 1 FROM sys.tables WHERE name = 'PlcTemplates' AND schema_id = SCHEMA_ID('dbo'))
+            DROP TABLE [dbo].[PlcTemplates];
+        IF EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Devices' AND schema_id = SCHEMA_ID('dbo'))
+            DROP TABLE [dbo].[Devices];
+        """);
+
     // #7 Phase C cleanup: drop the obsolete HasMaterial column + its index.
     // Idempotent (IF EXISTS) so it's safe to re-run on already-cleaned DBs.
     await ctx.Database.ExecuteSqlRawAsync("""
@@ -479,10 +504,42 @@ using (var scope = app.Services.CreateScope())
         END
         """);
 
+    // ── Asset code migration (one-shot idempotent UPDATE) ────────────────
+    // Prod's 4 Modbus LineEquipments were initially registered with placeholder
+    // codes (dc_8..dc_11) before FAS issued the real asset codes. Updating
+    // LineEquipments + SensorLimits in place preserves UCL/LCL config; historical
+    // SensorReadings / SensorAlerts stay tagged with original code.
+    await ctx.Database.ExecuteSqlRawAsync("""
+        UPDATE [dbo].[LineEquipments] SET AssetCode = '0000020086' WHERE AssetCode = 'dc_8';  -- 加硫機 (高速加熱定型)
+        UPDATE [dbo].[LineEquipments] SET AssetCode = '0000002134' WHERE AssetCode = 'dc_9';  -- 烘箱
+        UPDATE [dbo].[LineEquipments] SET AssetCode = '0000005990' WHERE AssetCode = 'dc_10'; -- 冷凍機
+        UPDATE [dbo].[LineEquipments] SET AssetCode = '0000020889' WHERE AssetCode = 'dc_11'; -- 冷熱定型 (後跟定型)
+        UPDATE [dbo].[SensorLimits] SET AssetCode = '0000020086' WHERE AssetCode = 'dc_8';
+        UPDATE [dbo].[SensorLimits] SET AssetCode = '0000002134' WHERE AssetCode = 'dc_9';
+        UPDATE [dbo].[SensorLimits] SET AssetCode = '0000005990' WHERE AssetCode = 'dc_10';
+        UPDATE [dbo].[SensorLimits] SET AssetCode = '0000020889' WHERE AssetCode = 'dc_11';
+        """);
+
     } // end if (!IsEnvironment("Test"))
 
     // Seed for test environment (DDL block above already seeds for production)
     await SeedPropertyTypesAsync(ctx);
+
+    // ── Factory auto-seed: IoTReceiverAPI devices (pressing + visual marking) ──
+    // Idempotent — DeviceSeeder.SeedXxxAsync skips if a DeviceConnection already
+    // exists for the given AssetCode. LineConfigId=2 is prod's "C棟 LeanA" line;
+    // in dev/test where it doesn't exist, we skip rather than error.
+    var prodLineId = await ctx.LineConfigs
+        .Where(lc => lc.Id == 2)
+        .Select(lc => (int?)lc.Id)
+        .FirstOrDefaultAsync();
+    if (prodLineId == 2)
+    {
+        await IoT.CentralApi.Tools.DeviceSeeder.SeedPressingMachineAsync(
+            ctx, assetCode: "0000020881", displayName: "壓合機", lineConfigId: 2);
+        await IoT.CentralApi.Tools.DeviceSeeder.SeedVisualMarkingMachineAsync(
+            ctx, assetCode: "0000005971", displayName: "智能視覺劃線機", lineConfigId: 2);
+    }
 } // end using scope
 
 static async Task SeedPropertyTypesAsync(IoTDbContext ctx)
