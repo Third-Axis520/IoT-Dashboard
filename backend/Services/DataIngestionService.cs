@@ -9,7 +9,7 @@ namespace IoT.CentralApi.Services;
 /// 處理 OvenDataReceive 推送的資料：
 /// 1. 查 / 建 Devices 表，更新 LastSeen
 /// 2. 若尚未綁定 AssetCode → 僅心跳，不寫 SensorReadings
-/// 3. 寫入 SensorReadings（受 A1 gating 過濾）
+/// 3. 寫入 SensorReadings（所有感測器，無 gating 過濾）
 /// 4. 比對 UCL/LCL，產生 SensorAlerts
 /// 5. 企業微信通知（Mock）
 /// 6. 廣播 SSE 給 Dashboard
@@ -20,18 +20,11 @@ public class DataIngestionService(
     WeChatService weChatService,
     SseHub sseHub,
     ILatestReadingCache latestCache,
-    GatingEvaluator gatingEvaluator,
     ILogger<DataIngestionService> logger)
 {
     // 記錄每個 (AssetCode, SensorId) 的上一次 status，避免重複產生告警
     private readonly ConcurrentDictionary<(string, int), string> _lastStatus = new();
     private readonly SemaphoreSlim _lock = new(1, 1);
-    // Cache: assetCode → gating rules dict keyed by GatedSensorId
-    private readonly ConcurrentDictionary<string, Dictionary<int, SensorGatingRule>> _gatingRulesCache = new();
-
-    /// <summary>清除指定 asset 的 gating rules cache（規則變更時呼叫）</summary>
-    public void InvalidateGatingRulesCache(string assetCode)
-        => _gatingRulesCache.TryRemove(assetCode, out _);
 
     public async Task ProcessAsync(IngestPayload payload)
     {
@@ -72,7 +65,7 @@ public class DataIngestionService(
 
             var assetCode = device.AssetCode;
 
-            // A1: 更新 LatestReadingCache（所有感測器，供其他 asset 的 gating 使用）
+            // 更新 LatestReadingCache（所有感測器）
             foreach (var s in payload.Sensors)
                 latestCache.Update(assetCode, s.Id, s.Value, now);
 
@@ -81,25 +74,8 @@ public class DataIngestionService(
                 .Where(l => l.AssetCode == assetCode)
                 .ToDictionaryAsync(l => l.SensorId);
 
-            // 3b. 載入此 asset 的 gating rules — 自 #7 Phase C 起 SensorGatingRule
-            // 是唯一 gating 機制（舊 material_detect 路徑已收斂）
-            var gatingRules = await GetGatingRulesAsync(assetCode, db);
-
-            bool IsBlockedByNewGating(int sensorId)
-            {
-                if (!gatingRules.TryGetValue(sensorId, out var rule)) return false;
-                var decision = gatingEvaluator.Evaluate(rule, now);
-                if (decision != GatingDecision.Pass)
-                {
-                    logger.LogTrace("Asset {Asset} Sensor {Id} gated: {Decision}", assetCode, sensorId, decision);
-                    return true;
-                }
-                return false;
-            }
-
-            // 4. 寫入時序讀值（SensorGatingRule 封鎖的跳過）
+            // 4. 寫入時序讀值（所有感測器，無 gating 過濾）
             var readings = payload.Sensors
-                .Where(s => !IsBlockedByNewGating(s.Id))
                 .Select(s => new SensorReading
                 {
                     AssetCode = assetCode,
@@ -111,11 +87,10 @@ public class DataIngestionService(
 
             db.SensorReadings.AddRange(readings);
 
-            // 5. 告警判斷（SensorGatingRule 封鎖的跳過；避免空機假警報）
+            // 5. 告警判斷
             var newAlerts = new List<SensorAlert>();
             foreach (var sensor in payload.Sensors)
             {
-                if (IsBlockedByNewGating(sensor.Id)) continue;
                 if (!limits.TryGetValue(sensor.Id, out var limit)) continue;
                 if (sensor.Error != null) continue;
 
@@ -187,16 +162,13 @@ public class DataIngestionService(
             {
                 var assetInfo = await fasService.GetAssetInfoAsync(assetCode);
 
-                // BuildSseSensors filters out SensorGatingRule-blocked sensors so
-                // DB writes + SSE broadcasts stay in lockstep. Internal+static
-                // so it's unit-testable without the SseHub connection-count gate.
                 var ssePayload = new SseDataUpdate
                 {
                     AssetCode = assetCode,
                     AssetName = assetInfo?.AssetName ?? assetInfo?.NickName,
                     Timestamp = payload.Timestamp,
                     IsConnected = payload.IsConnected,
-                    Sensors = BuildSseSensors(payload.Sensors, limits, IsBlockedByNewGating),
+                    Sensors = BuildSseSensors(payload.Sensors, limits),
                 };
 
                 await sseHub.BroadcastAsync(ssePayload);
@@ -211,32 +183,15 @@ public class DataIngestionService(
         }
     }
 
-    private async Task<Dictionary<int, SensorGatingRule>> GetGatingRulesAsync(
-        string assetCode, IoTDbContext db)
-    {
-        if (_gatingRulesCache.TryGetValue(assetCode, out var cached))
-            return cached;
-
-        var rules = await db.SensorGatingRules
-            .Where(r => r.GatedAssetCode == assetCode)
-            .ToDictionaryAsync(r => r.GatedSensorId);
-
-        _gatingRulesCache[assetCode] = rules;
-        return rules;
-    }
-
     /// <summary>
-    /// Builds the Sensors list for an SSE data-update payload, filtering out
-    /// SensorGatingRule-blocked sensors so DB writes + SSE broadcasts stay
-    /// consistent. Extracted so it can be unit-tested without SseHub.
+    /// Builds the Sensors list for an SSE data-update payload.
+    /// Internal+static so it can be unit-tested without SseHub.
     /// </summary>
     internal static List<SseSensorItem> BuildSseSensors(
         IList<SensorReading_Dto> payloadSensors,
-        Dictionary<int, SensorLimit> limits,
-        Func<int, bool> isBlockedByNewGating)
+        Dictionary<int, SensorLimit> limits)
     {
         return payloadSensors
-            .Where(s => !isBlockedByNewGating(s.Id))
             .Select(s =>
             {
                 limits.TryGetValue(s.Id, out var lim);

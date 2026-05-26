@@ -139,10 +139,8 @@ builder.Services.AddSingleton<IProtocolAdapter, IoTReceiverDbAdapter>();
 // ── Polling Infrastructure ───────────────────────────────────────────────
 builder.Services.AddSingleton<ConnectionStateRegistry>();
 builder.Services.AddSingleton<ILatestReadingCache, LatestReadingCache>();
-builder.Services.AddSingleton<GatingEvaluator>();
 builder.Services.AddHostedService<PollingBackgroundService>();
 builder.Services.AddHostedService<PollingWatchdogService>();
-builder.Services.AddScoped<ImpactAnalyzer>();
 
 // ── Port ─────────────────────────────────────────────────────────────────
 builder.WebHost.UseUrls("http://0.0.0.0:5200");

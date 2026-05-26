@@ -8,9 +8,9 @@ using Microsoft.Extensions.DependencyInjection;
 namespace IoT.CentralApi.Tests.Services;
 
 /// <summary>
-/// Integration tests for DataIngestionService A1 gating + B1 material_detect coexistence.
+/// Integration tests for DataIngestionService.
 ///
-/// Uses real SQLite DB (via IntegrationTestBase), real LatestReadingCache, real GatingEvaluator.
+/// Uses real SQLite DB (via IntegrationTestBase), real LatestReadingCache.
 /// FasApiService / WeChatService / SseHub are real instances but harmless in test env
 /// (FAS uses negative cache / no connections; WeChat is disabled; SseHub has 0 connections).
 /// </summary>
@@ -21,20 +21,11 @@ public class DataIngestionServiceTests : IntegrationTestBase
     private DataIngestionService GetSut()
         => Factory.Services.GetRequiredService<DataIngestionService>();
 
-    private LatestReadingCache GetCache()
-        => (LatestReadingCache)Factory.Services.GetRequiredService<ILatestReadingCache>();
-
     private const string AssetCode = "TEST_ASSET";
     private const string SerialNumber = "SN_TEST_001";
 
-    // DI (gating) asset + sensor
-    private const string DiAsset = "DI_ASSET";
-    private const int DiSensorId = 9001;
-
-    // Gated sensor
-    private const int GatedSensorId = 5001;
-    // Ungated sensor
-    private const int UngatedSensorId = 5002;
+    private const int SensorId1 = 5001;
+    private const int SensorId2 = 5002;
 
     /// <summary>Seed a bound Device into the DB.</summary>
     private async Task SeedDeviceAsync()
@@ -53,23 +44,6 @@ public class DataIngestionServiceTests : IntegrationTestBase
         }
     }
 
-    /// <summary>Seed a SensorGatingRule for GatedSensorId pointing at DiAsset/DiSensorId.</summary>
-    private async Task SeedGatingRuleAsync(int delayMs = 0, int maxAgeMs = 5000)
-    {
-        await using var db = await CreateDbContextAsync();
-        db.SensorGatingRules.Add(new SensorGatingRule
-        {
-            GatedAssetCode = AssetCode,
-            GatedSensorId = GatedSensorId,
-            GatingAssetCode = DiAsset,
-            GatingSensorId = DiSensorId,
-            DelayMs = delayMs,
-            MaxAgeMs = maxAgeMs,
-            CreatedAt = DateTime.UtcNow
-        });
-        await db.SaveChangesAsync();
-    }
-
     private IngestPayload MakePayload(params (int id, double value)[] sensors) => new()
     {
         SerialNumber = SerialNumber,
@@ -81,118 +55,43 @@ public class DataIngestionServiceTests : IntegrationTestBase
     // ── tests ─────────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task Process_NoGatingRule_WritesReading()
+    public async Task Process_WritesAllReadingsUnconditionally()
     {
         await SeedDeviceAsync();
         var sut = GetSut();
 
-        await sut.ProcessAsync(MakePayload((GatedSensorId, 100.0)));
+        await sut.ProcessAsync(MakePayload((SensorId1, 100.0), (SensorId2, 200.0)));
 
         await using var db = await CreateDbContextAsync();
-        var count = await db.SensorReadings.CountAsync(r =>
-            r.AssetCode == AssetCode && r.SensorId == GatedSensorId);
-        count.Should().Be(1);
+        var count = await db.SensorReadings.CountAsync(r => r.AssetCode == AssetCode);
+        count.Should().Be(2);
     }
 
     [Fact]
-    public async Task Process_GatingRule_DiTrue_WritesReading()
+    public async Task Process_UnboundDevice_DoesNotWriteReadings()
     {
-        await SeedDeviceAsync();
-        await SeedGatingRuleAsync();
-
-        // Pre-populate DI cache with value = 1 (present)
-        var cache = GetCache();
-        cache.Update(DiAsset, DiSensorId, 1.0, DateTime.UtcNow);
-
-        // Invalidate gating rules cache so new rule is loaded
-        GetSut().InvalidateGatingRulesCache(AssetCode);
-
-        await GetSut().ProcessAsync(MakePayload((GatedSensorId, 200.0)));
-
         await using var db = await CreateDbContextAsync();
-        var count = await db.SensorReadings.CountAsync(r =>
-            r.AssetCode == AssetCode && r.SensorId == GatedSensorId);
-        count.Should().Be(1);
-    }
-
-    [Fact]
-    public async Task Process_GatingRule_DiFalse_DoesNotWriteReading()
-    {
-        await SeedDeviceAsync();
-        await SeedGatingRuleAsync();
-
-        // DI value = 0 (not present)
-        var cache = GetCache();
-        cache.Update(DiAsset, DiSensorId, 0.0, DateTime.UtcNow);
-
-        GetSut().InvalidateGatingRulesCache(AssetCode);
-
-        await GetSut().ProcessAsync(MakePayload((GatedSensorId, 200.0)));
-
-        await using var db = await CreateDbContextAsync();
-        var count = await db.SensorReadings.CountAsync(r =>
-            r.AssetCode == AssetCode && r.SensorId == GatedSensorId);
-        count.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task Process_GatingRule_DiNoData_DoesNotWriteReading()
-    {
-        await SeedDeviceAsync();
-        await SeedGatingRuleAsync();
-        // Cache is empty — no DI data at all
-        GetSut().InvalidateGatingRulesCache(AssetCode);
-
-        await GetSut().ProcessAsync(MakePayload((GatedSensorId, 200.0)));
-
-        await using var db = await CreateDbContextAsync();
-        var count = await db.SensorReadings.CountAsync(r =>
-            r.AssetCode == AssetCode && r.SensorId == GatedSensorId);
-        count.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task Process_GatingRule_StaleDi_DoesNotWriteReading()
-    {
-        await SeedDeviceAsync();
-        // MaxAgeMs = 500 — anything older than 500ms is stale
-        await SeedGatingRuleAsync(maxAgeMs: 500);
-
-        var cache = GetCache();
-        // Timestamp is 2 seconds in the past → stale
-        cache.Update(DiAsset, DiSensorId, 1.0, DateTime.UtcNow.AddSeconds(-2));
-
-        GetSut().InvalidateGatingRulesCache(AssetCode);
-
-        await GetSut().ProcessAsync(MakePayload((GatedSensorId, 200.0)));
-
-        await using var db = await CreateDbContextAsync();
-        var count = await db.SensorReadings.CountAsync(r =>
-            r.AssetCode == AssetCode && r.SensorId == GatedSensorId);
-        count.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task Process_GatingRulePass_WritesReading()
-    {
-        // Post #7 Phase C: material_detect special path is gone and the
-        // HasMaterial column has been dropped from the schema. SensorGatingRule
-        // alone decides whether readings get written. When the rule allows
-        // (pass), the reading writes.
-        await SeedDeviceAsync();
-        await SeedGatingRuleAsync();
-        var cache = GetCache();
+        db.Devices.Add(new Device
+        {
+            SerialNumber = "SN_UNBOUND",
+            AssetCode = null,
+            FirstSeen = DateTime.UtcNow,
+            LastSeen = DateTime.UtcNow
+        });
+        await db.SaveChangesAsync();
 
         var sut = GetSut();
-        sut.InvalidateGatingRulesCache(AssetCode);
+        var payload = new IngestPayload
+        {
+            SerialNumber = "SN_UNBOUND",
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            IsConnected = true,
+            Sensors = new List<SensorReading_Dto> { new() { Id = SensorId1, Value = 99.0 } }
+        };
+        await sut.ProcessAsync(payload);
 
-        cache.Update(DiAsset, DiSensorId, 1.0, DateTime.UtcNow);
-        await sut.ProcessAsync(MakePayload((GatedSensorId, 300.0)));
-
-        await using var db = await CreateDbContextAsync();
-        var reading = await db.SensorReadings.FirstOrDefaultAsync(r =>
-            r.AssetCode == AssetCode && r.SensorId == GatedSensorId);
-        reading.Should().NotBeNull();
-        reading!.Value.Should().Be(300.0);
+        await using var db2 = await CreateDbContextAsync();
+        var count = await db2.SensorReadings.CountAsync();
+        count.Should().Be(0);
     }
 }
