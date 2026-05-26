@@ -48,12 +48,3 @@ public record SaveDeviceConnectionRequest(
     int AlertOnConsecutiveErrors = 5,
     int AlertCooldownSec = 300,
     bool IsAlertEnabled = true);
-
-public record UpdateDeviceConnectionRequest(
-    [Required, MaxLength(200)] string Name,
-    [Required] string Config,
-    int? PollIntervalMs,
-    bool IsEnabled = true,
-    int AlertOnConsecutiveErrors = 5,
-    int AlertCooldownSec = 300,
-    bool IsAlertEnabled = true);

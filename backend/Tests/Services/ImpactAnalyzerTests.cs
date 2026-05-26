@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
-using IoT.CentralApi.Controllers;
 using IoT.CentralApi.Dtos;
+using IoT.CentralApi.Models;
 using IoT.CentralApi.Services;
 using IoT.CentralApi.Tests._Shared;
 using Microsoft.EntityFrameworkCore;
@@ -20,20 +20,35 @@ public class ImpactAnalyzerTests : IntegrationTestBase
     [Fact]
     public async Task PropertyTypeDeletion_ReturnsBlock_WhenInUse()
     {
-        // Create a custom property type
-        var ptReq = new SavePropertyTypeRequest("test_impact", "測試衝擊", "zap", "V", null, null, "normal", 0);
-        var ptResp = await Client.PostAsJsonAsync("/api/property-types", ptReq);
-        var pt = await ptResp.Content.ReadFromJsonAsync<PropertyTypeDto>();
+        // Seed a custom property type directly
+        await using var db = await CreateDbContextAsync();
+        var pt = new PropertyType
+        {
+            Key = "test_impact",
+            Name = "測試衝擊",
+            Icon = "zap",
+            DefaultUnit = "V",
+            Behavior = "normal",
+            IsBuiltIn = false,
+            SortOrder = 0,
+            CreatedAt = DateTime.UtcNow,
+        };
+        db.PropertyTypes.Add(pt);
+        await db.SaveChangesAsync();
 
-        // Create an EquipmentType referencing it
-        var etReq = new SaveEquipmentTypeRequest(
-            "Impact Test Equipment", "single_kpi", null,
-            new List<SaveSensorRequest>
+        // Seed an EquipmentType referencing it
+        var et = new EquipmentType
+        {
+            Name = "Impact Test Equipment",
+            VisType = "single_kpi",
+            CreatedAt = DateTime.UtcNow,
+            Sensors = new List<EquipmentTypeSensor>
             {
-                new(SensorId: 6001, PointId: "pt_test", Label: "測試", Unit: "V",
-                    PropertyTypeId: pt!.Id)
-            });
-        await Client.PostAsJsonAsync("/api/equipment-types", etReq);
+                new() { SensorId = 6001, PointId = "pt_test", Label = "測試", Unit = "V", PropertyTypeId = pt.Id }
+            }
+        };
+        db.EquipmentTypes.Add(et);
+        await db.SaveChangesAsync();
 
         var analyzer = CreateAnalyzer();
         var result = await analyzer.AnalyzePropertyTypeDeletion(pt.Id);
@@ -47,12 +62,23 @@ public class ImpactAnalyzerTests : IntegrationTestBase
     [Fact]
     public async Task PropertyTypeDeletion_ReturnsSilent_WhenNotInUse()
     {
-        var ptReq = new SavePropertyTypeRequest("test_unused", "未使用", "circle", "", null, null, "normal", 0);
-        var ptResp = await Client.PostAsJsonAsync("/api/property-types", ptReq);
-        var pt = await ptResp.Content.ReadFromJsonAsync<PropertyTypeDto>();
+        await using var db = await CreateDbContextAsync();
+        var pt = new PropertyType
+        {
+            Key = "test_unused",
+            Name = "未使用",
+            Icon = "circle",
+            DefaultUnit = "",
+            Behavior = "normal",
+            IsBuiltIn = false,
+            SortOrder = 0,
+            CreatedAt = DateTime.UtcNow,
+        };
+        db.PropertyTypes.Add(pt);
+        await db.SaveChangesAsync();
 
         var analyzer = CreateAnalyzer();
-        var result = await analyzer.AnalyzePropertyTypeDeletion(pt!.Id);
+        var result = await analyzer.AnalyzePropertyTypeDeletion(pt.Id);
 
         result.RequiresConfirmation.Should().BeFalse();
         result.Impact.Should().BeNull();
@@ -61,36 +87,40 @@ public class ImpactAnalyzerTests : IntegrationTestBase
     [Fact]
     public async Task DeviceConnectionDeletion_ReturnsWarning_WhenEquipmentOnLine()
     {
+        // Get seeded temperature property type id via GET (read-only, still valid)
         var ptResp = await Client.GetAsync("/api/property-types");
         var pts = await ptResp.Content.ReadFromJsonAsync<List<PropertyTypeDto>>();
         var tempId = pts!.First(p => p.Key == "temperature").Id;
 
-        // Create EquipmentType
-        var etReq = new SaveEquipmentTypeRequest(
-            "Line Equipment", "single_kpi", null,
-            new List<SaveSensorRequest>
+        // Seed EquipmentType directly
+        await using var db = await CreateDbContextAsync();
+        var et = new EquipmentType
+        {
+            Name = "Line Equipment",
+            VisType = "single_kpi",
+            CreatedAt = DateTime.UtcNow,
+            Sensors = new List<EquipmentTypeSensor>
             {
-                new(SensorId: 6010, PointId: "pt_line", Label: "溫度", Unit: "℃",
-                    PropertyTypeId: tempId)
-            });
-        var etResp = await Client.PostAsJsonAsync("/api/equipment-types", etReq);
-        var et = await etResp.Content.ReadFromJsonAsync<EquipmentTypeDto>();
+                new() { SensorId = 6010, PointId = "pt_line", Label = "溫度", Unit = "℃", PropertyTypeId = tempId }
+            }
+        };
+        db.EquipmentTypes.Add(et);
+        await db.SaveChangesAsync();
 
-        // Create LineConfig with this EquipmentType
+        // Create LineConfig with this EquipmentType (LineConfigController is intact)
         var lcReq = new
         {
             lineId = "LINE_IMPACT_TEST",
             name = "衝擊測試產線",
             equipments = new[]
             {
-                new { equipmentTypeId = et!.Id, assetCode = "IMPACT_ASSET", sortOrder = 0 }
+                new { equipmentTypeId = et.Id, assetCode = "IMPACT_ASSET", sortOrder = 0 }
             }
         };
         await Client.PostAsJsonAsync("/api/line-configs", lcReq);
 
-        // Create DeviceConnection linked to this EquipmentType
-        await using var db = await CreateDbContextAsync();
-        var dc = new IoT.CentralApi.Models.DeviceConnection
+        // Seed DeviceConnection linked to this EquipmentType
+        var dc = new DeviceConnection
         {
             Name = "Impact Connection",
             Protocol = "modbus_tcp",
@@ -115,7 +145,7 @@ public class ImpactAnalyzerTests : IntegrationTestBase
     public async Task DeviceConnectionDeletion_ReturnsSilent_WhenNoEquipment()
     {
         await using var db = await CreateDbContextAsync();
-        var dc = new IoT.CentralApi.Models.DeviceConnection
+        var dc = new DeviceConnection
         {
             Name = "Orphan Connection",
             Protocol = "push_ingest",

@@ -1,7 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using IoT.CentralApi.Data;
 using IoT.CentralApi.Models;
-using IoT.CentralApi.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -38,8 +37,7 @@ public record SaveEquipmentTypeRequest(
 [ApiController]
 [Route("api/equipment-types")]
 public class EquipmentTypeController(
-    IDbContextFactory<IoTDbContext> dbFactory,
-    SseHub sseHub) : ControllerBase
+    IDbContextFactory<IoTDbContext> dbFactory) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetAll()
@@ -63,96 +61,6 @@ public class EquipmentTypeController(
             .FirstOrDefaultAsync(et => et.Id == id);
         if (et == null) return NotFound();
         return Ok(MapToDtoPublic(et));
-    }
-
-    [HttpPost]
-    public async Task<IActionResult> Create([FromBody] SaveEquipmentTypeRequest req)
-    {
-        await using var db = await dbFactory.CreateDbContextAsync();
-        var et = new EquipmentType
-        {
-            Name = req.Name,
-            VisType = req.VisType,
-            Description = req.Description,
-            CreatedAt = DateTime.UtcNow,
-            Sensors = req.Sensors.Select((s, i) => new EquipmentTypeSensor
-            {
-                SensorId = s.SensorId,
-                PointId = s.PointId,
-                Label = s.Label,
-                Unit = s.Unit,
-                PropertyTypeId = s.PropertyTypeId,
-                RawAddress = s.RawAddress,
-                SortOrder = s.SortOrder == 0 ? i : s.SortOrder,
-            }).ToList(),
-        };
-        db.EquipmentTypes.Add(et);
-        await db.SaveChangesAsync();
-
-        var created = await db.EquipmentTypes
-            .Include(x => x.Sensors.OrderBy(s => s.SortOrder))
-                .ThenInclude(s => s.PropertyType)
-            .FirstAsync(x => x.Id == et.Id);
-        _ = sseHub.BroadcastConfigAsync("equipment_type", created.Id, "created");
-        return Ok(MapToDtoPublic(created));
-    }
-
-    [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(int id, [FromBody] SaveEquipmentTypeRequest req)
-    {
-        await using var db = await dbFactory.CreateDbContextAsync();
-        var et = await db.EquipmentTypes
-            .Include(x => x.Sensors)
-            .FirstOrDefaultAsync(x => x.Id == id);
-        if (et == null) return NotFound();
-
-        et.Name = req.Name;
-        et.VisType = req.VisType;
-        et.Description = req.Description;
-
-        db.EquipmentTypeSensors.RemoveRange(et.Sensors);
-        et.Sensors = req.Sensors.Select((s, i) => new EquipmentTypeSensor
-        {
-            EquipmentTypeId = id,
-            SensorId = s.SensorId,
-            PointId = s.PointId,
-            Label = s.Label,
-            Unit = s.Unit,
-            PropertyTypeId = s.PropertyTypeId,
-            RawAddress = s.RawAddress,
-            SortOrder = s.SortOrder == 0 ? i : s.SortOrder,
-        }).ToList();
-
-        await db.SaveChangesAsync();
-
-        var updated = await db.EquipmentTypes
-            .Include(x => x.Sensors.OrderBy(s => s.SortOrder))
-                .ThenInclude(s => s.PropertyType)
-            .FirstAsync(x => x.Id == id);
-        _ = sseHub.BroadcastConfigAsync("equipment_type", updated.Id, "updated");
-        return Ok(MapToDtoPublic(updated));
-    }
-
-    [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Delete(int id)
-    {
-        await using var db = await dbFactory.CreateDbContextAsync();
-        var et = await db.EquipmentTypes
-            .Include(x => x.LineEquipments)
-            .FirstOrDefaultAsync(x => x.Id == id);
-        if (et == null) return NotFound();
-
-        if (et.LineEquipments.Count > 0)
-            return Conflict(new
-            {
-                error = "此設備類型已被產線配置使用，請先從產線中移除",
-                usedByCount = et.LineEquipments.Count,
-            });
-
-        db.EquipmentTypes.Remove(et);
-        await db.SaveChangesAsync();
-        _ = sseHub.BroadcastConfigAsync("equipment_type", id, "deleted");
-        return NoContent();
     }
 
     internal static EquipmentTypeDto MapToDtoPublic(EquipmentType et) => new(

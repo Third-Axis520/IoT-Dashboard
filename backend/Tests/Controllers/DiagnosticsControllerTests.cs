@@ -1,8 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
-using System.Text.Json;
-using IoT.CentralApi.Controllers;
 using IoT.CentralApi.Dtos;
+using IoT.CentralApi.Models;
 using IoT.CentralApi.Tests._Shared;
 
 namespace IoT.CentralApi.Tests.Controllers;
@@ -25,22 +24,17 @@ public class DiagnosticsControllerTests : IntegrationTestBase
     [Fact]
     public async Task GetPollingStatus_IncludesConnectionHealth()
     {
-        // Create a modbus connection first
-        var ptResp = await Client.GetAsync("/api/property-types");
-        var pts = await ptResp.Content.ReadFromJsonAsync<List<PropertyTypeDto>>();
-        var tempId = pts!.First(p => p.Key == "temperature").Id;
-
-        var req = new SaveDeviceConnectionRequest(
-            Name: "Diag Test",
-            Protocol: "modbus_tcp",
-            Config: JsonSerializer.Serialize(new
-            {
-                host = "127.0.0.1", port = 502, unitId = 0,
-                startAddress = 0, count = 1, dataType = "uint16"
-            }),
-            PollIntervalMs: 5000,
-            IsEnabled: false);
-        await Client.PostAsJsonAsync("/api/device-connections", req);
+        // Seed a device connection directly (POST endpoint removed)
+        await using var db = await CreateDbContextAsync();
+        db.DeviceConnections.Add(new DeviceConnection
+        {
+            Name = "Diag Test",
+            Protocol = "modbus_tcp",
+            ConfigJson = "{}",
+            IsEnabled = false,
+            CreatedAt = DateTime.UtcNow,
+        });
+        await db.SaveChangesAsync();
 
         var response = await Client.GetAsync("/api/diagnostics/polling");
         var diag = await response.Content.ReadFromJsonAsync<PollingDiagnosticsDto>();
