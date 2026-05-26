@@ -11,6 +11,8 @@ import { DualSideSpark } from '../visualizations/DualSideSpark';
 import { SingleKpi } from '../visualizations/SingleKpi';
 import { CustomGrid } from '../visualizations/CustomGrid';
 import { UnifiedSparkline } from '../visualizations/UnifiedSparkline';
+import { PressingMachineLr } from '../visualizations/PressingMachineLr';
+import { VisualMarkingMachine } from '../visualizations/VisualMarkingMachine';
 
 export interface EquipmentCardProps {
   eq: Equipment;
@@ -261,6 +263,8 @@ const EquipmentCard = React.memo(function EquipmentCard({
         {eq.visType === 'dual_side_spark' && <DualSideSpark points={eq.points} dragScope={eq.id} onPointSwap={(drag, drop) => onPointSwap(lineId, eq.id, drag, drop)} />}
         {eq.visType === 'single_kpi' && <SingleKpi points={eq.points} />}
         {eq.visType === 'custom_grid' && <CustomGrid points={eq.points} dragScope={eq.id} onPointSwap={(drag, drop) => onPointSwap(lineId, eq.id, drag, drop)} />}
+        {eq.visType === 'pressing_machine_lr' && <PressingMachineLr points={eq.points} />}
+        {eq.visType === 'visual_marking_machine' && <VisualMarkingMachine points={eq.points} />}
       </div>
 
       {/* Sparkline footer */}
