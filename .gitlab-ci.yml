@@ -22,7 +22,8 @@ variables:
   PUBLISH_OUT: "publish-out"
   DEPLOY_DIR: 'C:\Users\Administrator\Desktop\IoT\NB_C.C_Dashboard\backend\publish'
   HEALTH_URL: "http://localhost:5200/health"
-  LINECONFIG_URL: "http://localhost:5200/api/lineconfig"
+  LINECONFIG_URL: "http://localhost:5200/api/line-configs"
+  DIAG_URL: "http://localhost:5200/api/diagnostics/polling"
   GIT_SSL_NO_VERIFY: "true"
 
 test:
@@ -90,9 +91,18 @@ verify:
     - 'if ($health.status -ne ''ok'') { Write-Error "health.status != ok"; exit 1 }'
     - 'if ($health.service -ne ''IoTDashboard'') { Write-Error "health.service != IoTDashboard"; exit 1 }'
     - Start-Sleep -Seconds 4
-    - $lineconfig = Invoke-RestMethod $env:LINECONFIG_URL -TimeoutSec 15
-    - Write-Host "lineconfig => count=$($lineconfig.Count)"
+    # line-configs must return JSON ARRAY (not the SPA HTML fallback). Use raw
+    # WebRequest so we can inspect Content-Type — Invoke-RestMethod silently
+    # coerces HTML strings into a 1-element collection and would pass below.
+    - $resp = Invoke-WebRequest $env:LINECONFIG_URL -TimeoutSec 15 -UseBasicParsing
+    - 'if ($resp.Headers[''Content-Type''] -notlike ''application/json*'') { Write-Error "line-configs returned non-JSON Content-Type: $($resp.Headers[''Content-Type''])"; exit 1 }'
+    - $lineconfig = $resp.Content | ConvertFrom-Json
+    - Write-Host "line-configs => count=$($lineconfig.Count)"
     - 'if ($lineconfig.Count -lt 1) { Write-Error "expected at least 1 line config, got $($lineconfig.Count)"; exit 1 }'
-    - Write-Host "Deploy verified — health ok, $($lineconfig.Count) production line(s) configured"
+    # diagnostics/polling must show the background poller is alive
+    - $diag = Invoke-RestMethod $env:DIAG_URL -TimeoutSec 15
+    - Write-Host "polling => isRunning=$($diag.polling.isRunning) active=$($diag.polling.activeConnections)"
+    - 'if (-not $diag.polling.isRunning) { Write-Error "polling background service is not running"; exit 1 }'
+    - Write-Host "Deploy verified — health ok, $($lineconfig.Count) line(s), $($diag.polling.activeConnections) connection(s) polling"
   only:
     - main
