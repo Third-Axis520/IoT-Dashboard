@@ -1,4 +1,3 @@
-using IoT.CentralApi.Data;
 using IoT.CentralApi.Models;
 using IoT.CentralApi.Services;
 using IoT.CentralApi.Tests._Shared;
@@ -22,31 +21,13 @@ public class DataIngestionServiceTests : IntegrationTestBase
         => Factory.Services.GetRequiredService<DataIngestionService>();
 
     private const string AssetCode = "TEST_ASSET";
-    private const string SerialNumber = "SN_TEST_001";
 
     private const int SensorId1 = 5001;
     private const int SensorId2 = 5002;
 
-    /// <summary>Seed a bound Device into the DB.</summary>
-    private async Task SeedDeviceAsync()
+    private IngestPayload MakePayload(string assetCode, params (int id, double value)[] sensors) => new()
     {
-        await using var db = await CreateDbContextAsync();
-        if (!await db.Devices.AnyAsync(d => d.SerialNumber == SerialNumber))
-        {
-            db.Devices.Add(new Device
-            {
-                SerialNumber = SerialNumber,
-                AssetCode = AssetCode,
-                FirstSeen = DateTime.UtcNow,
-                LastSeen = DateTime.UtcNow
-            });
-            await db.SaveChangesAsync();
-        }
-    }
-
-    private IngestPayload MakePayload(params (int id, double value)[] sensors) => new()
-    {
-        SerialNumber = SerialNumber,
+        AssetCode = assetCode,
         Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
         IsConnected = true,
         Sensors = sensors.Select(s => new SensorReading_Dto { Id = s.id, Value = s.value }).ToList()
@@ -57,10 +38,9 @@ public class DataIngestionServiceTests : IntegrationTestBase
     [Fact]
     public async Task Process_WritesAllReadingsUnconditionally()
     {
-        await SeedDeviceAsync();
         var sut = GetSut();
 
-        await sut.ProcessAsync(MakePayload((SensorId1, 100.0), (SensorId2, 200.0)));
+        await sut.ProcessAsync(MakePayload(AssetCode, (SensorId1, 100.0), (SensorId2, 200.0)));
 
         await using var db = await CreateDbContextAsync();
         var count = await db.SensorReadings.CountAsync(r => r.AssetCode == AssetCode);
@@ -68,30 +48,20 @@ public class DataIngestionServiceTests : IntegrationTestBase
     }
 
     [Fact]
-    public async Task Process_UnboundDevice_DoesNotWriteReadings()
+    public async Task Process_EmptyAssetCode_DoesNotWriteReadings()
     {
-        await using var db = await CreateDbContextAsync();
-        db.Devices.Add(new Device
-        {
-            SerialNumber = "SN_UNBOUND",
-            AssetCode = null,
-            FirstSeen = DateTime.UtcNow,
-            LastSeen = DateTime.UtcNow
-        });
-        await db.SaveChangesAsync();
-
         var sut = GetSut();
         var payload = new IngestPayload
         {
-            SerialNumber = "SN_UNBOUND",
+            AssetCode = "",
             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             IsConnected = true,
             Sensors = new List<SensorReading_Dto> { new() { Id = SensorId1, Value = 99.0 } }
         };
         await sut.ProcessAsync(payload);
 
-        await using var db2 = await CreateDbContextAsync();
-        var count = await db2.SensorReadings.CountAsync();
+        await using var db = await CreateDbContextAsync();
+        var count = await db.SensorReadings.CountAsync();
         count.Should().Be(0);
     }
 }

@@ -60,28 +60,26 @@ public class PollingIntegrationTests : IntegrationTestBase
             EquipmentType = et,
         };
         db.DeviceConnections.Add(dc);
-        await db.SaveChangesAsync();
 
-        var connectionId = dc.Id;
+        // 4. Seed LineConfig + LineEquipment so PollingBackgroundService can resolve
+        //    AssetCode from EquipmentTypeId (Device table removed).
+        var lc = new LineConfig
+        {
+            LineId = "test_line",
+            Name = "Test Line",
+            UpdatedAt = DateTime.UtcNow,
+        };
+        db.LineConfigs.Add(lc);
 
-        // 4. Bind a Device so DataIngestionService processes the data.
-        var serialNumber = $"poll_{connectionId}";
-        var existingDevice = await db.Devices.FirstOrDefaultAsync(d => d.SerialNumber == serialNumber);
-        if (existingDevice == null)
+        var le = new LineEquipment
         {
-            db.Devices.Add(new Device
-            {
-                SerialNumber = serialNumber,
-                AssetCode = "POLL_TEST_ASSET",
-                FirstSeen = DateTime.UtcNow,
-                LastSeen = DateTime.UtcNow,
-            });
-        }
-        else
-        {
-            existingDevice.AssetCode = "POLL_TEST_ASSET";
-            existingDevice.LastSeen = DateTime.UtcNow;
-        }
+            LineConfig = lc,
+            EquipmentType = et,
+            AssetCode = "POLL_TEST_ASSET",
+            SortOrder = 0,
+        };
+        db.LineEquipments.Add(le);
+
         await db.SaveChangesAsync();
 
         // 5. Wait for PollingBackgroundService to pick it up and write readings

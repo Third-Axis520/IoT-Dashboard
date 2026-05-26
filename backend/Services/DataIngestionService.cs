@@ -6,13 +6,12 @@ using Microsoft.EntityFrameworkCore;
 namespace IoT.CentralApi.Services;
 
 /// <summary>
-/// 處理 OvenDataReceive 推送的資料：
-/// 1. 查 / 建 Devices 表，更新 LastSeen
-/// 2. 若尚未綁定 AssetCode → 僅心跳，不寫 SensorReadings
-/// 3. 寫入 SensorReadings（所有感測器，無 gating 過濾）
-/// 4. 比對 UCL/LCL，產生 SensorAlerts
-/// 5. 企業微信通知（Mock）
-/// 6. 廣播 SSE 給 Dashboard
+/// 處理推送資料：
+/// 1. 若 AssetCode 為空 → 忽略（不寫 SensorReadings）
+/// 2. 寫入 SensorReadings（所有感測器，無 gating 過濾）
+/// 3. 比對 UCL/LCL，產生 SensorAlerts
+/// 4. 企業微信通知
+/// 5. 廣播 SSE 給 Dashboard
 /// </summary>
 public class DataIngestionService(
     IDbContextFactory<IoTDbContext> dbFactory,
@@ -31,39 +30,16 @@ public class DataIngestionService(
         await _lock.WaitAsync();
         try
         {
-            await using var db = await dbFactory.CreateDbContextAsync();
-            var now = DateTime.UtcNow;
-
-            // 1. 查 / 建 Device 記錄，更新 LastSeen
-            var device = await db.Devices
-                .FirstOrDefaultAsync(d => d.SerialNumber == payload.SerialNumber);
-
-            if (device == null)
+            // 1. AssetCode 為空 → 忽略
+            if (string.IsNullOrWhiteSpace(payload.AssetCode))
             {
-                device = new Device
-                {
-                    SerialNumber = payload.SerialNumber,
-                    FirstSeen = now,
-                    LastSeen = now
-                };
-                db.Devices.Add(device);
-                await db.SaveChangesAsync();
-                logger.LogInformation("New device registered: {SerialNumber}", payload.SerialNumber);
-            }
-            else
-            {
-                device.LastSeen = now;
-                await db.SaveChangesAsync();
-            }
-
-            // 2. 尚未綁定 → 只更新心跳，不做後續處理
-            if (device.AssetCode == null)
-            {
-                logger.LogDebug("Device {SerialNumber} not bound to AssetCode, skipping data write", payload.SerialNumber);
+                logger.LogDebug("IngestPayload missing AssetCode, skipping data write");
                 return;
             }
 
-            var assetCode = device.AssetCode;
+            await using var db = await dbFactory.CreateDbContextAsync();
+            var now = DateTime.UtcNow;
+            var assetCode = payload.AssetCode;
 
             // 更新 LatestReadingCache（所有感測器）
             foreach (var s in payload.Sensors)

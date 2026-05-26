@@ -9,19 +9,12 @@ public class IoTDbContext(DbContextOptions<IoTDbContext> options) : DbContext(op
     public DbSet<SensorAlert> SensorAlerts => Set<SensorAlert>();
     public DbSet<SensorLimit> SensorLimits => Set<SensorLimit>();
     public DbSet<AssetCache> AssetCaches => Set<AssetCache>();
-    public DbSet<Device> Devices => Set<Device>();
-    public DbSet<RegisterMapProfile> RegisterMapProfiles => Set<RegisterMapProfile>();
-    public DbSet<RegisterMapEntry> RegisterMapEntries => Set<RegisterMapEntry>();
-    public DbSet<PlcTemplate> PlcTemplates => Set<PlcTemplate>();
-    public DbSet<PlcZoneDefinition> PlcZoneDefinitions => Set<PlcZoneDefinition>();
-    public DbSet<PlcRegisterDefinition> PlcRegisterDefinitions => Set<PlcRegisterDefinition>();
     public DbSet<EquipmentType>       EquipmentTypes       => Set<EquipmentType>();
     public DbSet<EquipmentTypeSensor> EquipmentTypeSensors => Set<EquipmentTypeSensor>();
     public DbSet<LineConfig>          LineConfigs          => Set<LineConfig>();
     public DbSet<LineEquipment>       LineEquipments       => Set<LineEquipment>();
     public DbSet<PropertyType>        PropertyTypes        => Set<PropertyType>();
     public DbSet<DeviceConnection>    DeviceConnections    => Set<DeviceConnection>();
-    public DbSet<SensorGatingRule>    SensorGatingRules    => Set<SensorGatingRule>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -36,38 +29,6 @@ public class IoTDbContext(DbContextOptions<IoTDbContext> options) : DbContext(op
         // SensorAlerts 索引
         modelBuilder.Entity<SensorAlert>()
             .HasIndex(a => new { a.AssetCode, a.Timestamp });
-
-        // Devices 唯一索引
-        modelBuilder.Entity<Device>()
-            .HasIndex(d => d.SerialNumber)
-            .IsUnique();
-
-        // RegisterMapProfile：LineId 唯一索引
-        modelBuilder.Entity<RegisterMapProfile>()
-            .HasIndex(p => p.LineId)
-            .IsUnique();
-
-        // RegisterMapEntry：一份 Profile 內，同一地址不重複
-        modelBuilder.Entity<RegisterMapEntry>()
-            .HasIndex(e => new { e.ProfileId, e.RegisterAddress })
-            .IsUnique();
-
-        // PlcZoneDefinition：同一 Template 內 ZoneIndex 唯一
-        modelBuilder.Entity<PlcZoneDefinition>()
-            .HasIndex(z => new { z.TemplateId, z.ZoneIndex })
-            .IsUnique();
-
-        // PlcRegisterDefinition：同一 Template 內 RegisterAddress 唯一
-        modelBuilder.Entity<PlcRegisterDefinition>()
-            .HasIndex(r => new { r.TemplateId, r.RegisterAddress })
-            .IsUnique();
-
-        // RegisterMapProfile → PlcTemplate（nullable FK，刪除 Template 時 SetNull）
-        modelBuilder.Entity<RegisterMapProfile>()
-            .HasOne(p => p.PlcTemplate)
-            .WithMany()
-            .HasForeignKey(p => p.PlcTemplateId)
-            .OnDelete(DeleteBehavior.SetNull);
 
         // ── EquipmentType ─────────────────────────────────────────────────────
         modelBuilder.Entity<EquipmentTypeSensor>()
@@ -116,11 +77,5 @@ public class IoTDbContext(DbContextOptions<IoTDbContext> options) : DbContext(op
             .HasForeignKey(s => s.PropertyTypeId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // ── SensorGatingRule ──────────────────────────────────────────────────
-        modelBuilder.Entity<SensorGatingRule>(entity =>
-        {
-            entity.HasIndex(r => new { r.GatedAssetCode, r.GatedSensorId }).IsUnique();
-            entity.HasIndex(r => new { r.GatingAssetCode, r.GatingSensorId });
-        });
     }
 }

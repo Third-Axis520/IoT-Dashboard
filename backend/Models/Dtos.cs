@@ -4,6 +4,13 @@ namespace IoT.CentralApi.Models;
 
 public class IngestPayload
 {
+    /// <summary>
+    /// AssetCode to write readings under. Required.
+    /// Previously callers sent SerialNumber and the backend looked up AssetCode
+    /// via the now-removed Devices table. New callers should set AssetCode directly.
+    /// </summary>
+    public string AssetCode { get; set; } = "";
+    /// <summary>Legacy field — kept for wire compatibility but no longer used.</summary>
     public string SerialNumber { get; set; } = "";
     public long Timestamp { get; set; }
     public bool IsConnected { get; set; }
@@ -104,140 +111,4 @@ public class AssetInfoDto
     public string? Spec { get; set; }
 }
 
-// ── Devices API ──────────────────────────────────────────────────────────────
-
-public class DeviceDto
-{
-    public int Id { get; set; }
-    public string SerialNumber { get; set; } = "";
-    public string? IpAddress { get; set; }
-    public string? AssetCode { get; set; }
-    public string? FriendlyName { get; set; }
-    public string? AssetName { get; set; }
-    public string? DepartmentName { get; set; }
-    public DateTime FirstSeen { get; set; }
-    public DateTime LastSeen { get; set; }
-    public bool IsBound => AssetCode != null;
-}
-
-public class BindDeviceRequest
-{
-    public string AssetCode { get; set; } = "";
-    public string? FriendlyName { get; set; }
-}
-
-public class RegisterDeviceRequest
-{
-    public string SerialNumber { get; set; } = "";
-    public string? FriendlyName { get; set; }
-}
-
-// ── Register Map API ─────────────────────────────────────────────────────────
-
-public class RegisterMapEntryDto
-{
-    public int Id { get; set; }
-    public int ZoneIndex { get; set; }
-    public int RegisterAddress { get; set; }
-    public string EquipmentId { get; set; } = "";
-    public string PointId { get; set; } = "";
-    public string Label { get; set; } = "";
-    public string Unit { get; set; } = "℃";
-}
-
-public class RegisterMapProfileDto
-{
-    public int Id { get; set; }
-    public string LineId { get; set; } = "";
-    public string ProfileName { get; set; } = "";
-    public DateTime UpdatedAt { get; set; }
-    public int? PlcTemplateId { get; set; }
-    public PlcTemplateDetailDto? PlcTemplate { get; set; }
-    public List<RegisterMapEntryDto> Entries { get; set; } = [];
-}
-
-public class SaveRegisterMapRequest
-{
-    public string ProfileName { get; set; } = "";
-    public int? PlcTemplateId { get; set; }
-    public List<RegisterMapEntryDto> Entries { get; set; } = [];
-}
-
-// ── PLC Template API ─────────────────────────────────────────────────────────
-
-public class PlcTemplateSummaryDto
-{
-    public int Id { get; set; }
-    public string ModelName { get; set; } = "";
-    public string? Description { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public int ZoneCount { get; set; }
-    public int RegisterCount { get; set; }
-}
-
-public class PlcTemplateDetailDto
-{
-    public int Id { get; set; }
-    public string ModelName { get; set; } = "";
-    public string? Description { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public List<PlcZoneDefinitionDto> Zones { get; set; } = [];
-    public List<PlcRegisterDefinitionDto> Registers { get; set; } = [];
-
-    public static PlcTemplateDetailDto From(PlcTemplate t) => new()
-    {
-        Id = t.Id,
-        ModelName = t.ModelName,
-        Description = t.Description,
-        CreatedAt = t.CreatedAt,
-        Zones = t.Zones
-            .OrderBy(z => z.ZoneIndex)
-            .Select(z => new PlcZoneDefinitionDto
-            {
-                Id = z.Id,
-                ZoneIndex = z.ZoneIndex,
-                ZoneName = z.ZoneName,
-                AssetCodeRegStart = z.AssetCodeRegStart,
-                AssetCodeRegCount = z.AssetCodeRegCount,
-            }).ToList(),
-        Registers = t.Registers
-            .OrderBy(r => r.RegisterAddress)
-            .Select(r => new PlcRegisterDefinitionDto
-            {
-                Id = r.Id,
-                RegisterAddress = r.RegisterAddress,
-                DefaultLabel = r.DefaultLabel,
-                DefaultUnit = r.DefaultUnit,
-                DefaultZoneIndex = r.DefaultZoneIndex,
-            }).ToList(),
-    };
-}
-
-public class PlcZoneDefinitionDto
-{
-    public int Id { get; set; }
-    public int ZoneIndex { get; set; }
-    public string ZoneName { get; set; } = "";
-    public int AssetCodeRegStart { get; set; }
-    public int AssetCodeRegCount { get; set; }
-}
-
-public class PlcRegisterDefinitionDto
-{
-    public int Id { get; set; }
-    public int RegisterAddress { get; set; }
-    public string DefaultLabel { get; set; } = "";
-    public string DefaultUnit { get; set; } = "℃";
-    public int? DefaultZoneIndex { get; set; }
-}
-
-public class SavePlcTemplateRequest
-{
-    [System.ComponentModel.DataAnnotations.Required]
-    [System.ComponentModel.DataAnnotations.MaxLength(100)]
-    public string ModelName { get; set; } = "";
-    [System.ComponentModel.DataAnnotations.MaxLength(300)]
-    public string? Description { get; set; }
-    public List<PlcZoneDefinitionDto> Zones { get; set; } = [];
-    public List<PlcRegisterDefinitionDto> Registers { get; set; } = [];
-}
+// ── (Devices / RegisterMap / PlcTemplate DTOs removed — entities dropped in Task 4.2) ──

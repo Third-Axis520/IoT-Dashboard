@@ -67,12 +67,33 @@ public class PollingBackgroundService(
             .AsNoTracking()
             .ToListAsync(ct);
 
-        var tasks = connections.Select(dc => PollOneAsync(dc, dbFactory, ct));
+        // Resolve AssetCode for each connection via LineEquipment (Device table removed).
+        // Build a map: EquipmentTypeId → first non-null AssetCode from LineEquipments.
+        var equipmentTypeIds = connections
+            .Where(dc => dc.EquipmentTypeId.HasValue)
+            .Select(dc => dc.EquipmentTypeId!.Value)
+            .Distinct()
+            .ToList();
+
+        var assetCodeMap = await db.LineEquipments
+            .Where(le => equipmentTypeIds.Contains(le.EquipmentTypeId) && le.AssetCode != null)
+            .GroupBy(le => le.EquipmentTypeId)
+            .Select(g => new { EquipmentTypeId = g.Key, AssetCode = g.First().AssetCode })
+            .ToDictionaryAsync(x => x.EquipmentTypeId, x => x.AssetCode!, ct);
+
+        var tasks = connections.Select(dc =>
+        {
+            string? assetCode = null;
+            if (dc.EquipmentTypeId.HasValue)
+                assetCodeMap.TryGetValue(dc.EquipmentTypeId.Value, out assetCode);
+            return PollOneAsync(dc, assetCode, dbFactory, ct);
+        });
         await Task.WhenAll(tasks);
     }
 
     private async Task PollOneAsync(
         DeviceConnection dc,
+        string? assetCode,
         IDbContextFactory<IoTDbContext> dbFactory,
         CancellationToken ct)
     {
@@ -128,9 +149,9 @@ public class PollingBackgroundService(
         await EvaluateAndDispatchAsync(dc, state, ct);
 
         // Convert PollResult → IngestPayload
-        if (dc.EquipmentType?.Sensors is { Count: > 0 } sensors)
+        if (dc.EquipmentType?.Sensors is { Count: > 0 } sensors && assetCode != null)
         {
-            var payload = ConvertToPayload(dc, result.Value!, sensors);
+            var payload = ConvertToPayload(assetCode, result.Value!, sensors);
             if (payload != null)
             {
                 using var ingestionScope = scopeFactory.CreateScope();
@@ -144,7 +165,7 @@ public class PollingBackgroundService(
     }
 
     private static IngestPayload? ConvertToPayload(
-        DeviceConnection dc,
+        string assetCode,
         PollResult poll,
         ICollection<EquipmentTypeSensor> sensors)
     {
@@ -170,10 +191,9 @@ public class PollingBackgroundService(
         if (sensorReadings.Count == 0)
             return null;
 
-        // Use synthetic SerialNumber: "poll_{connectionId}"
         return new IngestPayload
         {
-            SerialNumber = $"poll_{dc.Id}",
+            AssetCode = assetCode,
             Timestamp = new DateTimeOffset(poll.Timestamp).ToUnixTimeMilliseconds(),
             IsConnected = true,
             Sensors = sensorReadings,
