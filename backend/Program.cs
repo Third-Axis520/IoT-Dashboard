@@ -149,6 +149,33 @@ builder.WebHost.UseUrls("http://0.0.0.0:5200");
 
 var app = builder.Build();
 
+// CLI mode: dotnet run -- seed-pressing-machine <assetCode> <displayName> [lineConfigId=1]
+if (args.Length > 0 && args[0].StartsWith("seed-"))
+{
+    using var cliScope = app.Services.CreateScope();
+    var dbFactory = cliScope.ServiceProvider.GetRequiredService<IDbContextFactory<IoTDbContext>>();
+    await using var cliDb = await dbFactory.CreateDbContextAsync();
+    await cliDb.Database.EnsureCreatedAsync();
+
+    var asset = args.Length > 1 ? args[1] : throw new ArgumentException("AssetCode required");
+    var name = args.Length > 2 ? args[2] : asset;
+    var lineId = args.Length > 3 ? int.Parse(args[3]) : 1;
+
+    switch (args[0])
+    {
+        case "seed-pressing-machine":
+            await IoT.CentralApi.Tools.DeviceSeeder.SeedPressingMachineAsync(cliDb, asset, name, lineId);
+            return;
+        case "seed-marking-machine":
+            await IoT.CentralApi.Tools.DeviceSeeder.SeedVisualMarkingMachineAsync(cliDb, asset, name, lineId);
+            return;
+        default:
+            Console.Error.WriteLine($"Unknown command: {args[0]}");
+            Environment.Exit(1);
+            return;
+    }
+}
+
 // ── 自動建立 DB / Seed (works in both prod and test) ────────────────────────
 using (var scope = app.Services.CreateScope())
 {
