@@ -3,9 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Activity, Plus, Search } from 'lucide-react';
 
 import type { AlertRecord, Equipment, MachineTemplate, PointStatus, ProductionLine } from './types';
-import type { SensorGatingRule } from './types/gating';
 import { cn } from './utils/cn';
-import { createEquipmentFromTemplate } from './utils/simulation';
 import { getGridStyle } from './utils/grid';
 import {
   fetchEquipmentTypes,
@@ -19,7 +17,6 @@ import type { ApiLineConfig } from './types';
 import { useLiveData } from './hooks/useLiveData';
 import { useToast } from './hooks/useToast';
 import { useDevices } from './hooks/useDevices';
-import { fetchGatingRules } from './lib/apiSensorGating';
 import { fetchHistoryByAsset, type HistoryPoint } from './lib/apiHistory';
 import { TempTrendsView } from './components/panels/TempTrendsView';
 
@@ -54,18 +51,9 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
 
   // ── Modal toggles ──────────────────────────────────────────────────────────
-  const [showAddDevice, setShowAddDevice] = useState(false);
-  const [wizardPostInfo, setWizardPostInfo] = useState<{ template: MachineTemplate; initialName: string; assetCode: string | null } | null>(null);
-  const [showDeviceMgmt, setShowDeviceMgmt] = useState(false);
   const [showLimits, setShowLimits] = useState(false);
   const [limitsFocusAsset, setLimitsFocusAsset] = useState<string | undefined>(undefined);
-  const [showRegisterMap, setShowRegisterMap] = useState(false);
-  const [showPlcTemplates, setShowPlcTemplates] = useState(false);
-  const [showWizard, setShowWizard] = useState(false);
-  const [showPropertyTypes, setShowPropertyTypes] = useState(false);
-  const [showConnections, setShowConnections] = useState(false);
   const [drillDownEq, setDrillDownEq] = useState<Equipment | null>(null);
-  const [sensorMappingEq, setSensorMappingEq] = useState<Equipment | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ title: string; message: string; confirmText: string; variant: 'danger' | 'default'; onConfirm: () => void } | null>(null);
 
   // ── Edit / autoplay / fullscreen ───────────────────────────────────────────
@@ -113,11 +101,7 @@ export default function App() {
   }, []);
 
   const { status: connStatus, error: connError, assetCode, latestRawSensors, latestRawTimestamps } = useLiveData(data, setData, setAlerts, reloadConfig);
-  const { devices, bindDevice, unbindDevice, deleteDevice, validateAsset, registerDevice, unboundCount } = useDevices();
-
-  // ── Gating rules ───────────────────────────────────────────────────────────
-  // keyed by gatedSensorId for quick lookup during render
-  const [gatingRulesBySensorId, setGatingRulesBySensorId] = useState<Map<number, SensorGatingRule>>(new Map());
+  const { unboundCount } = useDevices();
 
   useEffect(() => { try { localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(alerts.slice(-200))); } catch {} }, [alerts]);
   useEffect(() => {
@@ -222,22 +206,6 @@ export default function App() {
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Reload gating rules whenever the active line's assetCodes change
-  const activeLineAssetCodesKey = useMemo(() => {
-    const line = data.find(l => l.id === activeLineId) || data[0];
-    return line ? line.equipments.map(e => e.deviceId).filter(Boolean).sort().join(',') : '';
-  }, [data, activeLineId]);
-
-  useEffect(() => {
-    if (!activeLineAssetCodesKey) return;
-    const assetCodes = activeLineAssetCodesKey.split(',').filter(Boolean);
-    Promise.all(assetCodes.map(ac => fetchGatingRules(ac).catch(() => [] as SensorGatingRule[]))).then(results => {
-      const map = new Map<number, SensorGatingRule>();
-      results.flat().forEach(rule => map.set(rule.gatedSensorId, rule));
-      setGatingRulesBySensorId(map);
-    });
-  }, [activeLineAssetCodesKey]);
-
   // ── Derived state ──────────────────────────────────────────────────────────
   const activeLine = useMemo(() => data.find(l => l.id === activeLineId) || data[0] || { id: '', name: '', equipments: [] }, [data, activeLineId]);
 
@@ -273,8 +241,6 @@ export default function App() {
     });
     return { shoePresent: present, shoeTotal: total };
   }, [activeLine, latestRawSensors]);
-
-  const boundEquipments = useMemo(() => assetCode ? data.flatMap(l => l.equipments).filter(eq => eq.deviceId === assetCode) : [], [data, assetCode]);
 
   // ── Callbacks ──────────────────────────────────────────────────────────────
   const handleDragStart = useCallback((e: React.DragEvent, i: number) => { setDraggedEqIndex(i); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/html', ''); }, []);
@@ -334,7 +300,6 @@ export default function App() {
   }, []);
 
   const handleSaveConfig = useCallback((updatedEq: Equipment) => { setData(prev => prev.map(l => l.id === activeLineId ? { ...l, equipments: l.equipments.map(e => e.id === updatedEq.id ? updatedEq : e) } : l)); setDrillDownEq(null); }, [activeLineId]);
-  const handleSaveSensorMapping = useCallback((updatedEq: Equipment) => { setData(prev => prev.map(l => ({ ...l, equipments: l.equipments.map(eq => eq.id === updatedEq.id ? updatedEq : eq) }))); setSensorMappingEq(null); }, []);
 
   const toggleAutoPlay = useCallback(() => {
     if (isAutoPlaying) { setIsAutoPlaying(false); setDrillDownEq(null); }
@@ -400,35 +365,6 @@ export default function App() {
     setConfirmDialog({ title: t('app.deleteLine'), message: t('app.deleteLineConfirm', { name }), confirmText: t('common.delete'), variant: 'danger', onConfirm: () => { setConfirmDialog(null); executeDeleteLine(lineId); } });
   }, [data, executeDeleteLine, t]);
 
-  const handleAddDevice = useCallback(async (tpl: MachineTemplate, name: string, deviceId: string, sensorMapping: Record<number, number>, pointNames: string[], isHidden: boolean, targetLineId?: string) => {
-    const lineId = targetLineId ?? activeLineId;
-    const newEq = createEquipmentFromTemplate(tpl, name, deviceId, sensorMapping, pointNames);
-    if (!isHidden) {
-      setData(prev => prev.map(l => l.id === lineId ? { ...l, equipments: [...l.equipments, { ...newEq, isHidden }] } : l));
-    }
-    setShowAddDevice(false);
-    const lc = apiLineConfigs.find(c => c.lineId === lineId);
-    if (lc && tpl.id) {
-      try {
-        const updated = await saveLineConfig(lineId, lc.name, [
-          ...lc.equipments.map((le, i) => ({ equipmentTypeId: le.equipmentTypeId, assetCode: le.assetCode, displayName: le.displayName, sortOrder: i, isHidden: le.isHidden })),
-          { equipmentTypeId: Number(tpl.id), assetCode: deviceId || null, displayName: name !== tpl.name ? name : null, sortOrder: lc.equipments.length, isHidden },
-        ]);
-        setApiLineConfigs(prev => prev.map(c => c.lineId === lineId ? updated : c));
-      } catch (err) { console.error('Failed to persist equipment:', err); }
-    }
-  }, [activeLineId, apiLineConfigs]);
-
-  const handleWizardSuccess = useCallback(async (info: { name: string; assetCode: string | null; equipmentTypeId: number | null }) => {
-    setShowWizard(false);
-    const fresh = await reloadConfig();
-    if (info.assetCode && info.equipmentTypeId && fresh) {
-      const tpl = fresh.find(t => t.id === String(info.equipmentTypeId));
-      if (tpl) { setWizardPostInfo({ template: tpl, initialName: info.name, assetCode: info.assetCode }); return; }
-    }
-    addToast('success', `「${info.name}」已建立！`);
-  }, [reloadConfig, addToast]);
-
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className={cn("app-container h-screen w-screen bg-[var(--bg-root)] text-[var(--text-main)] font-sans overflow-hidden flex flex-col transition-colors duration-300", theme === 'light' && 'theme-light')}>
@@ -445,10 +381,7 @@ export default function App() {
         isFullscreen={isFullscreen} onToggleFullscreen={toggleFullscreen}
         theme={theme} onThemeChange={setTheme}
         unboundCount={unboundCount} assetCode={assetCode}
-        onShowDeviceMgmt={() => setShowDeviceMgmt(true)} onShowLimits={() => setShowLimits(true)}
-        onShowConnections={() => setShowConnections(true)} onShowPropertyTypes={() => setShowPropertyTypes(true)}
-        onShowRegisterMap={() => setShowRegisterMap(true)} onShowPlcTemplates={() => setShowPlcTemplates(true)}
-        onShowWizard={() => setShowWizard(true)} onShowAddDevice={() => setShowAddDevice(true)}
+        onShowLimits={() => setShowLimits(true)}
       />
 
       <main className="flex-1 min-h-0 p-4 md:p-6 overflow-hidden flex flex-col">
@@ -487,9 +420,6 @@ export default function App() {
             displayedEquipments={displayedEquipments}
             alerts={alerts}
             onUpdateLimits={handleUpdateLimits}
-            gatingRulesBySensorId={gatingRulesBySensorId}
-            latestRawSensors={latestRawSensors}
-            latestRawTimestamps={latestRawTimestamps}
           />
         ) : (
           <div className="grid gap-4 md:gap-6 w-full h-full animate-in fade-in duration-500" style={getGridStyle(displayedEquipments.length)}>
@@ -502,9 +432,8 @@ export default function App() {
                 onEditNameChange={setEditEqName} onEditDeviceIdChange={setEditEqDeviceId}
                 isSearching={!!searchQuery} draggedIndex={draggedEqIndex}
                 onDragStart={handleDragStart} onDragOver={handleDragOver} onDrop={handleDrop} onDragEnd={handleDragEnd}
-                onDrillDown={setDrillDownEq} onSensorMapping={setSensorMappingEq}
+                onDrillDown={setDrillDownEq}
                 onDelete={handleDeleteEquipment} onPointSwap={handlePointSwap}
-                gatingRulesBySensorId={gatingRulesBySensorId}
                 onOpenLimits={(focusAsset) => { setLimitsFocusAsset(focusAsset); setShowLimits(true); }}
               />
             ))}
@@ -513,26 +442,14 @@ export default function App() {
       </main>
 
       <ModalContainer
-        templates={templates} data={data} latestRawSensors={latestRawSensors} assetCode={assetCode}
-        devices={devices} bindDevice={bindDevice} unbindDevice={unbindDevice} deleteDevice={deleteDevice} validateAsset={validateAsset} registerDevice={registerDevice}
-        activeLine={activeLine} boundEquipments={boundEquipments}
-        showAddDevice={showAddDevice} onCloseAddDevice={() => setShowAddDevice(false)}
-        wizardPostInfo={wizardPostInfo} onCloseWizardPost={() => setWizardPostInfo(null)}
-        showDeviceMgmt={showDeviceMgmt} onCloseDeviceMgmt={() => setShowDeviceMgmt(false)}
+        data={data} assetCode={assetCode}
+        activeLine={activeLine}
         liveDrillDownEq={liveDrillDownEq} onCloseDrillDown={() => { setDrillDownEq(null); setIsAutoPlaying(false); }}
         showLimits={showLimits} onCloseLimits={() => { setShowLimits(false); setLimitsFocusAsset(undefined); }} limitsFocusAsset={limitsFocusAsset}
-        sensorMappingEq={sensorMappingEq} onCloseSensorMapping={() => setSensorMappingEq(null)}
-        showPlcTemplates={showPlcTemplates} onClosePlcTemplates={() => setShowPlcTemplates(false)}
-        showRegisterMap={showRegisterMap} onCloseRegisterMap={() => setShowRegisterMap(false)}
-        showWizard={showWizard} onCloseWizard={() => setShowWizard(false)}
-        showPropertyTypes={showPropertyTypes} onClosePropertyTypes={() => setShowPropertyTypes(false)}
-        showConnections={showConnections} onCloseConnections={() => setShowConnections(false)}
         confirmDialog={confirmDialog} onCloseConfirm={() => setConfirmDialog(null)}
         toasts={toasts} onRemoveToast={removeToast}
-        onAddDevice={handleAddDevice}
-        onWizardPostAdd={(lineId, name, ac, mapping, names) => { if (!wizardPostInfo) return; handleAddDevice(wizardPostInfo.template, name, ac, mapping, names, false, lineId); setWizardPostInfo(null); addToast('success', `「${name}」已加入儀表板`); }}
-        onSaveConfig={handleSaveConfig} onSaveSensorMapping={handleSaveSensorMapping}
-        onLimitsSaved={handleLimitsSaved} onWizardSuccess={handleWizardSuccess}
+        onSaveConfig={handleSaveConfig}
+        onLimitsSaved={handleLimitsSaved}
         isAutoPlaying={isAutoPlaying} autoPlaySpeed={autoPlaySpeed}
         onAutoPlayNextEq={handleAutoPlayNextEq} onStopAutoPlay={() => setIsAutoPlaying(false)}
       />

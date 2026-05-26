@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Trash2, Plus, ChevronDown, X, Layers, LayoutDashboard, Activity,
   Maximize, Minimize, Search, Check, Play, Pause, Lock, Unlock,
-  Cpu, SlidersHorizontal, Settings, Network, FileCode2,
+  SlidersHorizontal, Settings,
 } from 'lucide-react';
 import type { ProductionLine } from '../../types';
 import type { ConnectionStatus } from '../../hooks/useLiveData';
@@ -55,14 +55,7 @@ export interface AppToolbarProps {
   // Modal openers
   unboundCount: number;
   assetCode: string | null;
-  onShowDeviceMgmt: () => void;
   onShowLimits: () => void;
-  onShowConnections: () => void;
-  onShowPropertyTypes: () => void;
-  onShowRegisterMap: () => void;
-  onShowPlcTemplates: () => void;
-  onShowWizard: () => void;
-  onShowAddDevice: () => void;
 }
 
 export function AppToolbar(props: AppToolbarProps) {
@@ -78,7 +71,7 @@ export function AppToolbar(props: AppToolbarProps) {
     isFullscreen, onToggleFullscreen,
     theme, onThemeChange,
     unboundCount, assetCode,
-    onShowDeviceMgmt, onShowLimits, onShowConnections, onShowPropertyTypes, onShowRegisterMap, onShowPlcTemplates, onShowWizard, onShowAddDevice,
+    onShowLimits,
   } = props;
 
   return (
@@ -225,20 +218,6 @@ export function AppToolbar(props: AppToolbarProps) {
 
         {/* Icon-only secondary actions */}
         <button
-          onClick={onShowDeviceMgmt}
-          className="relative flex items-center justify-center w-8 h-8 text-[var(--text-muted)] hover:text-[var(--accent-blue)] hover:bg-[var(--accent-blue)]/10 rounded-md transition-colors"
-          title={t('app.deviceManagement')}
-          aria-label={t('app.deviceManagement')}
-        >
-          <Cpu className="w-4 h-4" />
-          {unboundCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-[var(--accent-red)] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-              {unboundCount}
-            </span>
-          )}
-        </button>
-
-        <button
           onClick={onShowLimits}
           disabled={!assetCode}
           className="flex items-center justify-center w-8 h-8 text-[var(--text-muted)] hover:text-[var(--accent-blue)] hover:bg-[var(--accent-blue)]/10 rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
@@ -248,7 +227,7 @@ export function AppToolbar(props: AppToolbarProps) {
           <SlidersHorizontal className="w-4 h-4" />
         </button>
 
-        {/* System Settings dropdown */}
+        {/* Preferences dropdown */}
         <div className="relative group">
           <button
             className="flex items-center justify-center w-8 h-8 text-[var(--text-muted)] hover:text-[var(--accent-blue)] hover:bg-[var(--accent-blue)]/10 rounded-md transition-colors"
@@ -258,21 +237,8 @@ export function AppToolbar(props: AppToolbarProps) {
             <Settings className="w-4 h-4" />
           </button>
           <div className="absolute right-0 top-full mt-1 bg-[var(--bg-panel)] border border-[var(--border-base)] rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 min-w-[210px]">
-            <p className="px-3 pt-2 pb-1 text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">{t('app.systemSettings')}</p>
-            <button onClick={onShowConnections} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--bg-card)] transition-colors">
-              <Network className="w-3.5 h-3.5 text-[var(--text-muted)]" /> {t('app.connectionManagement')}
-            </button>
-            <button onClick={onShowPropertyTypes} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--bg-card)] transition-colors">
-              <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--text-muted)]" /> {t('app.propertyManagement')}
-            </button>
-            <button onClick={onShowRegisterMap} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--bg-card)] transition-colors">
-              <FileCode2 className="w-3.5 h-3.5 text-[var(--text-muted)]" /> {t('app.registerMap')}
-            </button>
-            <button onClick={onShowPlcTemplates} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--bg-card)] transition-colors">
-              <Cpu className="w-3.5 h-3.5 text-[var(--text-muted)]" /> {t('app.plcTemplates')}
-            </button>
             {/* Preferences section */}
-            <div className="border-t border-[var(--border-base)] mt-1">
+            <div className="border-t border-[var(--border-base)]">
               <p className="px-3 pt-2 pb-1 text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">{t('app.preferences')}</p>
               {/* Theme row */}
               <div className="px-3 py-1.5 flex items-center justify-between gap-2">
@@ -298,26 +264,6 @@ export function AppToolbar(props: AppToolbarProps) {
                 <LanguageSwitcher />
               </div>
             </div>
-          </div>
-        </div>
-
-        <div className="w-px h-4 bg-[var(--border-base)]" />
-
-        {/* Primary CTA: Add Device Dropdown */}
-        <div className="relative group">
-          <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[var(--accent-green)]/10 text-[var(--accent-green)] border border-[var(--accent-green)]/30 hover:bg-[var(--accent-green)]/20 rounded-md transition-colors font-semibold">
-            <Plus className="w-3.5 h-3.5" /> {t('app.addDevice')} <ChevronDown className="w-3 h-3" />
-          </button>
-          <div className="absolute right-0 top-full mt-1 bg-[var(--bg-panel)] border border-[var(--border-base)] rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 min-w-[240px]">
-            <button onClick={onShowWizard} className="w-full text-left px-3 py-2.5 hover:bg-[var(--bg-card)] rounded-t-lg">
-              <div className="text-xs font-medium text-[var(--text-main)]">{t('app.integrateDevice')}</div>
-              <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{t('app.integrateDeviceDesc')}</div>
-            </button>
-            <div className="h-px bg-[var(--border-base)] mx-2" />
-            <button onClick={onShowAddDevice} className="w-full text-left px-3 py-2.5 hover:bg-[var(--bg-card)] rounded-b-lg">
-              <div className="text-xs font-medium text-[var(--text-main)]">{t('app.useTemplate')}</div>
-              <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{t('app.useTemplateDesc')}</div>
-            </button>
           </div>
         </div>
 

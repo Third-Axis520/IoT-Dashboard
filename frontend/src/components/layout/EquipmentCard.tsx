@@ -1,9 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Check, X, Settings, Trash2, Shield, Link } from 'lucide-react';
+import { Check, X, Trash2 } from 'lucide-react';
 
 import type { Equipment } from '../../types';
-import type { SensorGatingRule } from '../../types/gating';
 import { cn } from '../../utils/cn';
 import { MoldingMatrix } from '../visualizations/MoldingMatrix';
 import { FourRings } from '../visualizations/FourRings';
@@ -41,15 +40,10 @@ export interface EquipmentCardProps {
 
   // Actions
   onDrillDown: (eq: Equipment) => void;
-  onSensorMapping: (eq: Equipment) => void;
   onDelete: (lineId: string, eqId: string, name: string) => void;
   onPointSwap: (lineId: string, eqId: string, drag: number, drop: number) => void;
 
-  /** Gating rules keyed by gatedSensorId — used to show gating indicator in header */
-  gatingRulesBySensorId?: Map<number, SensorGatingRule>;
-  /** Opens the limits modal (where the user can view / edit gating rules).
-   *  Caller may scroll-focus a specific asset's section if the card passes
-   *  its own assetCode through. */
+  /** Opens the limits modal for this card's asset. */
   onOpenLimits?: (focusAssetCode?: string) => void;
 }
 
@@ -74,10 +68,8 @@ const EquipmentCard = React.memo(function EquipmentCard({
   onDrop,
   onDragEnd,
   onDrillDown,
-  onSensorMapping,
   onDelete,
   onPointSwap,
-  gatingRulesBySensorId,
   onOpenLimits,
 }: EquipmentCardProps) {
   const { t } = useTranslation();
@@ -90,35 +82,6 @@ const EquipmentCard = React.memo(function EquipmentCard({
     ? latestRawSensors.get(eq.deviceId)?.get(eq.materialDetectSensorId)
     : undefined;
   const shoeStatus = shoeRaw === 1 ? 'present' : shoeRaw === 0 ? 'absent' : null;
-
-  const hasGatedSensors = gatingRulesBySensorId !== undefined
-    && eq.points.some(p => p.sensorId !== undefined && gatingRulesBySensorId.has(p.sensorId));
-
-  // Aggregate the live DI source state across every gating rule on this card.
-  // Single source: shows its present/absent directly. Multiple sources: any
-  // "absent" downgrades the aggregate, since the gated reading wouldn't pass.
-  // Null when no source has reported yet (fresh boot / DI offline).
-  let gatingSourceState: 'present' | 'absent' | null = null;
-  if (hasGatedSensors && gatingRulesBySensorId) {
-    const seen = new Set<string>();
-    let sawAbsent = false;
-    let sawPresent = false;
-    for (const rule of gatingRulesBySensorId.values()) {
-      const key = `${rule.gatingAssetCode}:${rule.gatingSensorId}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      const value = latestRawSensors.get(rule.gatingAssetCode)?.get(rule.gatingSensorId);
-      if (value === 0) sawAbsent = true;
-      else if (value === 1) sawPresent = true;
-    }
-    if (sawAbsent) gatingSourceState = 'absent';
-    else if (sawPresent) gatingSourceState = 'present';
-  }
-  const shieldColorClass = gatingSourceState === 'present'
-    ? 'text-[var(--accent-green)]'
-    : gatingSourceState === 'absent'
-      ? 'text-[var(--accent-red)]'
-      : 'text-blue-400';
 
   return (
     <div
@@ -175,33 +138,6 @@ const EquipmentCard = React.memo(function EquipmentCard({
               >
                 {eq.deviceId || t('app.notBound')}
               </span>
-              {hasGatedSensors && (
-                onOpenLimits ? (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); onOpenLimits(eq.deviceId); }}
-                    title={
-                      gatingSourceState === 'present'
-                        ? t('sensor.gating.diLive', { state: t('sensor.gating.diPresent') })
-                        : gatingSourceState === 'absent'
-                          ? t('sensor.gating.diLive', { state: t('sensor.gating.diAbsent') })
-                          : t('sensor.gating.openFromCard')
-                    }
-                    aria-label={t('sensor.gating.openFromCard')}
-                    className={cn(
-                      'p-0.5 hover:bg-current/10 rounded transition-colors shrink-0',
-                      shieldColorClass,
-                    )}
-                  >
-                    <Shield className="w-3.5 h-3.5" />
-                  </button>
-                ) : (
-                  <Shield
-                    className={cn('w-3 h-3 opacity-70 shrink-0', shieldColorClass)}
-                    title={t('sensor.gating.advanced')}
-                  />
-                )
-              )}
             </>
           )}
         </div>
@@ -223,27 +159,6 @@ const EquipmentCard = React.memo(function EquipmentCard({
           </span>
         )}
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          {/* Bind-DI shortcut: only when this equipment has no gating rule yet AND
-              the parent wired the limits-modal opener. Hidden once a rule exists
-              (the now-clickable Shield in the title bar covers that case). */}
-          {!hasGatedSensors && onOpenLimits && (
-            <button
-              className="p-1.5 text-[var(--text-muted)] hover:text-blue-400 hover:bg-blue-400/10 rounded transition-colors"
-              onClick={(e) => { e.stopPropagation(); onOpenLimits(eq.deviceId); }}
-              title={t('sensor.gating.bindFromCard')}
-              aria-label={t('sensor.gating.bindFromCard')}
-            >
-              <Link className="w-3.5 h-3.5" />
-            </button>
-          )}
-          <button
-            className="p-1.5 text-[var(--text-muted)] hover:text-[var(--accent-blue)] hover:bg-[var(--accent-blue)]/10 rounded transition-colors"
-            onClick={(e) => { e.stopPropagation(); onSensorMapping(eq); }}
-            title={t('app.sensorMapping')}
-            aria-label="Sensor mapping settings"
-          >
-            <Settings className="w-3.5 h-3.5" />
-          </button>
           {isEditMode && (
             <button
               className="p-1.5 text-[var(--text-muted)] hover:text-[var(--accent-red)] hover:bg-[var(--accent-red)]/10 rounded"
