@@ -117,6 +117,7 @@ builder.Services.AddSingleton<SseHub>();
 builder.Services.AddSingleton<FasApiService>();
 builder.Services.AddSingleton<WeChatService>();
 builder.Services.AddSingleton<DataIngestionService>();
+builder.Services.AddSingleton<IIoTReceiverDataSource, SqlIoTReceiverDataSource>();
 
 // ── Alerting Channels ───────────────────────────────────────────────────────
 builder.Services.AddSingleton<IAlertChannel, IoT.CentralApi.Services.Alerting.Channels.SseAlertChannel>();
