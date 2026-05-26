@@ -134,6 +134,7 @@ builder.Services.AddHttpClient("WebApiAdapter", client =>
 builder.Services.AddSingleton<IProtocolAdapter, PushIngestAdapter>();
 builder.Services.AddSingleton<IProtocolAdapter, ModbusTcpAdapter>();
 builder.Services.AddSingleton<IProtocolAdapter, WebApiAdapter>();
+builder.Services.AddSingleton<IProtocolAdapter, IoTReceiverDbAdapter>();
 
 // ── Polling Infrastructure ───────────────────────────────────────────────
 builder.Services.AddSingleton<ConnectionStateRegistry>();
