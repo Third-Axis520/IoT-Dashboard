@@ -15,7 +15,7 @@ public class PropertyTypeControllerTests : IntegrationTestBase
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var properties = await response.Content.ReadFromJsonAsync<List<PropertyTypeDto>>();
         properties.Should().NotBeNull();
-        properties!.Should().HaveCount(8);
+        properties!.Should().HaveCount(9);
         properties.Should().Contain(p => p.Key == "temperature" && p.Name == "溫度");
         properties.Should().Contain(p => p.Key == "material_detect" && p.Behavior == "material_detect");
     }

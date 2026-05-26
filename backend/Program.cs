@@ -577,9 +577,9 @@ using (var scope = app.Services.CreateScope())
 
 static async Task SeedPropertyTypesAsync(IoTDbContext ctx)
 {
-    if (await ctx.PropertyTypes.AnyAsync()) return;
     var now = DateTime.UtcNow;
-    ctx.PropertyTypes.AddRange(
+    var builtIn = new[]
+    {
         new PropertyType { Key = "temperature",     Name = "溫度",     Icon = "thermometer",  DefaultUnit = "℃",    Behavior = "normal",          IsBuiltIn = true, SortOrder = 1, CreatedAt = now },
         new PropertyType { Key = "pressure",        Name = "壓力",     Icon = "gauge",        DefaultUnit = "kPa",  Behavior = "normal",          IsBuiltIn = true, SortOrder = 2, CreatedAt = now },
         new PropertyType { Key = "humidity",        Name = "濕度",     Icon = "droplets",     DefaultUnit = "%",    Behavior = "normal",          IsBuiltIn = true, SortOrder = 3, CreatedAt = now },
@@ -587,8 +587,16 @@ static async Task SeedPropertyTypesAsync(IoTDbContext ctx)
         new PropertyType { Key = "counter",         Name = "計數器",   Icon = "hash",         DefaultUnit = "count",Behavior = "counter",         IsBuiltIn = true, SortOrder = 5, CreatedAt = now },
         new PropertyType { Key = "state",           Name = "狀態",     Icon = "activity",     DefaultUnit = "",     Behavior = "state",           IsBuiltIn = true, SortOrder = 6, CreatedAt = now },
         new PropertyType { Key = "asset_code",      Name = "資產編號", Icon = "tag",          DefaultUnit = "",     Behavior = "asset_code",      IsBuiltIn = true, SortOrder = 7, CreatedAt = now },
-        new PropertyType { Key = "material_detect", Name = "在位",     Icon = "check-circle", DefaultUnit = "",     Behavior = "material_detect", IsBuiltIn = true, SortOrder = 8, CreatedAt = now }
-    );
+        new PropertyType { Key = "material_detect", Name = "在位",     Icon = "check-circle", DefaultUnit = "",     Behavior = "material_detect", IsBuiltIn = true, SortOrder = 8, CreatedAt = now },
+        new PropertyType { Key = "duration",        Name = "時間長度", Icon = "clock",        DefaultUnit = "s",    Behavior = "normal",          IsBuiltIn = true, SortOrder = 9, CreatedAt = now },
+    };
+
+    var existingKeys = await ctx.PropertyTypes.Select(p => p.Key).ToListAsync();
+    foreach (var pt in builtIn)
+    {
+        if (!existingKeys.Contains(pt.Key))
+            ctx.PropertyTypes.Add(pt);
+    }
     await ctx.SaveChangesAsync();
 }
 
