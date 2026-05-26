@@ -17,12 +17,6 @@ export interface AppToolbarProps {
   activeLineId: string;
   onLineChange: (id: string) => void;
   activeLine: ProductionLine;
-  isAddingLine: boolean;
-  onStartAddLine: () => void;
-  onCancelAddLine: () => void;
-  newLineName: string;
-  onNewLineNameChange: (name: string) => void;
-  onAddLine: () => void;
   onDeleteLine: (e: React.MouseEvent, lineId: string) => void;
   // View
   viewMode: 'dashboard' | 'temp_trends';
@@ -62,7 +56,7 @@ export function AppToolbar(props: AppToolbarProps) {
   const { t } = useTranslation();
   const {
     data, activeLineId, onLineChange, activeLine,
-    isAddingLine, onStartAddLine, onCancelAddLine, newLineName, onNewLineNameChange, onAddLine, onDeleteLine,
+    onDeleteLine,
     viewMode, onViewModeChange,
     totalPoints, alarmCount, shoePresent, shoeTotal, latestRawSensors, connStatus, connError,
     searchQuery, onSearchChange,
@@ -110,35 +104,6 @@ export function AppToolbar(props: AppToolbarProps) {
                   )}
                 </div>
               ))}
-              <div className="h-px bg-[var(--border-base)] my-1" />
-              {isAddingLine ? (
-                <div className="flex items-center gap-1 px-2 py-1">
-                  <input
-                    autoFocus
-                    value={newLineName}
-                    onChange={e => onNewLineNameChange(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') onAddLine();
-                      if (e.key === 'Escape') onCancelAddLine();
-                    }}
-                    className="flex-1 min-w-0 bg-[var(--bg-root)] border border-[var(--border-input)] rounded px-2 py-1 text-xs text-[var(--text-main)] outline-none focus:border-[var(--accent-green)]"
-                    placeholder={t('app.lineName')}
-                  />
-                  <button onClick={onAddLine} className="p-1 text-[var(--accent-green)] hover:bg-[var(--accent-green)]/10 rounded shrink-0" aria-label="Confirm">
-                    <Check className="w-3 h-3" />
-                  </button>
-                  <button onClick={onCancelAddLine} className="p-1 text-[var(--text-muted)] hover:bg-[var(--border-base)] rounded shrink-0" aria-label="Cancel">
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={(e) => { e.stopPropagation(); onStartAddLine(); }}
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--border-base)] rounded-md transition-colors"
-                >
-                  <Plus className="w-3 h-3" /> {t('app.addLine')}
-                </button>
-              )}
             </div>
           </div>
         </div>

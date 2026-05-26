@@ -43,8 +43,6 @@ export default function App() {
 
   // ── UI state ───────────────────────────────────────────────────────────────
   const [activeLineId, setActiveLineId] = useState('');
-  const [isAddingLine, setIsAddingLine] = useState(false);
-  const [newLineName, setNewLineName] = useState('');
   const [viewMode, setViewMode] = useState<'dashboard' | 'temp_trends'>('dashboard');
   const [theme, setTheme] = useState<'dark' | 'light'>(() => (localStorage.getItem('iot-theme') as 'dark' | 'light') ?? 'dark');
   useEffect(() => { localStorage.setItem('iot-theme', theme); }, [theme]);
@@ -343,14 +341,6 @@ export default function App() {
     setConfirmDialog({ title: t('app.deleteDevice'), message: t('app.deleteDeviceConfirm', { name: eqName }), confirmText: t('common.delete'), variant: 'danger', onConfirm: () => { setConfirmDialog(null); executeDeleteEquipment(lineId, eqId); } });
   }, [executeDeleteEquipment, t]);
 
-  const handleAddLine = useCallback(async () => {
-    if (!newLineName.trim()) return;
-    const name = newLineName.trim(); const id = `line-${Date.now()}`;
-    setData(prev => [...prev, { id, name, equipments: [] }]); setActiveLineId(id); setNewLineName(''); setIsAddingLine(false);
-    try { const saved = await saveLineConfig(id, name, []); setApiLineConfigs(prev => [...prev, saved]); }
-    catch (err) { setData(prev => prev.filter(l => l.id !== id)); addToast('error', `新增產線失敗：${err instanceof Error ? err.message : '未知錯誤'}`); }
-  }, [newLineName, addToast]);
-
   const executeDeleteLine = useCallback(async (lineId: string) => {
     if (data.length <= 1) return; const snap = data;
     setData(prev => { const nl = prev.filter(l => l.id !== lineId); if (activeLineId === lineId) setActiveLineId(nl[0].id); return nl; });
@@ -370,8 +360,7 @@ export default function App() {
     <div className={cn("app-container h-screen w-screen bg-[var(--bg-root)] text-[var(--text-main)] font-sans overflow-hidden flex flex-col transition-colors duration-300", theme === 'light' && 'theme-light')}>
       <AppToolbar
         data={data} activeLineId={activeLineId} onLineChange={setActiveLineId} activeLine={activeLine}
-        isAddingLine={isAddingLine} onStartAddLine={() => setIsAddingLine(true)} onCancelAddLine={() => setIsAddingLine(false)}
-        newLineName={newLineName} onNewLineNameChange={setNewLineName} onAddLine={handleAddLine} onDeleteLine={handleDeleteLine}
+        onDeleteLine={handleDeleteLine}
         viewMode={viewMode} onViewModeChange={setViewMode}
         totalPoints={totalPoints} alarmCount={alarmCount} shoePresent={shoePresent} shoeTotal={shoeTotal}
         latestRawSensors={latestRawSensors} connStatus={connStatus} connError={connError}

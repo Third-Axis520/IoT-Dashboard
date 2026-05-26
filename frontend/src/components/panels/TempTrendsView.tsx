@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useMemo } from 'react';
-import type { AlertRecord, Equipment, Point } from '../../types';
+import type { AlertRecord, Equipment } from '../../types';
 import { cn } from '../../utils/cn';
 import { PointTrendCard } from './PointTrendCard';
 import { AlertPanel } from './AlertPanel';
@@ -10,21 +10,24 @@ interface TempTrendsViewProps {
   onUpdateLimits: (lineId: string, eqId: string, pointId: string, ucl: number, lcl: number) => void;
 }
 
+/**
+ * Trend view — groups trend cards by equipment with section headers.
+ *
+ * Designed for clarity over density:
+ *   - Hard cap at 4 cards per row (configurable via responsive breakpoints).
+ *   - Each equipment is its own section with a labeled header.
+ *   - No "compact" mode: full-fidelity trend chart + UCL/LCL labels on every card.
+ *   - Vertical scroll for tall lists; alert dock stays sticky at the bottom.
+ *
+ * Replaced the previous sqrt-derived flex-wrap layout that turned into a
+ * 7-column wall once the line had ~27 points across 6 equipments.
+ */
 export const TempTrendsView = React.memo(function TempTrendsView({
   displayedEquipments, alerts, onUpdateLimits,
 }: TempTrendsViewProps) {
   const [alertHeight, setAlertHeight] = useState(48);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault();
-    isDragging.current = true;
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-    document.body.style.cursor = 'row-resize';
-    document.body.style.userSelect = 'none';
-  };
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isDragging.current || !containerRef.current) return;
@@ -41,23 +44,27 @@ export const TempTrendsView = React.memo(function TempTrendsView({
     document.body.style.userSelect = '';
   }, [handleMouseMove]);
 
-  const allPoints = useMemo(() => {
-    const points: { lineId: string; eq: Equipment; point: Point }[] = [];
-    displayedEquipments.forEach(({ lineId, eq }) => {
-      eq.points.forEach(p => {
-        points.push({ lineId, eq, point: p });
-      });
-    });
-    return points;
-  }, [displayedEquipments]);
-
-  const getFlexBasis = (count: number) => {
-    if (count === 0) return '100%';
-    const cols = Math.ceil(Math.sqrt(count * 1.5));
-    return `calc(${100 / cols}% - 24px)`;
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isDragging.current = true;
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
   };
 
-  if (allPoints.length === 0) {
+  // Keep equipments that actually have points to render.
+  const groups = useMemo(
+    () => displayedEquipments.filter(({ eq }) => eq.points.length > 0),
+    [displayedEquipments]
+  );
+
+  const totalPoints = useMemo(
+    () => groups.reduce((s, { eq }) => s + eq.points.length, 0),
+    [groups]
+  );
+
+  if (totalPoints === 0) {
     return (
       <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)]">
         No monitoring points available in this line.
@@ -66,27 +73,60 @@ export const TempTrendsView = React.memo(function TempTrendsView({
   }
 
   return (
-    <div ref={containerRef} className="flex flex-col w-full h-full min-h-0 overflow-hidden relative border border-[var(--border-base)] rounded-xl glass-panel">
-      <div
-        className={cn("flex-1 min-h-0 flex flex-wrap content-stretch items-stretch animate-in fade-in duration-500 overflow-y-auto", allPoints.length > 8 ? "gap-1 p-1" : "gap-4 md:gap-6 p-4")}
-      >
-        {allPoints.map(({ lineId, eq, point }) => (
-          <div
-            key={`${eq.id}-${point.id}`}
-            className="flex-auto flex min-w-[150px]"
-            style={{ flexBasis: getFlexBasis(allPoints.length) }}
-          >
-            <PointTrendCard
-              lineId={lineId}
-              eq={eq}
-              point={point}
-              compact={allPoints.length > 8}
-              onUpdateLimits={onUpdateLimits}
-            />
-          </div>
-        ))}
+    <div
+      ref={containerRef}
+      className="flex flex-col w-full h-full min-h-0 overflow-hidden relative border border-[var(--border-base)] rounded-xl glass-panel"
+    >
+      <div className="flex-1 min-h-0 overflow-y-auto animate-in fade-in duration-500">
+        <div className="flex flex-col gap-6 md:gap-8 p-4 md:p-6">
+          {groups.map(({ lineId, eq }) => (
+            <section key={`${lineId}-${eq.id}`} className="flex flex-col gap-3">
+              {/* Section header — quiet but findable */}
+              <header className="flex items-end justify-between gap-3 border-b border-[var(--border-base)]/60 pb-1.5">
+                <div className="flex items-baseline gap-2 min-w-0">
+                  <h3 className="text-sm md:text-base font-semibold text-[var(--text-main)] tracking-wide truncate">
+                    {eq.name}
+                  </h3>
+                  <span className="text-[10px] font-mono text-[var(--text-muted)] border border-[var(--border-base)] px-1.5 py-0.5 rounded bg-[var(--border-base)]/30 shrink-0">
+                    {eq.deviceId}
+                  </span>
+                </div>
+                <span className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] shrink-0">
+                  {eq.points.length} {eq.points.length === 1 ? 'point' : 'points'}
+                </span>
+              </header>
+
+              {/* 4-col max grid; responsive down to 1 col on phones. */}
+              <div
+                className={cn(
+                  'grid gap-3 md:gap-4',
+                  // Single-point equipment: card spans 2 cols at md+ so it doesn't look orphaned
+                  eq.points.length === 1
+                    ? 'grid-cols-1 sm:grid-cols-2 [&>*]:col-span-1 md:[&>*]:col-span-1'
+                    : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+                )}
+              >
+                {eq.points.map(point => (
+                  <div
+                    key={point.id}
+                    className="min-h-[180px] md:min-h-[200px] flex"
+                  >
+                    <PointTrendCard
+                      lineId={lineId}
+                      eq={eq}
+                      point={point}
+                      compact={false}
+                      onUpdateLimits={onUpdateLimits}
+                    />
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
       </div>
 
+      {/* Alert dock resizer */}
       <div
         className="h-2 w-full cursor-row-resize bg-[var(--border-base)] hover:bg-[var(--accent-blue)] active:bg-[var(--accent-blue)] transition-colors shrink-0 z-20 relative flex items-center justify-center group"
         onMouseDown={handleMouseDown}
