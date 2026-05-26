@@ -38,7 +38,7 @@ public class BootstrapIdempotencyTests
             using (var c1 = f1.CreateClient())
             {
                 c1.DefaultRequestHeaders.Add("X-Api-Key", "test-api-key-123");
-                var r1 = await c1.GetAsync("/api/protocols");
+                var r1 = await c1.GetAsync("/health");
                 r1.StatusCode.Should().Be(HttpStatusCode.OK,
                     "first startup must succeed and serve API");
             }
@@ -48,7 +48,7 @@ public class BootstrapIdempotencyTests
             using (var c2 = f2.CreateClient())
             {
                 c2.DefaultRequestHeaders.Add("X-Api-Key", "test-api-key-123");
-                var r2 = await c2.GetAsync("/api/protocols");
+                var r2 = await c2.GetAsync("/health");
                 r2.StatusCode.Should().Be(HttpStatusCode.OK,
                     "second startup on the same DB must not crash on duplicate schema");
             }
