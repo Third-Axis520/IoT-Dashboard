@@ -655,6 +655,15 @@ app.UseRateLimiter();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
+// Health endpoint for CI/CD verify + Windows Service liveness probe.
+// Mapped BEFORE MapFallbackToFile so it doesn't get caught by SPA fallback.
+app.MapGet("/health", () => Results.Ok(new
+{
+    status = "ok",
+    service = "IoTDashboard",
+    timestamp = DateTime.UtcNow,
+}));
+
 app.MapControllers();
 app.MapFallbackToFile("index.html");
 
