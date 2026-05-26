@@ -1,6 +1,6 @@
 export type PointStatus = 'normal' | 'warning' | 'danger' | 'offline';
 export type PointType = 'temperature' | 'pressure';
-export type VisType = 'molding_matrix' | 'four_rings' | 'dual_side_spark' | 'single_kpi' | 'custom_grid';
+export type VisType = 'molding_matrix' | 'four_rings' | 'dual_side_spark' | 'single_kpi' | 'custom_grid' | 'pressing_machine_lr' | 'visual_marking_machine';
 
 export interface PointTemplate {
   name: string;
