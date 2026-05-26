@@ -1,0 +1,98 @@
+# IoT-Dashboard CI/CD
+#
+# Runner: shell executor on 192.168.6.23 (Windows Server, tag: iot-prod-windows)
+#         shared with IoTReceiverAPI — same machine, same pwsh shell.
+# Topology: same-host build + deploy (runner == service host).
+# Trigger: main push → auto run test → build-frontend → build-backend → deploy → verify.
+#
+# Frontend build runs BEFORE backend publish so the csproj target
+# `IncludeFrontendDistInPublish` picks up frontend/dist into wwwroot/.
+#
+# Variable change SOP: docs/deployment/windows-server-self-hosted.md
+
+stages:
+  - test
+  - build-frontend
+  - build-backend
+  - deploy
+  - verify
+
+variables:
+  SERVICE_NAME: "IoTDashboard"
+  PUBLISH_OUT: "publish-out"
+  DEPLOY_DIR: 'C:\Users\Administrator\Desktop\IoT\NB_C.C_Dashboard\backend\publish'
+  HEALTH_URL: "http://localhost:5200/health"
+  PROTOCOLS_URL: "http://localhost:5200/api/protocols"
+  GIT_SSL_NO_VERIFY: "true"
+
+test:
+  stage: test
+  tags: [iot-prod-windows]
+  script:
+    - dotnet --version
+    - dotnet test backend/Tests/IoT.CentralApi.Tests.csproj --nologo --verbosity minimal
+
+build-frontend:
+  stage: build-frontend
+  tags: [iot-prod-windows]
+  script:
+    - node --version
+    - npm --version
+    - 'if (Test-Path frontend/dist) { Remove-Item -Recurse -Force frontend/dist }'
+    - Set-Location frontend
+    - npm ci
+    - npm run build
+    - Set-Location ..
+    - 'if (-not (Test-Path frontend/dist/index.html)) { Write-Error "frontend/dist/index.html missing"; exit 1 }'
+  artifacts:
+    paths:
+      - frontend/dist/
+    expire_in: 1 week
+  only:
+    - main
+
+build-backend:
+  stage: build-backend
+  tags: [iot-prod-windows]
+  script:
+    - 'if (Test-Path $env:PUBLISH_OUT) { Remove-Item -Recurse -Force $env:PUBLISH_OUT }'
+    - 'if (-not (Test-Path frontend/dist/index.html)) { Write-Error "frontend/dist not found — build-frontend artifact missing"; exit 1 }'
+    - dotnet publish backend/IoT.CentralApi.csproj -c Release -o $env:PUBLISH_OUT --no-self-contained -r win-x64 --nologo
+    - 'if (-not (Test-Path "$env:PUBLISH_OUT/wwwroot/index.html")) { Write-Error "publish missing wwwroot/index.html — IncludeFrontendDistInPublish target broke"; exit 1 }'
+    - Get-ChildItem $env:PUBLISH_OUT | Measure-Object | Select-Object -ExpandProperty Count
+  artifacts:
+    paths:
+      - publish-out/
+    expire_in: 1 week
+  only:
+    - main
+
+deploy:
+  stage: deploy
+  tags: [iot-prod-windows]
+  script:
+    - sc.exe stop $env:SERVICE_NAME
+    - Start-Sleep -Seconds 4
+    - $rc = (Start-Process robocopy -ArgumentList @("$env:PUBLISH_OUT","$env:DEPLOY_DIR","/E","/R:2","/MT:16","/NP","/NDL","/NJH","/NJS","/XF","appsettings.Local.json","appsettings.Production.json","/XD","publish") -Wait -PassThru -NoNewWindow).ExitCode
+    - Write-Host "robocopy exit code $rc"
+    - 'if ($rc -ge 8) { Write-Error "robocopy failed"; exit 1 }'
+    - sc.exe start $env:SERVICE_NAME
+    - Start-Sleep -Seconds 8
+  only:
+    - main
+
+verify:
+  stage: verify
+  tags: [iot-prod-windows]
+  script:
+    - $health = Invoke-RestMethod $env:HEALTH_URL -TimeoutSec 15
+    - Write-Host "health => $($health | ConvertTo-Json -Compress)"
+    - 'if ($health.status -ne ''ok'') { Write-Error "health.status != ok"; exit 1 }'
+    - 'if ($health.service -ne ''IoTDashboard'') { Write-Error "health.service != IoTDashboard"; exit 1 }'
+    - Start-Sleep -Seconds 4
+    - $protocols = Invoke-RestMethod $env:PROTOCOLS_URL -TimeoutSec 15
+    - Write-Host "protocols => $($protocols | ConvertTo-Json -Compress)"
+    - 'if ($protocols.Count -lt 3) { Write-Error "expected >=3 protocols, got $($protocols.Count)"; exit 1 }'
+    - Write-Host "Deploy verified — health ok, $($protocols.Count) protocols registered"
+  only:
+    - main
