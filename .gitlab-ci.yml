@@ -22,7 +22,7 @@ variables:
   PUBLISH_OUT: "publish-out"
   DEPLOY_DIR: 'C:\Users\Administrator\Desktop\IoT\NB_C.C_Dashboard\backend\publish'
   HEALTH_URL: "http://localhost:5200/health"
-  PROTOCOLS_URL: "http://localhost:5200/api/protocols"
+  LINECONFIG_URL: "http://localhost:5200/api/lineconfig"
   GIT_SSL_NO_VERIFY: "true"
 
 test:
@@ -90,9 +90,9 @@ verify:
     - 'if ($health.status -ne ''ok'') { Write-Error "health.status != ok"; exit 1 }'
     - 'if ($health.service -ne ''IoTDashboard'') { Write-Error "health.service != IoTDashboard"; exit 1 }'
     - Start-Sleep -Seconds 4
-    - $protocols = Invoke-RestMethod $env:PROTOCOLS_URL -TimeoutSec 15
-    - Write-Host "protocols => $($protocols | ConvertTo-Json -Compress)"
-    - 'if ($protocols.Count -lt 3) { Write-Error "expected >=3 protocols, got $($protocols.Count)"; exit 1 }'
-    - Write-Host "Deploy verified — health ok, $($protocols.Count) protocols registered"
+    - $lineconfig = Invoke-RestMethod $env:LINECONFIG_URL -TimeoutSec 15
+    - Write-Host "lineconfig => count=$($lineconfig.Count)"
+    - 'if ($lineconfig.Count -lt 1) { Write-Error "expected at least 1 line config, got $($lineconfig.Count)"; exit 1 }'
+    - Write-Host "Deploy verified — health ok, $($lineconfig.Count) production line(s) configured"
   only:
     - main

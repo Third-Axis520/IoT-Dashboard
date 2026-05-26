@@ -112,6 +112,14 @@ builder.Services.AddHttpClient("FasApi", client =>
     client.Timeout = TimeSpan.FromSeconds(10);
 });
 
+// ── Host shutdown timeout ────────────────────────────────────────────────
+// Modbus polling has a 10s connect+read timeout, and FasApi HttpClient is 10s.
+// Default 5s shutdown timeout was tripping OperationCanceledException on `sc
+// stop` during deploy → failure-recovery cycle exhaustion. 30s lets in-flight
+// polls finish gracefully.
+builder.Services.Configure<HostOptions>(o =>
+    o.ShutdownTimeout = TimeSpan.FromSeconds(30));
+
 // ── Application Services ────────────────────────────────────────────────────
 builder.Services.AddSingleton<SseHub>();
 builder.Services.AddSingleton<FasApiService>();
