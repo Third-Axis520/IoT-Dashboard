@@ -1,11 +1,8 @@
-import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { X, Save, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Equipment } from '../../types';
 import { fetchPointLimits, savePointLimits } from '../../hooks/useSensorLimits';
-import { fetchGatingRules, saveGatingRules } from '../../lib/apiSensorGating';
-import type { SaveGatingRuleItem } from '../../types/gating';
-import { GatingRow } from '../sensors/GatingRow';
 import { cn } from '../../utils/cn';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import InlineErrorBanner from '../ui/InlineErrorBanner';
@@ -13,7 +10,7 @@ import InlineErrorBanner from '../ui/InlineErrorBanner';
 interface LimitsSettingsModalProps {
   /** Modal scope label (e.g. production line name) — informational only */
   scopeLabel?: string;
-  /** All equipments to manage UCL/LCL + gating for. Each must have its own deviceId (=AssetCode). */
+  /** All equipments to manage UCL/LCL for. Each must have its own deviceId (=AssetCode). */
   equipments: Equipment[];
   onClose: () => void;
   /** 儲存成功後，通知 App 更新所有 point 的 ucl/lcl（keyed by sensorId） */
@@ -58,7 +55,7 @@ export const LimitsSettingsModal = ({
       .sort((a, b) => a.sensorId - b.sensorId)
   , [equipments]);
 
-  // Distinct asset codes covered by this modal — used to fetch limits/gating per-asset
+  // Distinct asset codes covered by this modal — used to fetch limits per-asset
   const assetCodes = useMemo(
     () => Array.from(new Set(equipments.map(e => e.deviceId).filter(Boolean))),
     [equipments]
@@ -70,7 +67,6 @@ export const LimitsSettingsModal = ({
   const [saveResult, setSaveResult] = useState<'success' | 'error' | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [gatingRules, setGatingRules] = useState<Record<number, SaveGatingRuleItem | null>>({});
 
   // initialRows changes reference whenever the parent's `data` state ticks
   // (every SSE sensor reading), so we cannot put it in loadAll's deps —
@@ -83,8 +79,7 @@ export const LimitsSettingsModal = ({
   // Stable signature so loadAll's deps don't include the array reference
   const assetCodesKey = assetCodes.join(',');
 
-  // Combined loader: limits + gating rules across ALL asset codes covered by
-  // this modal. Surfaces failures so user can retry.
+  // Load limits across ALL asset codes covered by this modal.
   const loadAll = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
@@ -92,35 +87,15 @@ export const LimitsSettingsModal = ({
     setRows(initialRowsRef.current);
     const codes = assetCodesKey ? assetCodesKey.split(',') : [];
     try {
-      // Fetch limits and gating rules for ALL asset codes concurrently
-      const fetches = await Promise.all([
-        ...codes.map(ac => fetchPointLimits(ac).then(lim => ({ kind: 'limits' as const, ac, data: lim }))),
-        ...codes.map(ac => fetchGatingRules(ac).then(rules => ({ kind: 'rules' as const, ac, data: rules }))),
-      ]);
-      const limitsPerAsset = fetches.filter(f => f.kind === 'limits').map(f => [f.ac, f.data] as const);
-      const rulesPerAsset = fetches.filter(f => f.kind === 'rules').map(f => [f.ac, f.data] as const);
+      const fetches = await Promise.all(
+        codes.map(ac => fetchPointLimits(ac).then(lim => ({ ac, data: lim })))
+      );
 
-      // Merge limits — keyed by (assetCode, sensorId), but our row already
-      // carries assetCode so we just look up by sensorId scoped to its asset
       setRows(prev => prev.map(row => {
-        const entry = limitsPerAsset.find(([ac]) => ac === row.assetCode);
-        const lim = entry?.[1]?.[row.sensorId];
+        const entry = fetches.find(f => f.ac === row.assetCode);
+        const lim = entry?.data?.[row.sensorId];
         return lim ? { ...row, ucl: lim.ucl, lcl: lim.lcl } : row;
       }));
-
-      const map: Record<number, SaveGatingRuleItem> = {};
-      rulesPerAsset.forEach(([, rules]) => {
-        rules.forEach(r => {
-          map[r.gatedSensorId] = {
-            gatedSensorId: r.gatedSensorId,
-            gatingAssetCode: r.gatingAssetCode,
-            gatingSensorId: r.gatingSensorId,
-            delayMs: r.delayMs,
-            maxAgeMs: r.maxAgeMs,
-          };
-        });
-      });
-      setGatingRules(map);
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : 'Network error');
     } finally {
@@ -136,11 +111,8 @@ export const LimitsSettingsModal = ({
     if (loading || !focusAssetCode) return;
     const firstRow = rows.find(r => r.assetCode === focusAssetCode);
     if (!firstRow) return;
-    const el = document.getElementById(`gating-row-${firstRow.sensorId}`);
-    if (el) {
-      (el as HTMLDetailsElement).open = true;
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
+    const el = document.getElementById(`sensor-row-${firstRow.sensorId}`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [loading, focusAssetCode, rows]);
 
   const handleChange = useCallback((sensorId: number, field: 'ucl' | 'lcl', value: string) => {
@@ -160,18 +132,7 @@ export const LimitsSettingsModal = ({
         if (!rowsByAsset.has(r.assetCode)) rowsByAsset.set(r.assetCode, []);
         rowsByAsset.get(r.assetCode)!.push(r);
       }
-      // Group gating rules by their gated AssetCode (where the sensor lives)
-      const sensorAssetMap = new Map(rows.map(r => [r.sensorId, r.assetCode]));
-      const rulesByAsset = new Map<string, SaveGatingRuleItem[]>();
-      for (const ac of rowsByAsset.keys()) rulesByAsset.set(ac, []);
-      Object.values(gatingRules).forEach(rule => {
-        if (rule === null || rule.gatingAssetCode === '') return;
-        const ac = sensorAssetMap.get(rule.gatedSensorId);
-        if (!ac) return;
-        rulesByAsset.get(ac)?.push(rule);
-      });
 
-      // 1. Save UCL/LCL per AssetCode
       await Promise.all(Array.from(rowsByAsset.entries()).map(([ac, assetRows]) =>
         savePointLimits(ac, assetRows.map(r => ({
           sensorId: r.sensorId,
@@ -180,11 +141,6 @@ export const LimitsSettingsModal = ({
           ucl: r.ucl,
           lcl: r.lcl,
         })))
-      ));
-
-      // 2. Save gating rules per AssetCode (PUT with empty list = delete all)
-      await Promise.all(Array.from(rulesByAsset.entries()).map(([ac, ruleList]) =>
-        saveGatingRules(ac, ruleList)
       ));
 
       setSaveResult('success');
@@ -197,7 +153,7 @@ export const LimitsSettingsModal = ({
     } finally {
       setSaving(false);
     }
-  }, [rows, gatingRules, onSaved]);
+  }, [rows, onSaved]);
 
   // 依設備分組
   const groups = rows.reduce<Record<string, LimitRow[]>>((acc, row) => {
@@ -280,86 +236,42 @@ export const LimitsSettingsModal = ({
                     </thead>
                     <tbody>
                       {groupRows.map((row, i) => (
-                        <Fragment key={row.sensorId}>
-                          <tr className={cn(
+                        <tr
+                          key={row.sensorId}
+                          id={`sensor-row-${row.sensorId}`}
+                          className={cn(
                             "transition-colors hover:bg-[var(--border-base)]/30",
-                            !gatingRules[row.sensorId] && i < groupRows.length - 1 && "border-b border-[var(--border-base)]/40"
-                          )}>
-                            <td className="px-4 py-3 text-sm text-[var(--text-main)] font-medium">
-                              <div className="flex items-center gap-2">
-                                <span className="truncate">{row.label}</span>
-                                <span className="text-[11px] text-[var(--text-muted)] font-normal shrink-0">{row.unit}</span>
-                                <span className="text-[10px] text-[var(--text-muted)] font-mono opacity-60 shrink-0">#{row.sensorId}</span>
-                                {/* Gating status pill — quick visual indicator of whether DI gating is bound */}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const el = document.getElementById(`gating-row-${row.sensorId}`);
-                                    if (el) {
-                                      (el as HTMLDetailsElement).open = true;
-                                      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                      // Focus the source dropdown so user can immediately pick
-                                      setTimeout(() => {
-                                        el.querySelector<HTMLSelectElement>('select')?.focus();
-                                      }, 200);
-                                    }
-                                  }}
-                                  title={gatingRules[row.sensorId] ? t('sensor.gating.gotoEnabled') : t('sensor.gating.gotoDisabled')}
-                                  className={cn(
-                                    'shrink-0 ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors',
-                                    gatingRules[row.sensorId]
-                                      ? 'bg-[var(--accent-green)]/15 text-[var(--accent-green)] hover:bg-[var(--accent-green)]/25'
-                                      : 'bg-[var(--border-base)]/40 text-[var(--text-muted)] hover:bg-[var(--border-base)] hover:text-[var(--text-main)]'
-                                  )}
-                                >
-                                  ⚡ {gatingRules[row.sensorId] ? t('sensor.gating.bound') : t('sensor.gating.bind')}
-                                </button>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <input
-                                type="number"
-                                step="0.5"
-                                value={row.ucl}
-                                onChange={e => handleChange(row.sensorId, 'ucl', e.target.value)}
-                                className="w-24 bg-[var(--bg-card)] border border-[var(--border-input)] rounded-md px-2 py-1.5 text-right text-[var(--accent-red)] font-mono text-sm outline-none focus:border-[var(--accent-red)]/70 transition-colors"
-                                aria-label={`${row.label} UCL`}
-                              />
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <input
-                                type="number"
-                                step="0.5"
-                                value={row.lcl}
-                                onChange={e => handleChange(row.sensorId, 'lcl', e.target.value)}
-                                className="w-24 bg-[var(--bg-card)] border border-[var(--border-input)] rounded-md px-2 py-1.5 text-right text-[var(--accent-blue)] font-mono text-sm outline-none focus:border-[var(--accent-blue)]/70 transition-colors"
-                                aria-label={`${row.label} LCL`}
-                              />
-                            </td>
-                          </tr>
-                          <tr className={cn(
                             i < groupRows.length - 1 && "border-b border-[var(--border-base)]/40"
-                          )}>
-                            <td colSpan={3} className="px-4 pb-2">
-                              {/* Default open: gating is the primary reason users open this modal,
-                                  hiding it behind a fold made it un-discoverable */}
-                              <details id={`gating-row-${row.sensorId}`} className="mt-1" open>
-                                <summary className="cursor-pointer text-xs text-[var(--text-muted)] select-none">
-                                  ⚙ {t('sensor.gating.advanced')}: {gatingRules[row.sensorId] ? t('sensor.gating.enabled') : t('sensor.gating.disabled')}
-                                </summary>
-                                <GatingRow
-                                  assetCode={row.assetCode}
-                                  sensorId={row.sensorId}
-                                  rule={gatingRules[row.sensorId] ?? null}
-                                  onChange={rule => {
-                                    setGatingRules(prev => ({ ...prev, [row.sensorId]: rule }));
-                                    setSaveResult(null);
-                                  }}
-                                />
-                              </details>
-                            </td>
-                          </tr>
-                        </Fragment>
+                          )}
+                        >
+                          <td className="px-4 py-3 text-sm text-[var(--text-main)] font-medium">
+                            <div className="flex items-center gap-2">
+                              <span className="truncate">{row.label}</span>
+                              <span className="text-[11px] text-[var(--text-muted)] font-normal shrink-0">{row.unit}</span>
+                              <span className="text-[10px] text-[var(--text-muted)] font-mono opacity-60 shrink-0">#{row.sensorId}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <input
+                              type="number"
+                              step="0.5"
+                              value={row.ucl}
+                              onChange={e => handleChange(row.sensorId, 'ucl', e.target.value)}
+                              className="w-24 bg-[var(--bg-card)] border border-[var(--border-input)] rounded-md px-2 py-1.5 text-right text-[var(--accent-red)] font-mono text-sm outline-none focus:border-[var(--accent-red)]/70 transition-colors"
+                              aria-label={`${row.label} UCL`}
+                            />
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <input
+                              type="number"
+                              step="0.5"
+                              value={row.lcl}
+                              onChange={e => handleChange(row.sensorId, 'lcl', e.target.value)}
+                              className="w-24 bg-[var(--bg-card)] border border-[var(--border-input)] rounded-md px-2 py-1.5 text-right text-[var(--accent-blue)] font-mono text-sm outline-none focus:border-[var(--accent-blue)]/70 transition-colors"
+                              aria-label={`${row.label} LCL`}
+                            />
+                          </td>
+                        </tr>
                       ))}
                     </tbody>
                   </table>
