@@ -2,26 +2,22 @@ import AxeBuilder from '@axe-core/playwright';
 import { test, expect, loadDashboard, switchToTrendView } from './helpers';
 
 /**
- * Accessibility scans via axe-core. We fail only on `critical` and `serious`
+ * Accessibility scans via axe-core. We fail on `critical` and `serious`
  * impact levels — `moderate`/`minor` are reported but not treated as hard
  * regressions (industry consensus for legacy SPAs entering a11y journey).
  *
- * KNOWN ISSUES (tracked separately, not blocking this suite):
- *   - color-contrast (28 nodes in LimitsSettingsModal, 1 node in trend view)
- *     The dark-theme palette uses `--text-muted` at 0.6 opacity, which dips
- *     below WCAG AA 4.5:1 on `--bg-panel`. Fixing this is a design-system
- *     pass (raise muted alpha to 0.7+ OR brighten the muted color). Filed
- *     for the next theme/normalize sprint.
+ * Previously had `color-contrast` filtered as a known issue (28 nodes in
+ * LimitsSettingsModal + 1 in trend view). Fixed in commit 8564ffe by
+ * bumping --accent-red from #FF1744 to #FF3D5C and dropping opacity-60
+ * on sensor-id badges. Filter now removed so future regressions trip.
  */
 
 const ACCEPTABLE_IMPACTS: Array<'critical' | 'serious'> = ['critical', 'serious'];
-const KNOWN_VIOLATION_IDS = new Set<string>(['color-contrast']);
 
 function blockingViolations(violations: Array<{ id: string; impact: string | undefined; help: string; nodes: unknown[] }>) {
-  return violations.filter((v) => {
-    if (KNOWN_VIOLATION_IDS.has(v.id)) return false;
-    return ACCEPTABLE_IMPACTS.includes((v.impact as 'critical' | 'serious') ?? 'minor');
-  });
+  return violations.filter((v) =>
+    ACCEPTABLE_IMPACTS.includes((v.impact as 'critical' | 'serious') ?? 'minor')
+  );
 }
 
 test.describe('Accessibility (H1-H4)', () => {
