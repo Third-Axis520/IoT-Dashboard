@@ -26,8 +26,10 @@
   --accent-green: #00FF66;
   --accent-green-hover: #00C853;
   --accent-green-light: #69F0AE;
-  --accent-red: #FF1744;
-  --accent-red-light: #FF5252;
+  /* #FF1744 was at 4.42:1 against --bg-card, just below WCAG AA 4.5:1.
+     Shifted slightly lighter (+coral tint) to hit ~4.7:1. */
+  --accent-red: #FF3D5C;
+  --accent-red-light: #FF6B7E;
   --accent-yellow: #FFEA00;
   --accent-yellow-light: #FFFF00;
   --accent-cyan: #00FFFF;

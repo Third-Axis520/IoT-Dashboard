@@ -248,7 +248,7 @@ export const LimitsSettingsModal = ({
                             <div className="flex items-center gap-2">
                               <span className="truncate">{row.label}</span>
                               <span className="text-[11px] text-[var(--text-muted)] font-normal shrink-0">{row.unit}</span>
-                              <span className="text-[10px] text-[var(--text-muted)] font-mono opacity-60 shrink-0">#{row.sensorId}</span>
+                              <span className="text-[10px] text-[var(--text-muted)] font-mono shrink-0">#{row.sensorId}</span>
                             </div>
                           </td>
                           <td className="px-4 py-3 text-right">
