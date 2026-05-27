@@ -4,7 +4,7 @@ import { Activity, Plus, Search } from 'lucide-react';
 
 import type { AlertRecord, Equipment, MachineTemplate, PointStatus, ProductionLine } from './types';
 import { cn } from './utils/cn';
-import { getGridStyle } from './utils/grid';
+import { tileSpanStyle } from './utils/grid';
 import {
   fetchEquipmentTypes,
   fetchLineConfigs,
@@ -412,9 +412,10 @@ export default function App() {
             onUpdateLimits={handleUpdateLimits}
           />
         ) : (
-          <div className="grid gap-4 md:gap-6 w-full h-full animate-in fade-in duration-500" style={getGridStyle(displayedEquipments.length)}>
+          <div className="grid gap-4 md:gap-6 w-full h-full animate-in fade-in duration-500 grid-cols-1 md:grid-cols-12 auto-rows-fr grid-flow-row-dense">
             {displayedEquipments.map(({ lineId, eq }, index) => (
               <EquipmentCard key={eq.id} eq={eq} lineId={lineId} index={index}
+                style={tileSpanStyle(eq.visType, eq.points.length)}
                 latestRawSensors={latestRawSensors}
                 isEditMode={isEditMode} editingEqId={editingEqId} editEqName={editEqName} editEqDeviceId={editEqDeviceId}
                 onStartEdit={(id: string, n: string, d: string) => { setEditingEqId(id); setEditEqName(n); setEditEqDeviceId(d); }}

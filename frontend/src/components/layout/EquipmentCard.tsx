@@ -45,6 +45,14 @@ export interface EquipmentCardProps {
 
   /** Opens the limits modal for this card's asset. */
   onOpenLimits?: (focusAssetCode?: string) => void;
+
+  /**
+   * Inline style applied to the card's outer wrapper. Used by App.tsx to
+   * pass per-tile `gridColumn` spans on the 12-col dashboard grid so
+   * sensor-dense equipments (pressing_machine_lr) get more room than
+   * single_kpi tiles.
+   */
+  style?: React.CSSProperties;
 }
 
 const EquipmentCard = React.memo(function EquipmentCard({
@@ -71,6 +79,7 @@ const EquipmentCard = React.memo(function EquipmentCard({
   onDelete,
   onPointSwap,
   onOpenLimits,
+  style,
 }: EquipmentCardProps) {
   const { t } = useTranslation();
 
@@ -90,6 +99,7 @@ const EquipmentCard = React.memo(function EquipmentCard({
       onDragOver={(e) => onDragOver(e, index)}
       onDrop={(e) => onDrop(e, index)}
       onDragEnd={onDragEnd}
+      style={style}
       className={cn(
         "flex flex-col glass-card rounded-xl overflow-hidden transition-all duration-300 group cursor-pointer h-full w-full relative",
         eqStatus === 'danger' ? "danger-gradient-border" : "border-[var(--border-base)] hover:border-[var(--accent-green)]/50",
