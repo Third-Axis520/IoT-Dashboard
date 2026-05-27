@@ -183,8 +183,11 @@ export default function App() {
                 const pValue = Number(latest.toFixed(1));
                 const ucl = p.ucl;
                 const lcl = p.lcl;
+                // Mirrors useLiveData status calc. `limitsSet` keeps LCL=0
+                // enforced as a real lower bound once any limit is configured.
+                const limitsSet = ucl > 0 || lcl > 0;
                 let status: PointStatus = 'normal';
-                if ((ucl > 0 && pValue > ucl) || (lcl > 0 && pValue < lcl)) {
+                if ((ucl > 0 && pValue > ucl) || (limitsSet && pValue < lcl)) {
                   status = 'danger';
                 } else if (
                   (ucl > 0 && pValue > ucl * 0.95) ||

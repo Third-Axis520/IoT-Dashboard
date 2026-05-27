@@ -209,9 +209,14 @@ export function useLiveData(
               { time: payload.timestamp, value: pValue },
             ];
 
-            // 計算 status（與 useSimulation 相同邏輯）
+            // 計算 status — danger if value is outside the configured band.
+            // `limitsSet` (UCL>0 OR LCL>0) means the user has configured at
+            // least one bound; once that's true, LCL=0 is treated as a real
+            // inclusive lower bound (so e.g. a 冷凍機 sensor reading -15°C
+            // when LCL=0 correctly triggers danger).
+            const limitsSet = ucl > 0 || lcl > 0;
             let pStatus: PointStatus = 'normal';
-            if ((ucl > 0 && pValue > ucl) || (lcl > 0 && pValue < lcl)) {
+            if ((ucl > 0 && pValue > ucl) || (limitsSet && pValue < lcl)) {
               pStatus = 'danger';
               if (point.status !== 'danger') {
                 newAlerts.push({
@@ -227,6 +232,9 @@ export function useLiveData(
                 });
               }
             } else if ((ucl > 0 && pValue > ucl * 0.95) || (lcl > 0 && pValue < lcl * 1.05)) {
+              // Warning still requires LCL > 0 (the 5% band is only meaningful
+              // with a positive lower bound — for LCL=0 the danger boundary is
+              // sharp and there's no "approaching" zone to warn about).
               pStatus = 'warning';
               if (point.status === 'normal') {
                 newAlerts.push({
