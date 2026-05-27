@@ -30,10 +30,11 @@ async function fetchLimits(request: import('@playwright/test').APIRequestContext
   return r.json();
 }
 
-async function pickTargetSensor(page: import('@playwright/test').Page): Promise<{ assetCode: string; sensorId: number; label: string } | null> {
-  // Pick the first equipment with sensor labelled "壓力" or any first sensor.
-  // Avoid 高速加熱定型 / 烘箱 / 冷凍機 alert-critical sensors by preferring
-  // the visual-marking machine (only 1 sensor, low alert pressure).
+async function pickTargetSensor(page: import('@playwright/test').Page): Promise<{ assetCode: string; sensorId: number; label: string; ucl: number; lcl: number } | null> {
+  // Pick the first sensor that ALREADY has a SensorLimits row (so the API
+  // round-trip is meaningful). Walk equipments, hit /api/limits/{assetCode}
+  // for each, return the first match. Visual-marking is preferred (single
+  // sensor, low alert pressure) but we fall back to any sensor with limits.
   return page.evaluate(async () => {
     const r = await fetch('/api/line-configs');
     const lines = (await r.json()) as Array<{
@@ -42,11 +43,21 @@ async function pickTargetSensor(page: import('@playwright/test').Page): Promise<
         equipmentType: { visType: string; sensors: Array<{ sensorId: number; label: string }> };
       }>;
     }>;
-    for (const line of lines) {
-      for (const eq of line.equipments) {
-        if (eq.equipmentType.visType === 'visual_marking_machine' && eq.equipmentType.sensors.length > 0) {
-          const s = eq.equipmentType.sensors[0];
-          return { assetCode: eq.assetCode, sensorId: s.sensorId, label: s.label };
+    const equipments = lines.flatMap((l) => l.equipments);
+    // Sort: visual_marking_machine first, then by visType priority for safe sensors.
+    equipments.sort((a, b) => {
+      const score = (vt: string) =>
+        vt === 'visual_marking_machine' ? 0 : vt === 'single_kpi' ? 1 : 2;
+      return score(a.equipmentType.visType) - score(b.equipmentType.visType);
+    });
+    for (const eq of equipments) {
+      const lr = await fetch(`/api/limits/${eq.assetCode}`);
+      if (!lr.ok) continue;
+      const limits = (await lr.json()) as Array<{ sensorId: number; ucl: number; lcl: number }>;
+      for (const s of eq.equipmentType.sensors) {
+        const row = limits.find((l) => l.sensorId === s.sensorId);
+        if (row && (row.ucl > 0 || row.lcl !== 0)) {
+          return { assetCode: eq.assetCode, sensorId: s.sensorId, label: s.label, ucl: row.ucl, lcl: row.lcl };
         }
       }
     }
@@ -59,7 +70,7 @@ test.describe('Mutation: UCL/LCL edit + save round-trip', () => {
     await loadDashboard(page);
 
     const target = await pickTargetSensor(page);
-    test.skip(!target, 'no visual_marking_machine sensor available');
+    test.skip(!target, 'no sensor with UCL/LCL set found via /api/limits');
     const { assetCode, sensorId } = target!;
 
     // Snapshot
@@ -104,7 +115,7 @@ test.describe('Mutation: UCL/LCL edit + save round-trip', () => {
     await loadDashboard(page);
 
     const target = await pickTargetSensor(page);
-    test.skip(!target, 'no visual_marking_machine sensor available');
+    test.skip(!target, 'no sensor with UCL/LCL set found via /api/limits');
     const { assetCode, sensorId } = target!;
 
     const beforeLimits = await fetchLimits(request, assetCode);
@@ -136,11 +147,11 @@ test.describe('Mutation: UCL/LCL edit + save round-trip', () => {
     expect(restored!.lcl).toBeCloseTo(originalLcl, 1);
   });
 
-  test('M3 — invalid input (UCL < LCL) is either rejected or coerced', async ({ page, request }) => {
+  test.fixme('M3 — invalid input (UCL < LCL) is either rejected or coerced — TODO: needs dev DB (live narrowing risks WeChat alert during mutate window)', async ({ page, request }) => {
     await loadDashboard(page);
 
     const target = await pickTargetSensor(page);
-    test.skip(!target, 'no visual_marking_machine sensor available');
+    test.skip(!target, 'no sensor with UCL/LCL set found via /api/limits');
     const { assetCode, sensorId } = target!;
 
     const before = (await fetchLimits(request, assetCode)).find((r) => r.sensorId === sensorId)!;
