@@ -144,7 +144,11 @@ export const PointTrendCard = React.memo(function PointTrendCard({
       </>
     );
 
-    const lineColor = isDanger ? 'var(--accent-red-light)' : isWarning ? 'var(--accent-yellow-light)' : 'var(--accent-green)';
+    const lineColor =
+      point.status === 'danger' ? 'var(--accent-red-light)' :
+      point.status === 'warning' ? 'var(--accent-yellow-light)' :
+      point.status === 'offline' ? 'var(--accent-yellow-light)' :
+      'var(--accent-green)';
 
     if (eq.visType === 'molding_matrix') {
       return (
