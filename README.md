@@ -62,7 +62,10 @@ Vite proxies `/api/*` to the backend on `:5200`. Open `http://localhost:5173`.
 | `npm run dev` | Vite dev server on port 5173 |
 | `npm run build` | Production build to `frontend/dist/` |
 | `npm run preview` | Preview production build |
-| `npm test` | Vitest + RTL test suite |
+| `npm test` | Vitest + RTL unit test suite |
+| `npm run test:e2e` | Playwright e2e suite against prod (`E2E_BASE_URL` overrides) |
+| `npm run test:e2e:ui` | Playwright UI mode (interactive) |
+| `npm run test:e2e:debug` | Playwright debug mode (step through) |
 
 ## Backend API endpoints
 
