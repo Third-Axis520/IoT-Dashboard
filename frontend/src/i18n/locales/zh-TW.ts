@@ -32,6 +32,7 @@ const zhTW = {
   app: {
     dashboard: '儀表板',
     trend: '趨勢',
+    alertHistory: '告警記錄',
     pts: 'pts',
     deleteDevice: '刪除設備',
     deleteDeviceConfirm: '確定要從產線移除「{{name}}」嗎？',

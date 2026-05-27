@@ -4,12 +4,13 @@ import {
   Maximize, Minimize, Search, Check, Play, Pause, Lock, Unlock,
   SlidersHorizontal, Settings,
 } from 'lucide-react';
-import type { ProductionLine } from '../../types';
+import type { AlertRecord, ProductionLine } from '../../types';
 import type { ConnectionStatus } from '../../hooks/useLiveData';
 import { cn } from '../../utils/cn';
 import { ConnectionStatusBadge } from '../ui/ConnectionStatusBadge';
 import { LanguageSwitcher } from '../ui/LanguageSwitcher';
 import ConnectionHealthBadge from './ConnectionHealthBadge';
+import { AlertBell } from '../panels/AlertBell';
 
 export interface AppToolbarProps {
   // Line management
@@ -49,6 +50,8 @@ export interface AppToolbarProps {
   // Modal openers
   assetCode: string | null;
   onShowLimits: () => void;
+  // Alerts (for the bell dropdown)
+  alerts: AlertRecord[];
 }
 
 export function AppToolbar(props: AppToolbarProps) {
@@ -65,6 +68,7 @@ export function AppToolbar(props: AppToolbarProps) {
     theme, onThemeChange,
     assetCode,
     onShowLimits,
+    alerts,
   } = props;
 
   return (
@@ -181,6 +185,8 @@ export function AppToolbar(props: AppToolbarProps) {
         <div className="w-px h-4 bg-[var(--border-base)]" />
 
         {/* Icon-only secondary actions */}
+        <AlertBell alerts={alerts} />
+
         <button
           onClick={onShowLimits}
           disabled={!assetCode}

@@ -33,6 +33,7 @@ const en: Translation = {
   },
   app: {
     dashboard: 'Dashboard',
+    alertHistory: 'Alert History',
     trend: 'Trend',
     pts: 'pts',
     deleteDevice: 'Delete Device',

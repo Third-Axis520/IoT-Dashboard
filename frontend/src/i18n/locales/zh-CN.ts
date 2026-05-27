@@ -33,6 +33,7 @@ const zhCN: Translation = {
   },
   app: {
     dashboard: '仪表板',
+    alertHistory: '告警记录',
     trend: '趋势',
     pts: 'pts',
     deleteDevice: '删除设备',

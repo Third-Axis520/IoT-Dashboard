@@ -18,6 +18,7 @@ import { useLiveData } from './hooks/useLiveData';
 import { useToast } from './hooks/useToast';
 import { fetchHistoryByAsset, type HistoryPoint } from './lib/apiHistory';
 import { TempTrendsView } from './components/panels/TempTrendsView';
+import { AlertMarqueeBar } from './components/panels/AlertMarqueeBar';
 
 import { AppToolbar } from './components/layout/AppToolbar';
 import EquipmentCard from './components/layout/EquipmentCard';
@@ -372,6 +373,7 @@ export default function App() {
         theme={theme} onThemeChange={setTheme}
         assetCode={assetCode}
         onShowLimits={() => setShowLimits(true)}
+        alerts={alerts}
       />
 
       <main className="flex-1 min-h-0 p-4 md:p-6 overflow-hidden flex flex-col">
@@ -408,7 +410,6 @@ export default function App() {
         ) : viewMode === 'temp_trends' ? (
           <TempTrendsView
             displayedEquipments={displayedEquipments}
-            alerts={alerts}
             onUpdateLimits={handleUpdateLimits}
           />
         ) : (
@@ -430,6 +431,8 @@ export default function App() {
           </div>
         )}
       </main>
+
+      <AlertMarqueeBar alerts={alerts} />
 
       <ModalContainer
         data={data} assetCode={assetCode}
