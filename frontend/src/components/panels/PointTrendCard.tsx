@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { LineChart, Line, ResponsiveContainer, YAxis, XAxis, Tooltip, ReferenceLine, AreaChart, Area, ReferenceArea } from 'recharts';
 import { useTranslation } from 'react-i18next';
 import type { Equipment, Point } from '../../types';
@@ -39,10 +39,47 @@ export const PointTrendCard = React.memo(function PointTrendCard({
 
   const chartData = point.history.map(h => ({ time: h.time, value: h.value }));
 
+  // Smart Y-axis: zoom to current data range with ±50% padding (line sits
+  // around the middle 50% of chart height for visible flow), and pull UCL/LCL
+  // into view ONLY when they're within ~2 data-spans away. Previously the
+  // domain was [LCL-padding, UCL+padding] which flattened the line into a
+  // thin sliver whenever the sensor's data span was < 20% of (UCL-LCL).
+  const { yMin, yMax, yAxisWidth } = useMemo(() => {
+    const values = chartData.map(d => d.value);
+    const dataMin = values.length > 0 ? Math.min(...values) : point.lcl;
+    const dataMax = values.length > 0 ? Math.max(...values) : point.ucl;
+    const isCounter = point.unit === '次' || point.unit === 'count';
+    // Counters use 1 as the minimum granularity; analog sensors use 0.5.
+    const minGranularity = isCounter ? 1 : 0.5;
+    const dataSpan = Math.max(dataMax - dataMin, minGranularity);
+
+    // Pad ±50% of data span → line takes ~50% of chart height.
+    let lo = dataMin - dataSpan * 0.5;
+    let hi = dataMax + dataSpan * 0.5;
+
+    // Pull UCL into view if it's within 2 data-spans of the current visible top.
+    if (point.ucl > 0 && point.ucl < hi + dataSpan * 2) {
+      hi = Math.max(hi, point.ucl + dataSpan * 0.15);
+    }
+    // Same for LCL. Skip if LCL == 0 AND no UCL configured (no limits → data only).
+    const limitsSet = point.ucl > 0 || point.lcl > 0;
+    if (limitsSet && point.lcl > lo - dataSpan * 2) {
+      lo = Math.min(lo, point.lcl - dataSpan * 0.15);
+    }
+
+    // Dynamic axis width — accommodate the longest formatted tick label.
+    const decimals = isCounter ? 0 : 1;
+    const labels = [lo.toFixed(decimals), hi.toFixed(decimals)];
+    const maxLen = Math.max(...labels.map(s => s.length));
+    const width = maxLen >= 6 ? 56 : maxLen >= 5 ? 48 : maxLen >= 4 ? 40 : 34;
+
+    return { yMin: lo, yMax: hi, yAxisWidth: compact ? 0 : width };
+  }, [chartData, point.ucl, point.lcl, point.unit, compact]);
+
   const renderChart = () => {
     const commonProps = {
       data: chartData,
-      margin: { top: compact ? 5 : 10, right: 0, left: compact ? 0 : -20, bottom: 0 }
+      margin: { top: compact ? 5 : 10, right: 8, left: 0, bottom: 0 }
     };
 
     const commonAxes = (
@@ -59,15 +96,12 @@ export const PointTrendCard = React.memo(function PointTrendCard({
           />
         )}
         <YAxis
-          domain={[
-            (dataMin: number) => Math.min(dataMin, point.lcl) - Math.max((point.ucl - point.lcl) * 0.1, 5),
-            (dataMax: number) => Math.max(dataMax, point.ucl) + Math.max((point.ucl - point.lcl) * 0.1, 5)
-          ]}
+          domain={[yMin, yMax]}
           stroke="var(--bg-scrollbar)"
           tick={compact ? false : {fill: 'var(--bg-scrollbar)', fontSize: 9}}
           axisLine={false}
           tickLine={false}
-          width={compact ? 0 : 35}
+          width={yAxisWidth}
         />
         <Tooltip
           contentStyle={{ backgroundColor: 'var(--bg-root)', borderColor: 'var(--border-trend)', borderRadius: '8px', fontSize: '12px' }}

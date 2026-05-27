@@ -108,9 +108,12 @@ export const TempTrendsView = React.memo(function TempTrendsView({
                 )}
               >
                 {eq.points.map(point => (
+                  // Fixed height keeps cards wide-short (chart aspect ~16:7 at xl),
+                  // giving the time axis dominance over the vertical band — line
+                  // flow is the primary signal in this view.
                   <div
                     key={point.id}
-                    className="min-h-[180px] md:min-h-[200px] flex"
+                    className="h-[176px] md:h-[184px] flex"
                   >
                     <PointTrendCard
                       lineId={lineId}
