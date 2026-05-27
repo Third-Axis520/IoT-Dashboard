@@ -16,7 +16,6 @@ import {
 import type { ApiLineConfig } from './types';
 import { useLiveData } from './hooks/useLiveData';
 import { useToast } from './hooks/useToast';
-import { useDevices } from './hooks/useDevices';
 import { fetchHistoryByAsset, type HistoryPoint } from './lib/apiHistory';
 import { TempTrendsView } from './components/panels/TempTrendsView';
 
@@ -99,7 +98,6 @@ export default function App() {
   }, []);
 
   const { status: connStatus, error: connError, assetCode, latestRawSensors, latestRawTimestamps } = useLiveData(data, setData, setAlerts, reloadConfig);
-  const { unboundCount } = useDevices();
 
   useEffect(() => { try { localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(alerts.slice(-200))); } catch {} }, [alerts]);
   useEffect(() => {
@@ -369,7 +367,7 @@ export default function App() {
         isAutoPlaying={isAutoPlaying} onToggleAutoPlay={toggleAutoPlay} autoPlaySpeed={autoPlaySpeed} onAutoPlaySpeedChange={setAutoPlaySpeed}
         isFullscreen={isFullscreen} onToggleFullscreen={toggleFullscreen}
         theme={theme} onThemeChange={setTheme}
-        unboundCount={unboundCount} assetCode={assetCode}
+        assetCode={assetCode}
         onShowLimits={() => setShowLimits(true)}
       />
 

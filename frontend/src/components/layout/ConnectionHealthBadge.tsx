@@ -52,6 +52,7 @@ export default function ConnectionHealthBadge() {
         onClick={() => setOpen(o => !o)}
         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium transition ${tone}`}
         aria-label={t('connectionHealth.popoverTitle')}
+        data-testid="connection-health-badge"
       >
         {icon}
         {label}

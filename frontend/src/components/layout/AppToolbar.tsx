@@ -47,7 +47,6 @@ export interface AppToolbarProps {
   theme: 'dark' | 'light';
   onThemeChange: (theme: 'dark' | 'light') => void;
   // Modal openers
-  unboundCount: number;
   assetCode: string | null;
   onShowLimits: () => void;
 }
@@ -64,7 +63,7 @@ export function AppToolbar(props: AppToolbarProps) {
     isAutoPlaying, onToggleAutoPlay, autoPlaySpeed, onAutoPlaySpeedChange,
     isFullscreen, onToggleFullscreen,
     theme, onThemeChange,
-    unboundCount, assetCode,
+    assetCode,
     onShowLimits,
   } = props;
 
