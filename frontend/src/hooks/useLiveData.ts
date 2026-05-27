@@ -194,9 +194,13 @@ export function useLiveData(
               return point.status === 'normal' ? point : { ...point, status: 'normal' as PointStatus };
             }
 
-            // 感測器有錯誤時標記 offline
+            // Sensor has an error (sentinel value, comms failure, etc.) — mark
+            // offline AND scrub the value to 0 so a stale bad number doesn't
+            // keep rendering in the tile. Tiles also check status='offline'
+            // to render "—" rather than 0.0; the value reset is the
+            // last-line-of-defense for components that miss that check.
             if (sensor.error) {
-              return { ...point, status: 'offline' as PointStatus };
+              return { ...point, value: 0, status: 'offline' as PointStatus };
             }
 
             const pValue = Number(sensor.value.toFixed(1));

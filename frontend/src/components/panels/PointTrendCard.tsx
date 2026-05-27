@@ -31,11 +31,12 @@ export const PointTrendCard = React.memo(function PointTrendCard({
 
   const isWarning = point.status === 'warning';
   const isDanger = point.status === 'danger';
+  const isOffline = point.status === 'offline';
 
-  const borderColor = isDanger ? 'border-[var(--accent-red-light)] animate-breathe-danger' : isWarning ? 'border-[var(--accent-yellow-light)] animate-breathe-warning' : 'border-[var(--border-trend)]';
-  const shadowColor = isDanger ? '' : isWarning ? '' : 'shadow-[0_0_15px_var(--border-base)]';
-  const dotColor = isDanger ? 'bg-[var(--accent-red-light)]' : isWarning ? 'bg-[var(--accent-yellow-light)]' : 'bg-[var(--accent-green)]';
-  const textColor = isDanger ? 'text-[var(--accent-red-light)]' : isWarning ? 'text-[var(--accent-yellow-light)]' : 'text-[var(--accent-green)]';
+  const borderColor = isDanger ? 'border-[var(--accent-red-light)] animate-breathe-danger' : isWarning ? 'border-[var(--accent-yellow-light)] animate-breathe-warning' : isOffline ? 'border-[var(--text-muted)]/30' : 'border-[var(--border-trend)]';
+  const shadowColor = isDanger ? '' : isWarning ? '' : isOffline ? '' : 'shadow-[0_0_15px_var(--border-base)]';
+  const dotColor = isDanger ? 'bg-[var(--accent-red-light)]' : isWarning ? 'bg-[var(--accent-yellow-light)]' : isOffline ? 'bg-[var(--text-muted)]' : 'bg-[var(--accent-green)]';
+  const textColor = isDanger ? 'text-[var(--accent-red-light)]' : isWarning ? 'text-[var(--accent-yellow-light)]' : isOffline ? 'text-[var(--text-muted)]' : 'text-[var(--accent-green)]';
 
   const chartData = point.history.map(h => ({ time: h.time, value: h.value }));
 
@@ -161,9 +162,10 @@ export const PointTrendCard = React.memo(function PointTrendCard({
           {!compact && <span className="text-[10px] text-[var(--text-muted)] tracking-widest uppercase ml-4">{point.type === 'temperature' ? 'MOLD TEMP' : point.type === 'pressure' ? 'CURRENT' : point.type}</span>}
           <div className={cn("flex items-baseline gap-1 ml-4", compact ? "mt-0" : "mt-1")}>
             <span className={cn("font-bold font-mono tracking-tighter text-glow", textColor, compact ? "text-2xl drop-shadow-md" : "text-4xl")}>
-              {point.value.toFixed(1)}
+              {isOffline ? '—' : point.value.toFixed(1)}
             </span>
-            {!compact && <span className="text-xs text-[var(--text-muted)]">{point.unit}</span>}
+            {!compact && !isOffline && <span className="text-xs text-[var(--text-muted)]">{point.unit}</span>}
+            {!compact && isOffline && <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-widest ml-1">offline</span>}
           </div>
         </div>
 
