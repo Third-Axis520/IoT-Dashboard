@@ -187,6 +187,7 @@ export function AppToolbar(props: AppToolbarProps) {
           className="flex items-center justify-center w-8 h-8 text-[var(--text-muted)] hover:text-[var(--accent-blue)] hover:bg-[var(--accent-blue)]/10 rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           title={assetCode ? t('app.limitsSettings') : t('app.limitsDisabled')}
           aria-label={t('app.limitsSettings')}
+          data-testid="open-limits-modal"
         >
           <SlidersHorizontal className="w-4 h-4" />
         </button>

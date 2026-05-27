@@ -259,6 +259,7 @@ export const LimitsSettingsModal = ({
                               onChange={e => handleChange(row.sensorId, 'ucl', e.target.value)}
                               className="w-24 bg-[var(--bg-card)] border border-[var(--border-input)] rounded-md px-2 py-1.5 text-right text-[var(--accent-red)] font-mono text-sm outline-none focus:border-[var(--accent-red)]/70 transition-colors"
                               aria-label={`${row.label} UCL`}
+                              data-testid={`limits-ucl-${row.sensorId}`}
                             />
                           </td>
                           <td className="px-4 py-3 text-right">
@@ -269,6 +270,7 @@ export const LimitsSettingsModal = ({
                               onChange={e => handleChange(row.sensorId, 'lcl', e.target.value)}
                               className="w-24 bg-[var(--bg-card)] border border-[var(--border-input)] rounded-md px-2 py-1.5 text-right text-[var(--accent-blue)] font-mono text-sm outline-none focus:border-[var(--accent-blue)]/70 transition-colors"
                               aria-label={`${row.label} LCL`}
+                              data-testid={`limits-lcl-${row.sensorId}`}
                             />
                           </td>
                         </tr>
@@ -308,6 +310,7 @@ export const LimitsSettingsModal = ({
               onClick={handleSave}
               disabled={saving || loading || hasNoRows}
               className="flex items-center gap-2 px-4 py-2 text-sm bg-[var(--accent-green)] text-[var(--bg-panel)] font-bold rounded-lg hover:bg-[var(--accent-green-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              data-testid="limits-save"
             >
               {saving
                 ? <RefreshCw className="w-4 h-4 animate-spin" />
