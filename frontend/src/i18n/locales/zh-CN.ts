@@ -28,6 +28,8 @@ const zhCN: Translation = {
     yes: '是',
     no: '否',
     unsavedChanges: '未保存的更改',
+    sensorError: '传感器异常',
+    sensorErrorTooltip: '传感器读值异常或返回哨兵值，数据不可信',
   },
   app: {
     dashboard: '仪表板',

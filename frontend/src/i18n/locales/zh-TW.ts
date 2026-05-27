@@ -26,6 +26,8 @@ const zhTW = {
     yes: '是',
     no: '否',
     unsavedChanges: '未儲存的變更',
+    sensorError: '感測器異常',
+    sensorErrorTooltip: '感測器讀值異常或回傳哨兵值，數據不可信',
   },
   app: {
     dashboard: '儀表板',

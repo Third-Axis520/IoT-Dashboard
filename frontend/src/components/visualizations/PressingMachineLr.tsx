@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+import { AlertTriangle } from 'lucide-react';
 import type { Point } from '../../types';
 import { cn } from '../../utils/cn';
 
@@ -6,9 +8,10 @@ interface Props {
 }
 
 function PointRow({ point }: { point: Point }) {
+  const { t } = useTranslation();
   const isOffline = point.status === 'offline';
   const statusColor =
-    isOffline ? 'text-[var(--text-muted)]/60' :
+    isOffline ? 'text-[var(--accent-yellow)]' :
     point.status === 'danger' ? 'text-[var(--accent-red)]' :
     point.status === 'warning' ? 'text-[var(--accent-yellow)]' :
     'text-[var(--text-primary)]';
@@ -16,9 +19,19 @@ function PointRow({ point }: { point: Point }) {
   return (
     <div className="flex justify-between items-baseline text-xs">
       <span className="text-[var(--text-muted)]">{point.name}</span>
-      <span className={cn("tabular-nums font-mono", statusColor)}>
-        {isOffline ? '—' : `${point.value.toFixed(1)} ${point.unit}`}
-      </span>
+      {isOffline ? (
+        <span
+          className={cn("inline-flex items-center gap-1 font-bold animate-pulse", statusColor)}
+          title={t('common.sensorErrorTooltip')}
+        >
+          <AlertTriangle className="w-3 h-3" strokeWidth={2.5} />
+          {t('common.sensorError')}
+        </span>
+      ) : (
+        <span className={cn("tabular-nums font-mono", statusColor)}>
+          {point.value.toFixed(1)} {point.unit}
+        </span>
+      )}
     </div>
   );
 }

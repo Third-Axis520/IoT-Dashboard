@@ -28,6 +28,8 @@ const en: Translation = {
     yes: 'Yes',
     no: 'No',
     unsavedChanges: 'Unsaved changes',
+    sensorError: 'Sensor Error',
+    sensorErrorTooltip: 'Reading rejected (sentinel or comms failure) — data is unreliable',
   },
   app: {
     dashboard: 'Dashboard',
