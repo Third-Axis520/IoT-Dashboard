@@ -78,21 +78,28 @@ const GaugeCell = React.memo(function GaugeCell({ point, index, onPointSwap, dra
             <div className="absolute -bottom-1 left-0 w-px h-3 bg-[var(--text-muted)]/40" />
             {/* Tick at UCL */}
             <div className="absolute -bottom-1 right-0 w-px h-3 bg-[var(--text-muted)]/40" />
-            {/* Current value marker */}
+            {/* Current value marker — pulses when out of band so the eye is drawn to overflow */}
             <div
-              className="absolute -top-1 -translate-x-1/2 w-3 h-4 rounded-sm shadow-[0_0_8px_currentColor] transition-all duration-500 ease-out"
+              className={cn(
+                'absolute -top-1 -translate-x-1/2 w-3 h-4 rounded-sm shadow-[0_0_8px_currentColor] transition-all duration-500 ease-out',
+                (below || above) && 'animate-pulse'
+              )}
               style={{
                 left: `${position * 100}%`,
                 color: statusColor,
                 backgroundColor: statusColor,
               }}
             />
-            {/* Overflow arrow indicators */}
+            {/* Overflow magnitude — replaces just-an-arrow with the actual delta */}
             {below && (
-              <div className="absolute -left-3 top-1/2 -translate-y-1/2 text-[var(--accent-red)] text-[10px] font-bold animate-pulse">◂</div>
+              <div className="absolute right-full mr-1 -top-3 text-[9px] font-mono font-bold text-[var(--accent-red)] animate-pulse whitespace-nowrap">
+                ◂ {(point.lcl - point.value).toFixed(1)}
+              </div>
             )}
             {above && (
-              <div className="absolute -right-3 top-1/2 -translate-y-1/2 text-[var(--accent-red)] text-[10px] font-bold animate-pulse">▸</div>
+              <div className="absolute left-full ml-1 -top-3 text-[9px] font-mono font-bold text-[var(--accent-red)] animate-pulse whitespace-nowrap">
+                +{(point.value - point.ucl).toFixed(1)} ▸
+              </div>
             )}
           </div>
         ) : (
