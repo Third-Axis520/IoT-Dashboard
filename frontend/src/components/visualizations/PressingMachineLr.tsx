@@ -1,17 +1,14 @@
-import { useTranslation } from 'react-i18next';
-import { AlertTriangle } from 'lucide-react';
 import type { Point } from '../../types';
 import { cn } from '../../utils/cn';
+import { SensorErrorBadge } from './SensorErrorBadge';
 
 interface Props {
   points: Point[];
 }
 
 function PointRow({ point }: { point: Point }) {
-  const { t } = useTranslation();
   const isOffline = point.status === 'offline';
   const statusColor =
-    isOffline ? 'text-[var(--accent-yellow)]' :
     point.status === 'danger' ? 'text-[var(--accent-red)]' :
     point.status === 'warning' ? 'text-[var(--accent-yellow)]' :
     'text-[var(--text-primary)]';
@@ -20,13 +17,7 @@ function PointRow({ point }: { point: Point }) {
     <div className="flex justify-between items-baseline text-xs">
       <span className="text-[var(--text-muted)]">{point.name}</span>
       {isOffline ? (
-        <span
-          className={cn("inline-flex items-center gap-1 font-bold animate-pulse", statusColor)}
-          title={t('common.sensorErrorTooltip')}
-        >
-          <AlertTriangle className="w-3 h-3" strokeWidth={2.5} />
-          {t('common.sensorError')}
-        </span>
+        <SensorErrorBadge size="xs" />
       ) : (
         <span className={cn("tabular-nums font-mono", statusColor)}>
           {point.value.toFixed(1)} {point.unit}
@@ -34,6 +25,18 @@ function PointRow({ point }: { point: Point }) {
       )}
     </div>
   );
+}
+
+function RuntimeStat({ label, point, unit }: { label: string; point: Point | undefined; unit: string }) {
+  if (!point) return null;
+  if (point.status === 'offline') {
+    return (
+      <span className="inline-flex items-center gap-1">
+        {label} <SensorErrorBadge size="xs" />
+      </span>
+    );
+  }
+  return <span>{label} {point.value.toFixed(0)}{unit}</span>;
 }
 
 export const PressingMachineLr = ({ points }: Props) => {
@@ -56,8 +59,8 @@ export const PressingMachineLr = ({ points }: Props) => {
     <div className="flex-1 flex flex-col gap-2">
       {(runTime || operateTime) && (
         <div className="flex justify-around text-[10px] text-[var(--text-muted)] border-b border-[var(--border)] pb-1">
-          {runTime && <span>開機 {runTime.value.toFixed(0)}s</span>}
-          {operateTime && <span>作業 {operateTime.value.toFixed(0)}s</span>}
+          <RuntimeStat label="開機" point={runTime} unit="s" />
+          <RuntimeStat label="作業" point={operateTime} unit="s" />
         </div>
       )}
       <div className="flex-1 grid grid-cols-2 gap-3 min-h-0">

@@ -41,33 +41,7 @@ public class DataIngestionService(
             var now = DateTime.UtcNow;
             var assetCode = payload.AssetCode;
 
-            // Sanity-check sentinel values from PLCs that return literal
-            // 0x8AD0 (-30000 raw, ×0.1 = -3000) or 0x8000 (-32768) on
-            // unconfigured registers.
-            //
-            // Threshold is asymmetric:
-            //   • lower: value < -100 — no shoe-factory sensor reads below
-            //     this (deep-freeze chillers bottom out around -40°C). The
-            //     observed bogus value -3000 trips this cleanly.
-            //   • upper: value > 1,000,000 — legitimate counters
-            //     (RunTimeSeconds, press counts) can easily exceed 86,400 in
-            //     a 24h shift, but anything beyond a million is unphysical.
-            //
-            // Bogus readings get HasError = true: the row is still persisted
-            // for diagnostics, but skipped by the alert / SSE-broadcast paths
-            // so the dashboard doesn't show a sentinel as a real value.
-            const double LowerSentinel = -100;
-            const double UpperSentinel = 1_000_000;
-            foreach (var s in payload.Sensors)
-            {
-                if (s.Error == null && (s.Value < LowerSentinel || s.Value > UpperSentinel))
-                {
-                    logger.LogWarning(
-                        "Sentinel value rejected: asset={Asset} sensor={SensorId} value={Value} — likely unconfigured Modbus register",
-                        assetCode, s.Id, s.Value);
-                    s.Error = $"sentinel_value:{s.Value}";
-                }
-            }
+            MarkSentinelValues(payload);
 
             // 更新 LatestReadingCache（只更新沒被視為 sentinel 的）
             foreach (var s in payload.Sensors.Where(s => s.Error == null))
@@ -184,6 +158,49 @@ public class DataIngestionService(
         finally
         {
             _lock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Tags sentinel readings in-place on the payload by setting
+    /// <c>Sensor.Error</c> to <c>"sentinel_value:{value}"</c>.
+    ///
+    /// <para>
+    /// **Mutates the input payload** — every downstream branch in
+    /// <see cref="ProcessAsync"/> (LatestReadingCache, SensorReadings
+    /// persistence, alert evaluation, SSE broadcast) keys off the
+    /// <c>Error</c> field, so a single mutation here lets one pass through
+    /// the sensor list classify each reading. The payload is request-scoped
+    /// and protected by <see cref="_lock"/>, so the side-effect is contained.
+    /// </para>
+    ///
+    /// <para>
+    /// Threshold is asymmetric:
+    /// </para>
+    /// <list type="bullet">
+    ///   <item>lower: value &lt; -100 — no shoe-factory sensor reads below this
+    ///     (deep-freeze chillers bottom out around -40°C). The observed bogus
+    ///     value -3000 (from Modbus reading the 0x8AD0 sentinel on unconfigured
+    ///     registers, ×0.1 scale) trips this cleanly.</item>
+    ///   <item>upper: value &gt; 1,000,000 — legitimate counters
+    ///     (RunTimeSeconds, press counts) can easily exceed 86,400 in a 24h
+    ///     shift, but anything beyond a million is unphysical for any sensor
+    ///     currently in the system.</item>
+    /// </list>
+    /// </summary>
+    private void MarkSentinelValues(IngestPayload payload)
+    {
+        const double LowerSentinel = -100;
+        const double UpperSentinel = 1_000_000;
+        foreach (var s in payload.Sensors)
+        {
+            if (s.Error == null && (s.Value < LowerSentinel || s.Value > UpperSentinel))
+            {
+                logger.LogWarning(
+                    "Sentinel value rejected: asset={Asset} sensor={SensorId} value={Value} — likely unconfigured Modbus register",
+                    payload.AssetCode, s.Id, s.Value);
+                s.Error = $"sentinel_value:{s.Value}";
+            }
         }
     }
 

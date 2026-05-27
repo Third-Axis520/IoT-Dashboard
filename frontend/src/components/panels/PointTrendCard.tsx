@@ -1,9 +1,40 @@
 import React, { useState, useMemo } from 'react';
 import { LineChart, Line, ResponsiveContainer, YAxis, XAxis, Tooltip, ReferenceLine, AreaChart, Area, ReferenceArea } from 'recharts';
-import { useTranslation } from 'react-i18next';
-import { AlertTriangle } from 'lucide-react';
-import type { Equipment, Point } from '../../types';
+import type { Equipment, Point, PointStatus } from '../../types';
 import { cn } from '../../utils/cn';
+import { SensorErrorBadge } from '../visualizations/SensorErrorBadge';
+
+// Status → visual style lookup. Adding a new PointStatus only requires
+// adding one row here, rather than touching 4 separate ternary chains.
+type StatusStyle = { border: string; dot: string; text: string; hasShadow: boolean };
+const STATUS_STYLES: Record<PointStatus, StatusStyle> = {
+  normal: {
+    border: 'border-[var(--border-trend)]',
+    dot: 'bg-[var(--accent-green)]',
+    text: 'text-[var(--accent-green)]',
+    hasShadow: true,
+  },
+  warning: {
+    border: 'border-[var(--accent-yellow-light)] animate-breathe-warning',
+    dot: 'bg-[var(--accent-yellow-light)]',
+    text: 'text-[var(--accent-yellow-light)]',
+    hasShadow: false,
+  },
+  danger: {
+    border: 'border-[var(--accent-red-light)] animate-breathe-danger',
+    dot: 'bg-[var(--accent-red-light)]',
+    text: 'text-[var(--accent-red-light)]',
+    hasShadow: false,
+  },
+  offline: {
+    // Amber + warning breathe — distinct from danger red (alarm) so floor
+    // operators can tell "sensor needs fixing" apart from "process out of bounds"
+    border: 'border-[var(--accent-yellow-light)] animate-breathe-warning',
+    dot: 'bg-[var(--accent-yellow-light)]',
+    text: 'text-[var(--accent-yellow-light)]',
+    hasShadow: false,
+  },
+};
 
 interface PointTrendCardProps {
   lineId: string;
@@ -16,7 +47,6 @@ interface PointTrendCardProps {
 export const PointTrendCard = React.memo(function PointTrendCard({
   lineId, eq, point, compact = false, onUpdateLimits,
 }: PointTrendCardProps) {
-  const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [editUcl, setEditUcl] = useState(point.ucl.toString());
   const [editLcl, setEditLcl] = useState(point.lcl.toString());
@@ -30,17 +60,12 @@ export const PointTrendCard = React.memo(function PointTrendCard({
     setIsEditing(false);
   };
 
-  const isWarning = point.status === 'warning';
-  const isDanger = point.status === 'danger';
   const isOffline = point.status === 'offline';
-
-  // Offline (sensor error) uses amber — distinct from red (UCL/LCL alarm) so
-  // floor operators can tell "sensor needs fixing" apart from "process out of
-  // bounds". The border breathes like a warning to draw attention.
-  const borderColor = isDanger ? 'border-[var(--accent-red-light)] animate-breathe-danger' : isOffline ? 'border-[var(--accent-yellow-light)] animate-breathe-warning' : isWarning ? 'border-[var(--accent-yellow-light)] animate-breathe-warning' : 'border-[var(--border-trend)]';
-  const shadowColor = isDanger ? '' : isWarning || isOffline ? '' : 'shadow-[0_0_15px_var(--border-base)]';
-  const dotColor = isDanger ? 'bg-[var(--accent-red-light)]' : isOffline ? 'bg-[var(--accent-yellow-light)]' : isWarning ? 'bg-[var(--accent-yellow-light)]' : 'bg-[var(--accent-green)]';
-  const textColor = isDanger ? 'text-[var(--accent-red-light)]' : isOffline ? 'text-[var(--accent-yellow-light)]' : isWarning ? 'text-[var(--accent-yellow-light)]' : 'text-[var(--accent-green)]';
+  const style = STATUS_STYLES[point.status];
+  const borderColor = style.border;
+  const shadowColor = style.hasShadow ? 'shadow-[0_0_15px_var(--border-base)]' : '';
+  const dotColor = style.dot;
+  const textColor = style.text;
 
   const chartData = point.history.map(h => ({ time: h.time, value: h.value }));
 
@@ -166,15 +191,7 @@ export const PointTrendCard = React.memo(function PointTrendCard({
           {!compact && <span className="text-[10px] text-[var(--text-muted)] tracking-widest uppercase ml-4">{point.type === 'temperature' ? 'MOLD TEMP' : point.type === 'pressure' ? 'CURRENT' : point.type}</span>}
           <div className={cn("flex items-baseline gap-1 ml-4", compact ? "mt-0" : "mt-1")}>
             {isOffline ? (
-              <span
-                className={cn("inline-flex items-center gap-1.5 font-bold tracking-wide animate-pulse", textColor, compact ? "text-base drop-shadow-md" : "text-2xl")}
-                title={t('common.sensorErrorTooltip')}
-                role="status"
-                aria-label={t('common.sensorError')}
-              >
-                <AlertTriangle className={compact ? "w-4 h-4" : "w-6 h-6"} strokeWidth={2.5} />
-                {t('common.sensorError')}
-              </span>
+              <SensorErrorBadge size={compact ? 'md' : 'lg'} />
             ) : (
               <>
                 <span className={cn("font-bold font-mono tracking-tighter text-glow", textColor, compact ? "text-2xl drop-shadow-md" : "text-4xl")}>

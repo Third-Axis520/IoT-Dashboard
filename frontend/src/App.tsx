@@ -415,7 +415,7 @@ export default function App() {
           <div className="grid gap-4 md:gap-6 w-full h-full animate-in fade-in duration-500 grid-cols-1 md:grid-cols-12 auto-rows-fr grid-flow-row-dense">
             {displayedEquipments.map(({ lineId, eq }, index) => (
               <EquipmentCard key={eq.id} eq={eq} lineId={lineId} index={index}
-                style={tileSpanStyle(eq.visType, eq.points.length)}
+                style={tileSpanStyle(eq.visType)}
                 latestRawSensors={latestRawSensors}
                 isEditMode={isEditMode} editingEqId={editingEqId} editEqName={editEqName} editEqDeviceId={editEqDeviceId}
                 onStartEdit={(id: string, n: string, d: string) => { setEditingEqId(id); setEditEqName(n); setEditEqDeviceId(d); }}

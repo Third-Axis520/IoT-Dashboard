@@ -27,18 +27,19 @@ export const getGridStyle = (count: number) => {
  *   four_rings(3) + pressing_machine_lr(6) + visual_marking_machine(2)
  *   = 19 → packs as row1[2+4+2+3=11] + row2[6+2=8] with dense flow.
  */
-export const tileSpan = (visType: string, sensorCount: number): number => {
-  switch (visType) {
-    case 'pressing_machine_lr':       return 6;  // 14 sensors, L/R columns
-    case 'dual_side_spark':           return 4;  // 6 stacked values
-    case 'molding_matrix':            return 4;
-    case 'four_rings':                return 3;  // 4 horizontal gauges 2x2
-    case 'custom_grid':               return Math.max(3, Math.min(6, Math.ceil(sensorCount / 2)));
-    case 'single_kpi':
-    case 'visual_marking_machine':    return 2;  // one large readout
-    default:                          return 3;
-  }
+export const TILE_SPAN_BY_VISTYPE: Record<string, number> = {
+  pressing_machine_lr: 6,       // 14 sensors, L/R columns
+  dual_side_spark: 4,           // 6 stacked values
+  molding_matrix: 4,
+  custom_grid: 4,               // flexible mid-size default
+  four_rings: 3,                // 4 horizontal gauges 2x2
+  single_kpi: 2,                // one large readout
+  visual_marking_machine: 2,
 };
+const DEFAULT_TILE_SPAN = 3;
 
-export const tileSpanStyle = (visType: string, sensorCount: number) =>
-  ({ gridColumn: `span ${tileSpan(visType, sensorCount)}` });
+export const tileSpan = (visType: string): number =>
+  TILE_SPAN_BY_VISTYPE[visType] ?? DEFAULT_TILE_SPAN;
+
+export const tileSpanStyle = (visType: string) =>
+  ({ gridColumn: `span ${tileSpan(visType)}` });
