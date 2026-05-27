@@ -16,15 +16,17 @@ export const VisualMarkingMachine = function VisualMarkingMachine({ points }: Pr
     );
   }
 
+  const isOffline = pressure.status === 'offline';
   const statusColor =
+    isOffline ? 'text-[var(--text-muted)]/60' :
     pressure.status === 'danger' ? 'text-[var(--accent-red)]' :
     pressure.status === 'warning' ? 'text-[var(--accent-yellow)]' :
     'text-[var(--text-primary)]';
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center">
-      <div className={cn("text-5xl font-bold tabular-nums", statusColor)}>
-        {pressure.value.toFixed(1)}
+      <div className={cn("text-5xl font-bold tabular-nums", statusColor)} title={isOffline ? 'sensor offline' : undefined}>
+        {isOffline ? '—' : pressure.value.toFixed(1)}
       </div>
       <div className="text-sm text-[var(--text-muted)] mt-2">
         {pressure.name} ({pressure.unit})

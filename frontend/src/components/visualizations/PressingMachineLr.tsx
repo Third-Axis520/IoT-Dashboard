@@ -6,7 +6,9 @@ interface Props {
 }
 
 function PointRow({ point }: { point: Point }) {
+  const isOffline = point.status === 'offline';
   const statusColor =
+    isOffline ? 'text-[var(--text-muted)]/60' :
     point.status === 'danger' ? 'text-[var(--accent-red)]' :
     point.status === 'warning' ? 'text-[var(--accent-yellow)]' :
     'text-[var(--text-primary)]';
@@ -15,7 +17,7 @@ function PointRow({ point }: { point: Point }) {
     <div className="flex justify-between items-baseline text-xs">
       <span className="text-[var(--text-muted)]">{point.name}</span>
       <span className={cn("tabular-nums font-mono", statusColor)}>
-        {point.value.toFixed(1)} {point.unit}
+        {isOffline ? '—' : `${point.value.toFixed(1)} ${point.unit}`}
       </span>
     </div>
   );

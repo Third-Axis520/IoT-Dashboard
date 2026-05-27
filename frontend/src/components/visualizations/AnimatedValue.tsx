@@ -22,6 +22,21 @@ export const AnimatedValue = React.memo(function AnimatedValue({ value, status, 
     }
   }, [value, displayValue]);
 
+  // Offline sensors (sentinel value rejected, comms failure, gated off) render
+  // a muted em-dash instead of the numeric value — otherwise the scrubbed-to-0
+  // fallback from useLiveData would still light up tiles with red "0.0" on
+  // every dashboard visualization (DualSideSpark, FourRings, SingleKpi, …).
+  if (status === 'offline') {
+    return (
+      <span
+        className={cn("font-mono font-bold text-[var(--text-muted)]/60", className)}
+        title="sensor offline"
+      >
+        —
+      </span>
+    );
+  }
+
   return (
     <span
       className={cn(
