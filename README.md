@@ -24,12 +24,21 @@ Vendor PLC (厚信)
 
 - Real-time SSE push from all four adapters into a unified dashboard
 - UCL / LCL editor with per-sensor alert thresholds; WeChat push alerts
+- Sentinel-value filter (server-side): readings outside `[-100, 1,000,000]` are
+  flagged `HasError=true` and surfaced in the UI as a `感測器異常` (Sensor Error)
+  amber badge — distinct from UCL/LCL red alarms so operators can tell device
+  failure apart from process failure
 - Visualization tiles: `single_kpi`, `dual_side_spark`, `four_rings`, `molding_matrix`, `custom_grid`, `pressing_machine_lr`, `visual_marking_machine`
 - DrillDown trend modal (1h / 4h / 24h history with LTTB downsampling)
+- Smart Y-axis on trend cards: zooms to the current data range so the line
+  flow is visible even when UCL/LCL bounds are far away
+- Alert UI: bell-icon dropdown in the toolbar opens the full history;
+  real-time alerts marquee is pinned to the app footer across every view
 - Connection health watchdog + per-connection consecutive-error alerts
 - FAS asset metadata integration (assetCode → assetName / department)
 - Multi-language UI (zh-TW / zh-CN / EN)
 - Light / dark theme, fullscreen mode, drag-to-reorder equipments
+- Theme-aware SVG favicon (auto-switches with `prefers-color-scheme`)
 
 ## Run locally
 
