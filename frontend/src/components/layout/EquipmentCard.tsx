@@ -124,7 +124,8 @@ const EquipmentCard = React.memo(function EquipmentCard({
               <span
                 className={cn("text-sm font-bold text-[var(--text-main)] tracking-wide transition-colors", isEditMode ? "hover:text-[var(--accent-green)] cursor-text" : "")}
                 onClick={(e) => { if (!isEditMode) return; e.stopPropagation(); onStartEdit(eq.id, eq.name, eq.deviceId); }}
-              >{eq.name}</span>
+                title={eq.name}
+              >{t(`equipmentTypes.${eq.name}` as const, { defaultValue: eq.name })}</span>
               <span
                 className={cn(
                   "text-[10px] font-mono ml-1 border px-1 rounded bg-[var(--border-base)]/50 transition-colors",

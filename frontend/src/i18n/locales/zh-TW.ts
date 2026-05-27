@@ -150,6 +150,17 @@ const zhTW = {
     consecutiveErrors: '連續錯誤 {{count}} 次',
     lastPollAt: '上次輪詢',
   },
+  // Equipment names — keyed by the canonical Chinese (zh-TW) name stored in
+  // EquipmentType.Name. EquipmentCard does `t('equipmentTypes.' + eq.name)`
+  // with fallback to eq.name. zh-TW values therefore mirror the keys.
+  equipmentTypes: {
+    '高速加熱定型機': '高速加熱定型機',
+    '烘箱': '烘箱',
+    '冷凍機': '冷凍機',
+    '冷熱定型機': '冷熱定型機',
+    '強勢壓底機': '強勢壓底機',
+    '畫線機': '畫線機',
+  },
 } as const;
 
 export default zhTW;

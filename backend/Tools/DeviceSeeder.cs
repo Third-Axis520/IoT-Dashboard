@@ -13,7 +13,7 @@ public static class DeviceSeeder
             dc.Protocol == "iot_receiver_db" &&
             dc.ConfigJson.Contains($"\"{assetCode}\"")))
         {
-            Console.WriteLine($"[seed] 壓合機 {assetCode} 已存在，跳過");
+            Console.WriteLine($"[seed] 強勢壓底機 {assetCode} 已存在，跳過");
             return;
         }
 
@@ -24,9 +24,9 @@ public static class DeviceSeeder
 
         var eqType = new EquipmentType
         {
-            Name = "壓合機",
+            Name = "強勢壓底機",
             VisType = "pressing_machine_lr",
-            Description = "壓合段壓合機，左右兩側多階段壓力 + 循環時間",
+            Description = "壓合段強勢壓底機，左右兩側多階段壓力 + 循環時間",
             CreatedAt = DateTime.UtcNow,
             Sensors =
             [
@@ -82,7 +82,7 @@ public static class DeviceSeeder
         });
 
         await db.SaveChangesAsync();
-        Console.WriteLine($"[seed] 壓合機 {assetCode} ({displayName}) 已建立，EquipmentTypeId={eqType.Id}, ConnectionId={conn.Id}");
+        Console.WriteLine($"[seed] 強勢壓底機 {assetCode} ({displayName}) 已建立，EquipmentTypeId={eqType.Id}, ConnectionId={conn.Id}");
     }
 
     public static async Task SeedVisualMarkingMachineAsync(
@@ -101,7 +101,7 @@ public static class DeviceSeeder
 
         var eqType = new EquipmentType
         {
-            Name = "智能視覺劃線機",
+            Name = "畫線機",
             VisType = "visual_marking_machine",
             Description = "視覺辨識劃線設備，僅監測壓力",
             CreatedAt = DateTime.UtcNow,
@@ -146,6 +146,6 @@ public static class DeviceSeeder
         });
 
         await db.SaveChangesAsync();
-        Console.WriteLine($"[seed] 劃線機 {assetCode} ({displayName}) 已建立，EquipmentTypeId={eqType.Id}, ConnectionId={conn.Id}");
+        Console.WriteLine($"[seed] 畫線機 {assetCode} ({displayName}) 已建立，EquipmentTypeId={eqType.Id}, ConnectionId={conn.Id}");
     }
 }

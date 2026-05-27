@@ -510,14 +510,42 @@ using (var scope = app.Services.CreateScope())
     // LineEquipments + SensorLimits in place preserves UCL/LCL config; historical
     // SensorReadings / SensorAlerts stay tagged with original code.
     await ctx.Database.ExecuteSqlRawAsync("""
-        UPDATE [dbo].[LineEquipments] SET AssetCode = '0000020086' WHERE AssetCode = 'dc_8';  -- 加硫機 (高速加熱定型)
+        UPDATE [dbo].[LineEquipments] SET AssetCode = '0000020086' WHERE AssetCode = 'dc_8';  -- 高速加熱定型
         UPDATE [dbo].[LineEquipments] SET AssetCode = '0000002134' WHERE AssetCode = 'dc_9';  -- 烘箱
         UPDATE [dbo].[LineEquipments] SET AssetCode = '0000005990' WHERE AssetCode = 'dc_10'; -- 冷凍機
-        UPDATE [dbo].[LineEquipments] SET AssetCode = '0000020889' WHERE AssetCode = 'dc_11'; -- 冷熱定型 (後跟定型)
+        UPDATE [dbo].[LineEquipments] SET AssetCode = '0000020889' WHERE AssetCode = 'dc_11'; -- 冷熱定型機
         UPDATE [dbo].[SensorLimits] SET AssetCode = '0000020086' WHERE AssetCode = 'dc_8';
         UPDATE [dbo].[SensorLimits] SET AssetCode = '0000002134' WHERE AssetCode = 'dc_9';
         UPDATE [dbo].[SensorLimits] SET AssetCode = '0000005990' WHERE AssetCode = 'dc_10';
         UPDATE [dbo].[SensorLimits] SET AssetCode = '0000020889' WHERE AssetCode = 'dc_11';
+        """);
+
+    // ── Display-name cleanup (idempotent) ──────────────────────────────────
+    // Strip "C 棟 LeanA " prefix and "連線" suffix from the 4 Modbus equipments
+    // so the tile header isn't visually cluttered. Rename pressing/marking
+    // machines to the shoe-industry conventional Chinese (強勢壓底機 / 畫線機).
+    await ctx.Database.ExecuteSqlRawAsync("""
+        -- Strip prefix "C 棟 LeanA " and suffix "連線" from the 4 modbus LineEquipments.
+        UPDATE [dbo].[LineEquipments]
+        SET DisplayName = LTRIM(RTRIM(REPLACE(REPLACE(DisplayName, 'C 棟 LeanA', ''), '連線', '')))
+        WHERE AssetCode IN ('0000020086', '0000002134', '0000005990', '0000020889')
+          AND DisplayName LIKE 'C %';
+
+        -- Rename pressing machine → 強勢壓底機 (DisplayName + EquipmentType.Name).
+        UPDATE [dbo].[LineEquipments] SET DisplayName = '強勢壓底機'
+          WHERE AssetCode = '0000020881' AND DisplayName <> '強勢壓底機';
+        UPDATE et SET et.[Name] = '強勢壓底機'
+          FROM [dbo].[EquipmentTypes] et
+          INNER JOIN [dbo].[DeviceConnections] dc ON dc.EquipmentTypeId = et.Id
+          WHERE dc.ConfigJson LIKE '%0000020881%' AND et.[Name] <> '強勢壓底機';
+
+        -- Rename visual marking machine → 畫線機 (Traditional 畫, not 劃).
+        UPDATE [dbo].[LineEquipments] SET DisplayName = '畫線機'
+          WHERE AssetCode = '0000005971' AND DisplayName <> '畫線機';
+        UPDATE et SET et.[Name] = '畫線機'
+          FROM [dbo].[EquipmentTypes] et
+          INNER JOIN [dbo].[DeviceConnections] dc ON dc.EquipmentTypeId = et.Id
+          WHERE dc.ConfigJson LIKE '%0000005971%' AND et.[Name] <> '畫線機';
         """);
 
     } // end if (!IsEnvironment("Test"))
@@ -543,9 +571,9 @@ using (var scope = app.Services.CreateScope())
         if (prodLineId == 2)
         {
             await IoT.CentralApi.Tools.DeviceSeeder.SeedPressingMachineAsync(
-                ctx, assetCode: "0000020881", displayName: "壓合機", lineConfigId: 2);
+                ctx, assetCode: "0000020881", displayName: "強勢壓底機", lineConfigId: 2);
             await IoT.CentralApi.Tools.DeviceSeeder.SeedVisualMarkingMachineAsync(
-                ctx, assetCode: "0000005971", displayName: "智能視覺劃線機", lineConfigId: 2);
+                ctx, assetCode: "0000005971", displayName: "畫線機", lineConfigId: 2);
         }
     }
 } // end using scope

@@ -152,6 +152,16 @@ const en: Translation = {
     consecutiveErrors: '{{count}} consecutive errors',
     lastPollAt: 'Last poll',
   },
+  // Equipment names — shoe-industry standard EN terminology.
+  // Keyed by canonical Chinese (zh-TW) name stored in EquipmentType.Name.
+  equipmentTypes: {
+    '高速加熱定型機': 'High-Speed Activator',
+    '烘箱': 'Drying Oven',
+    '冷凍機': 'Chiller',
+    '冷熱定型機': 'Heat-Cool Setter',
+    '強勢壓底機': 'Sole Attaching Press',
+    '畫線機': 'Sole Marking Machine',
+  },
 };
 
 export default en;

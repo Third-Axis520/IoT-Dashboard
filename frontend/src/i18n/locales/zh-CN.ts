@@ -152,6 +152,15 @@ const zhCN: Translation = {
     consecutiveErrors: '连续错误 {{count}} 次',
     lastPollAt: '上次轮询',
   },
+  // 设备名称（简体中文）— EquipmentCard 用 t('equipmentTypes.' + eq.name) 查找。
+  equipmentTypes: {
+    '高速加熱定型機': '高速加热定型机',
+    '烘箱': '烘箱',
+    '冷凍機': '冷冻机',
+    '冷熱定型機': '冷热定型机',
+    '強勢壓底機': '强势压底机',
+    '畫線機': '划线机',
+  },
 };
 
 export default zhCN;
