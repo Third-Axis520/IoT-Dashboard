@@ -96,13 +96,14 @@ export const TempTrendsView = React.memo(function TempTrendsView({
                 </span>
               </header>
 
-              {/* 4-col max grid; responsive down to 1 col on phones. */}
+              {/* 4-col max grid; responsive down to 1 col on phones.
+                  Single-point equipments cap at 2 cols so they don't stretch into
+                  a billboard, but still feel weightier than a quarter-width orphan. */}
               <div
                 className={cn(
                   'grid gap-3 md:gap-4',
-                  // Single-point equipment: card spans 2 cols at md+ so it doesn't look orphaned
                   eq.points.length === 1
-                    ? 'grid-cols-1 sm:grid-cols-2 [&>*]:col-span-1 md:[&>*]:col-span-1'
+                    ? 'grid-cols-1 sm:grid-cols-2'
                     : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
                 )}
               >

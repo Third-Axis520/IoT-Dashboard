@@ -90,15 +90,15 @@ const GaugeCell = React.memo(function GaugeCell({ point, index, onPointSwap, dra
                 backgroundColor: statusColor,
               }}
             />
-            {/* Overflow magnitude — replaces just-an-arrow with the actual delta */}
+            {/* Overflow magnitude — replaces just-an-arrow with the actual delta + unit */}
             {below && (
               <div className="absolute right-full mr-1 -top-3 text-[9px] font-mono font-bold text-[var(--accent-red)] animate-pulse whitespace-nowrap">
-                ◂ {(point.lcl - point.value).toFixed(1)}
+                ◂ {(point.lcl - point.value).toFixed(1)}{point.unit}
               </div>
             )}
             {above && (
               <div className="absolute left-full ml-1 -top-3 text-[9px] font-mono font-bold text-[var(--accent-red)] animate-pulse whitespace-nowrap">
-                +{(point.value - point.ucl).toFixed(1)} ▸
+                +{(point.value - point.ucl).toFixed(1)}{point.unit} ▸
               </div>
             )}
           </div>

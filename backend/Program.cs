@@ -529,16 +529,24 @@ using (var scope = app.Services.CreateScope())
     // Idempotent — DeviceSeeder.SeedXxxAsync skips if a DeviceConnection already
     // exists for the given AssetCode. LineConfigId=2 is prod's "C棟 LeanA" line;
     // in dev/test where it doesn't exist, we skip rather than error.
-    var prodLineId = await ctx.LineConfigs
-        .Where(lc => lc.Id == 2)
-        .Select(lc => (int?)lc.Id)
-        .FirstOrDefaultAsync();
-    if (prodLineId == 2)
+    //
+    // Off-switch: set `Factory:AutoSeed:Enabled = false` in appsettings (or env var
+    // `Factory__AutoSeed__Enabled=false`) when ops needs to disable a connection
+    // permanently — otherwise the seeder would resurrect it on next restart.
+    var autoSeedEnabled = app.Configuration.GetValue("Factory:AutoSeed:Enabled", true);
+    if (autoSeedEnabled)
     {
-        await IoT.CentralApi.Tools.DeviceSeeder.SeedPressingMachineAsync(
-            ctx, assetCode: "0000020881", displayName: "壓合機", lineConfigId: 2);
-        await IoT.CentralApi.Tools.DeviceSeeder.SeedVisualMarkingMachineAsync(
-            ctx, assetCode: "0000005971", displayName: "智能視覺劃線機", lineConfigId: 2);
+        var prodLineId = await ctx.LineConfigs
+            .Where(lc => lc.Id == 2)
+            .Select(lc => (int?)lc.Id)
+            .FirstOrDefaultAsync();
+        if (prodLineId == 2)
+        {
+            await IoT.CentralApi.Tools.DeviceSeeder.SeedPressingMachineAsync(
+                ctx, assetCode: "0000020881", displayName: "壓合機", lineConfigId: 2);
+            await IoT.CentralApi.Tools.DeviceSeeder.SeedVisualMarkingMachineAsync(
+                ctx, assetCode: "0000005971", displayName: "智能視覺劃線機", lineConfigId: 2);
+        }
     }
 } // end using scope
 
