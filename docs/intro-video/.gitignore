@@ -1,0 +1,7 @@
+node_modules/
+videos/intro-raw.webm
+videos/*.webm
+videos/*.mp4
+videos/frame_*.png
+videos/frame-*.png
+screenshots/
